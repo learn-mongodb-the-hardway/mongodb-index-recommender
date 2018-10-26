@@ -1,0 +1,48 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+
+ext {
+    kotlinArgparserVersion = '2.0.7'
+}
+
+apply plugin: 'application'
+apply plugin: "com.github.johnrengelman.shadow"
+
+applicationDefaultJvmArgs = ["-Xmx16g"]
+mainClassName = "com.mconsulting.mschema.cli.MainKt"
+
+repositories {
+    mavenCentral()
+    maven { url "https://dl.bintray.com/xenomachina/maven" }
+}
+
+dependencies {
+    compile project(':recommendation')
+    compile "com.xenomachina:kotlin-argparser:$kotlinArgparserVersion"
+    compile "ch.qos.logback:logback-classic:$logbackVersion"
+
+    runtime fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+shadowJar {
+    baseName = archivesBaseName
+    classifier = null
+}
+
+distributions {
+    main {
+        baseName = archivesBaseName
+    }
+}
+
+processResources {
+    filter(ReplaceTokens, tokens: [
+        "name": project.property("name"),
+        "version": project.property("version"),
+        "gitRev": grgit.open().head().id
+    ])
+}
+
+startScripts {
+    applicationName = "$archivesBaseName"
+    classpath = files("lib/*")
+}
