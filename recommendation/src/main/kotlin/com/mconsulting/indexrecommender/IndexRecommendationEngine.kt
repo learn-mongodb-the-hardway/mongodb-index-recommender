@@ -1,5 +1,7 @@
 package com.mconsulting.indexrecommender
 
+import com.mconsulting.indexrecommender.indexes.Field
+import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
@@ -8,30 +10,6 @@ import org.bson.BsonArray
 import org.bson.BsonDocument
 
 class IndexRecommendations(val indexes: List<Index>)
-
-enum class IndexDirection {
-    ASCENDING, DESCENDING, UNKNOWN;
-
-    fun value() : Int {
-        return when (this) {
-            ASCENDING -> 1
-            DESCENDING -> -1
-            UNKNOWN -> throw Exception("cannot convert index direction <UNKNOWN> into MongoDB direction")
-        }
-    }
-
-    companion object {
-        fun intValueOf(value: Int) : IndexDirection {
-            return when (value) {
-                -1 -> IndexDirection.DESCENDING
-                1 -> IndexDirection.ASCENDING
-                else -> IndexDirection.UNKNOWN
-            }
-        }
-    }
-}
-
-data class Field(val name: String, val direction: IndexDirection)
 
 data class Index(val fields: List<Field>)
 
