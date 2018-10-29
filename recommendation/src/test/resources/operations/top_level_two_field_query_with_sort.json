@@ -1,0 +1,95 @@
+{
+  "op" : "query",
+  "ns" : "digitalvault_integration.users",
+  "command" : {
+    "find" : "users",
+    "filter" : {
+      "name" : "peter", "number" : "10"
+    },
+    "sort" : {
+      "name" : -1, "number" : 1
+    },
+    "$db" : "digitalvault_integration"
+  },
+  "keysExamined" : 0,
+  "docsExamined" : 2,
+  "hasSortStage" : true,
+  "cursorExhausted" : true,
+  "numYield" : 0,
+  "nreturned" : 1,
+  "queryHash" : "C8361B40",
+  "locks" : {
+    "Global" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "1" }
+      }
+    },
+    "Database" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "1" }
+      }
+    },
+    "Collection" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "1" }
+      }
+    }
+  },
+  "responseLength" : 169,
+  "protocol" : "op_msg",
+  "millis" : 9,
+  "planSummary" : "COLLSCAN",
+  "execStats" : {
+    "stage" : "SORT",
+    "nReturned" : 1,
+    "executionTimeMillisEstimate" : 0,
+    "works" : 7,
+    "advanced" : 1,
+    "needTime" : 5,
+    "needYield" : 0,
+    "saveState" : 0,
+    "restoreState" : 0,
+    "isEOF" : 1,
+    "sortPattern" : {
+      "name" : -1
+    },
+    "memUsage" : 55,
+    "memLimit" : 33554432,
+    "inputStage" : {
+      "stage" : "SORT_KEY_GENERATOR",
+      "nReturned" : 1,
+      "executionTimeMillisEstimate" : 0,
+      "works" : 5,
+      "advanced" : 1,
+      "needTime" : 3,
+      "needYield" : 0,
+      "saveState" : 0,
+      "restoreState" : 0,
+      "isEOF" : 1,
+      "inputStage" : {
+        "stage" : "COLLSCAN",
+        "filter" : {
+          "name" : {
+            "$eq" : "peter"
+          }
+        },
+        "nReturned" : 1,
+        "executionTimeMillisEstimate" : 0,
+        "works" : 4,
+        "advanced" : 1,
+        "needTime" : 2,
+        "needYield" : 0,
+        "saveState" : 0,
+        "restoreState" : 0,
+        "isEOF" : 1,
+        "direction" : "forward",
+        "docsExamined" : 2
+      }
+    }
+  },
+  "ts" : { "$numberLong": "1540758839829" },
+  "client" : "127.0.0.1",
+  "appName" : "MongoDB Shell",
+  "allUsers" : [ ],
+  "user" : ""
+}

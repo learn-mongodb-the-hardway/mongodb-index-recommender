@@ -1,0 +1,9 @@
+{
+  "v" : 2,
+  "key" : {
+    "coordinates" : "2d"
+  },
+  "name" : "coordinates_2d",
+  "ns" : "digitalvault_integration.users"
+}
+]

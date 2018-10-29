@@ -1,0 +1,9 @@
+{
+  "v" : 2,
+  "key" : {
+    "description" : 1
+  },
+  "name" : "description_1",
+  "ns" : "digitalvault_integration.games",
+  "sparse" : true
+}

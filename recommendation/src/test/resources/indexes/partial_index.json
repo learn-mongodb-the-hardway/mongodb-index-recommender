@@ -1,0 +1,13 @@
+{
+  "v" : 2,
+  "key" : {
+    "game" : 1
+  },
+  "name" : "game_1",
+  "ns" : "digitalvault_integration.games",
+  "partialFilterExpression" : {
+    "rating" : {
+      "$gt" : 5
+    }
+  }
+}

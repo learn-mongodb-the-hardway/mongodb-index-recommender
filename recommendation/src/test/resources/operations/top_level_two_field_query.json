@@ -1,0 +1,62 @@
+{
+  "op" : "query",
+  "ns" : "digitalvault_integration.users",
+  "command" : {
+    "find" : "users",
+    "filter" : {
+      "name" : "peter", "number" : "10"
+    },
+    "$db" : "digitalvault_integration"
+  },
+  "keysExamined" : 0,
+  "docsExamined" : 2,
+  "cursorExhausted" : true,
+  "numYield" : 0,
+  "nreturned" : 1,
+  "queryHash" : "01AEE5EC",
+  "locks" : {
+    "Global" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "1" }
+      }
+    },
+    "Database" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "1" }
+      }
+    },
+    "Collection" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "1" }
+      }
+    }
+  },
+  "responseLength" : 169,
+  "protocol" : "op_msg",
+  "millis" : 3,
+  "planSummary" : "COLLSCAN",
+  "execStats" : {
+    "stage" : "COLLSCAN",
+    "filter" : {
+      "name" : {
+        "$eq" : "peter"
+      }
+    },
+    "nReturned" : 1,
+    "executionTimeMillisEstimate" : 0,
+    "works" : 4,
+    "advanced" : 1,
+    "needTime" : 2,
+    "needYield" : 0,
+    "saveState" : 0,
+    "restoreState" : 0,
+    "isEOF" : 1,
+    "direction" : "forward",
+    "docsExamined" : 2
+  },
+  "ts" : { "$numberLong": "1540758839829" },
+  "client" : "127.0.0.1",
+  "appName" : "MongoDB Shell",
+  "allUsers" : [ ],
+  "user" : ""
+}

@@ -1,0 +1,9 @@
+{
+  "v" : 2,
+  "key" : {
+    "name" : 1,
+    "text" : -1
+  },
+  "name" : "name_1_text_-1",
+  "ns" : "digitalvault_integration.users"
+}

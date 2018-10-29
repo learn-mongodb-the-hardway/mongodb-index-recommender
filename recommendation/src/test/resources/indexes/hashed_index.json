@@ -1,0 +1,8 @@
+{
+  "v" : 2,
+  "key" : {
+    "_id" : "hashed"
+  },
+  "name" : "_id_hashed",
+  "ns" : "digitalvault_integration.users"
+}

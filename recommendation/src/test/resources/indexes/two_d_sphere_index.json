@@ -1,0 +1,9 @@
+{
+  "v" : 2,
+  "key" : {
+    "loc" : "2dsphere"
+  },
+  "name" : "loc_2dsphere",
+  "ns" : "digitalvault_integration.users",
+  "2dsphereIndexVersion" : 3
+}
