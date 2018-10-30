@@ -65,6 +65,7 @@ class IndexParser(val client: MongoClient?, val options: IndexParserOptions = In
 
         if (document.containsKey("key")) {
             val key = document.getDocument("key")
+            val name = document.getString("name")
             var unique = false
             var sparse = false
 
@@ -93,7 +94,9 @@ class IndexParser(val client: MongoClient?, val options: IndexParserOptions = In
                 }
 
                 // Is it actually a multikey index
-                if (queryPlan != null && queryPlan.isMultiKey()) {
+                if (queryPlan != null
+                    && queryPlan.isMultiKey()
+                    && queryPlan.indexName() == name.value) {
                     return MultikeyIndex(
                         key.entries.map { Field(it.key, IndexDirection.intValueOf((it.value as BsonInt32).value)) },
                         sparse, unique)
@@ -108,7 +111,9 @@ class IndexParser(val client: MongoClient?, val options: IndexParserOptions = In
 
                 // TODO: Check if we have multikey indexes (we need to query using this index and look at the explain plan)
                 // to detect if it's a multikey index
-                if (queryPlan != null && queryPlan.isMultiKey()) {
+                if (queryPlan != null
+                    && queryPlan.isMultiKey()
+                    && queryPlan.indexName() == name.value) {
                     return MultikeyIndex(
                         key.entries.map { Field(it.key, IndexDirection.intValueOf((it.value as BsonInt32).value)) },
                         sparse, unique)
