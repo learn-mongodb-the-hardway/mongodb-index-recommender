@@ -1,0 +1,93 @@
+{
+  "queryPlanner" : {
+    "plannerVersion" : 1,
+    "namespace" : "digitalvault_integration.users",
+    "indexFilterSet" : false,
+    "parsedQuery" : { },
+    "queryHash" : "F44244FE",
+    "winningPlan" : {
+      "stage" : "FETCH",
+      "inputStage" : {
+        "stage" : "IXSCAN",
+        "keyPattern" : {
+          "_id" : 1
+        },
+        "indexName" : "_id_",
+        "isMultiKey" : false,
+        "multiKeyPaths" : {
+          "_id" : []
+        },
+        "isUnique" : true,
+        "isSparse" : false,
+        "isPartial" : false,
+        "indexVersion" : 2,
+        "direction" : "forward",
+        "indexBounds" : {
+          "_id" : ["[MinKey, MaxKey]"]
+        }
+      }
+    },
+    "rejectedPlans" : []
+  },
+  "executionStats" : {
+    "executionSuccess" : true,
+    "nReturned" : 6,
+    "executionTimeMillis" : 0,
+    "totalKeysExamined" : 6,
+    "totalDocsExamined" : 6,
+    "executionStages" : {
+      "stage" : "FETCH",
+      "nReturned" : 6,
+      "executionTimeMillisEstimate" : 0,
+      "works" : 7,
+      "advanced" : 6,
+      "needTime" : 0,
+      "needYield" : 0,
+      "saveState" : 0,
+      "restoreState" : 0,
+      "isEOF" : 1,
+      "docsExamined" : 6,
+      "alreadyHasObj" : 0,
+      "inputStage" : {
+        "stage" : "IXSCAN",
+        "nReturned" : 6,
+        "executionTimeMillisEstimate" : 0,
+        "works" : 7,
+        "advanced" : 6,
+        "needTime" : 0,
+        "needYield" : 0,
+        "saveState" : 0,
+        "restoreState" : 0,
+        "isEOF" : 1,
+        "keyPattern" : {
+          "_id" : 1
+        },
+        "indexName" : "_id_",
+        "isMultiKey" : false,
+        "multiKeyPaths" : {
+          "_id" : []
+        },
+        "isUnique" : true,
+        "isSparse" : false,
+        "isPartial" : false,
+        "indexVersion" : 2,
+        "direction" : "forward",
+        "indexBounds" : {
+          "_id" : ["[MinKey, MaxKey]"]
+        },
+        "keysExamined" : 6,
+        "seeks" : 1,
+        "dupsTested" : 0,
+        "dupsDropped" : 0
+      }
+    },
+    "allPlansExecution" : []
+  },
+  "serverInfo" : {
+    "host" : "Christians-MacBook-Pro.local",
+    "port" : 27017,
+    "version" : "4.1.4",
+    "gitVersion" : "2f4b5918497b09a226a3ec5dcff930edd52ea1e9"
+  },
+  "ok" : 1.0
+}

@@ -1,0 +1,113 @@
+{
+  "stages" : [
+    {
+      "$cursor" : {
+        "query" : {
+
+        },
+        "fields" : {
+          "_id" : 1
+        },
+        "queryPlanner" : {
+          "plannerVersion" : 1,
+          "namespace" : "digitalvault_integration.users",
+          "indexFilterSet" : false,
+          "parsedQuery" : {
+
+          },
+          "queryHash" : "8CA844F8",
+          "winningPlan" : {
+            "stage" : "PROJECTION",
+            "transformBy" : {
+              "_id" : 1
+            },
+            "inputStage" : {
+              "stage" : "DISTINCT_SCAN",
+              "keyPattern" : {
+                "_id" : 1
+              },
+              "indexName" : "_id_",
+              "isMultiKey" : false,
+              "multiKeyPaths" : {
+                "_id" : [ ]
+              },
+              "isUnique" : true,
+              "isSparse" : false,
+              "isPartial" : false,
+              "indexVersion" : 2,
+              "direction" : "forward",
+              "indexBounds" : {
+                "_id" : [
+                  "[MinKey, MaxKey]"
+                ]
+              }
+            }
+          },
+          "rejectedPlans" : [ ]
+        },
+        "executionStats" : {
+          "executionSuccess" : true,
+          "nReturned" : 6,
+          "executionTimeMillis" : 1,
+          "totalKeysExamined" : 6,
+          "totalDocsExamined" : 0,
+          "executionStages" : {
+            "stage" : "PROJECTION",
+            "nReturned" : 6,
+            "executionTimeMillisEstimate" : 0,
+            "works" : 7,
+            "advanced" : 6,
+            "needTime" : 0,
+            "needYield" : 0,
+            "saveState" : 1,
+            "restoreState" : 1,
+            "isEOF" : 1,
+            "transformBy" : {
+              "_id" : 1
+            },
+            "inputStage" : {
+              "stage" : "DISTINCT_SCAN",
+              "nReturned" : 6,
+              "executionTimeMillisEstimate" : 0,
+              "works" : 7,
+              "advanced" : 6,
+              "needTime" : 0,
+              "needYield" : 0,
+              "saveState" : 1,
+              "restoreState" : 1,
+              "isEOF" : 1,
+              "keyPattern" : {
+                "_id" : 1
+              },
+              "indexName" : "_id_",
+              "isMultiKey" : false,
+              "multiKeyPaths" : {
+                "_id" : [ ]
+              },
+              "isUnique" : true,
+              "isSparse" : false,
+              "isPartial" : false,
+              "indexVersion" : 2,
+              "direction" : "forward",
+              "indexBounds" : {
+                "_id" : [
+                  "[MinKey, MaxKey]"
+                ]
+              },
+              "keysExamined" : 6
+            }
+          },
+          "allPlansExecution" : [ ]
+        }
+      }
+    },
+    {
+      "$groupByDistinctScan" : {
+        "newRoot" : {
+          "_id" : "$_id"
+        }
+      }
+    }
+  ],
+  "ok" : 1
+}
