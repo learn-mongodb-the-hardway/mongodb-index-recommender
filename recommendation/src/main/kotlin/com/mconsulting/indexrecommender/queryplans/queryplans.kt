@@ -4,14 +4,13 @@ import org.bson.BsonDocument
 import org.bson.BsonString
 
 enum class Stage {
-    IXSCAN, DISTINCT_SCAN
+    IXSCAN, DISTINCT_SCAN, SORT_KEY_GENERATOR
 }
 
 class QueryPlan(val document: BsonDocument) {
-    private val queryPlanner: BsonDocument
-    private val winningPlan: BsonDocument
-    private val inputStage: BsonDocument
-    private var inputStageStage: BsonString
+    private var queryPlanner: BsonDocument
+    private var winningPlan: BsonDocument
+    private var inputStage: BsonDocument?
 
     init {
         if(!document.containsKey("queryPlanner")) throw Exception("no queryPlanner field found")
@@ -20,24 +19,37 @@ class QueryPlan(val document: BsonDocument) {
         if(!queryPlanner.containsKey("winningPlan")) throw Exception("no winningPlan field found")
         winningPlan = queryPlanner.getDocument("winningPlan")
 
-        if(!winningPlan.containsKey("inputStage")) throw Exception("no inputStage field found")
-        inputStage = winningPlan.getDocument("inputStage")
-
-        // Get inputStage name
-        inputStageStage = inputStage.getString("stage")
+        // Get the input stage
+        inputStage = findIndexScan(winningPlan)
     }
 
     fun isIndexScan() : Boolean {
-        if (inputStageStage.value in listOf(Stage.IXSCAN.name, Stage.DISTINCT_SCAN.name)) {
-            return true
+        if (inputStage == null) return false
+        return true
+    }
+
+    private fun findIndexScan(inputStage: BsonDocument): BsonDocument? {
+        var current = inputStage
+
+        while (true) {
+            if (current.containsKey("inputStage")) {
+                current = current.getDocument("inputStage")
+
+                if (current.containsKey("stage")
+                    && current.getString("stage").value in listOf(Stage.IXSCAN.name, Stage.DISTINCT_SCAN.name)) {
+                    return current
+                }
+            } else {
+                break
+            }
         }
 
-        return false
+        return null
     }
 
     fun indexName() : String? {
         if (isIndexScan()) {
-            return inputStage.getString("indexName").value
+            return inputStage!!.getString("indexName").value
         }
 
         return null
@@ -45,7 +57,7 @@ class QueryPlan(val document: BsonDocument) {
 
     fun isUnique() : Boolean {
         if (isIndexScan()) {
-            return inputStage.getBoolean("isUnique").value
+            return inputStage!!.getBoolean("isUnique").value
         }
 
         return false
@@ -53,7 +65,7 @@ class QueryPlan(val document: BsonDocument) {
 
     fun isSparse() : Boolean {
         if (isIndexScan()) {
-            return inputStage.getBoolean("isSparse").value
+            return inputStage!!.getBoolean("isSparse").value
         }
 
         return false
@@ -61,7 +73,7 @@ class QueryPlan(val document: BsonDocument) {
 
     fun isPartial() : Boolean {
         if (isIndexScan()) {
-            return inputStage.getBoolean("isPartial").value
+            return inputStage!!.getBoolean("isPartial").value
         }
 
         return false
@@ -69,7 +81,7 @@ class QueryPlan(val document: BsonDocument) {
 
     fun isMultiKey() : Boolean {
         if (isIndexScan()) {
-            return inputStage.getBoolean("isMultiKey").value
+            return inputStage!!.getBoolean("isMultiKey").value
         }
 
         return false
@@ -77,7 +89,7 @@ class QueryPlan(val document: BsonDocument) {
 
     fun key() : BsonDocument? {
         if (isIndexScan()) {
-            return inputStage.getDocument("keyPattern")
+            return inputStage!!.getDocument("keyPattern")
         }
 
         return null

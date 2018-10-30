@@ -163,10 +163,10 @@ class IndexTests {
                 )))
             )))
 
-//            // Generate test indexes
-//            collection.createIndex(Document(mapOf(
-//
-//            )))
+            // Generate test indexes
+            collection.createIndex(Document(mapOf(
+                "a.b" to 1
+            )))
         }
 
         @AfterAll
