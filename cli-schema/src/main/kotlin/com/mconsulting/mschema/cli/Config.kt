@@ -1,7 +1,7 @@
 package com.mconsulting.mschema.cli
 
-import com.mconsulting.mrelational.schema.extractor.Namespace
-import com.mconsulting.mrelational.schema.extractor.OutputFormat
+//import com.mconsulting.mrelational.schema.extractor.Namespace
+//import com.mconsulting.mrelational.schema.extractor.OutputFormat
 import com.mongodb.MongoClientURI
 import com.mongodb.client.model.ValidationAction
 import com.mongodb.client.model.ValidationLevel
@@ -128,54 +128,54 @@ class GeneralConfig(parser: ArgParser) {
 
 class ExtractConfig(parser: ArgParser) {
     fun validate() {
-        if (namespaces.isEmpty()) {
-            throw IllegalArgumentException("at least one --namespace must be specified")
-        }
+//        if (namespaces.isEmpty()) {
+//            throw IllegalArgumentException("at least one --namespace must be specified")
+//        }
     }
 
-    val mergeDocuments by parser.flagging("--mergeDocuments", help = """Extract: Merge any document schemas into a single document schema""")
-        .default(false)
-
-    val outputFormat by parser.storing("--format", help = """Extract: Output format for schema extractor, one of ["schema", "mongodb-schema-v4"], ex: [--output schema]""") {
-        when (this.toLowerCase()) {
-            "schema" -> OutputFormat.SCHEMA
-            "mongodb-schema-v4" -> OutputFormat.MONGODB_SCHEMA_V4
-            else -> throw InvalidArgumentException("""Output format for schema extractor, one of ["schema", "json-schema-v4"], ex: [--output schema]""")
-        }
-    }.default(OutputFormat.SCHEMA)
-
-    val outputDirectory by parser.storing("--output-directory", help = """Extract: Output directory for the extracted schemas, ex: [--output-directory ./]""") {
-        val file = File(this)
-        if (!file.isDirectory) {
-            throw IllegalArgumentException("$this is not a valid directory path, directory not found")
-        }
-
-        file
-    }.default(File("./"))
-
-    val namespaces by parser.adding("--namespace", help = "Extract: Add a namespace to extract the schema from, format <db.collection:sampleSize (int = 0 means all)>, ex: [db1.coll:1000]") {
-        val parts = this.split(":")
-
-        if (parts.size != 2) {
-            throw IllegalArgumentException("--namespace must be of format <db.collection:sampleSize (int = 0 means all)>, ex: [db1.coll:1000]")
-        }
-
-        // Second part must be an integer
-        try {
-            parts.last().toLong()
-        } catch (ex: NumberFormatException) {
-            throw IllegalArgumentException("--namespace must be of format <db.collection:sampleSize (int = 0 means all)>, ex: [db1.coll:1000]")
-        }
-
-        val namespaceParts = parts.first().split(".")
-
-        // Validate the namespace
-        if (namespaceParts.size != 2) {
-            throw IllegalArgumentException("--namespace must be of format <db.collection:sampleSize (int = 0 means all)>, ex: [db1.coll:1000]")
-        }
-
-        Namespace(namespaceParts.first(), namespaceParts.last(), parts.last().toLong())
-    }
+//    val mergeDocuments by parser.flagging("--mergeDocuments", help = """Extract: Merge any document schemas into a single document schema""")
+//        .default(false)
+//
+//    val outputFormat by parser.storing("--format", help = """Extract: Output format for schema extractor, one of ["schema", "mongodb-schema-v4"], ex: [--output schema]""") {
+//        when (this.toLowerCase()) {
+//            "schema" -> OutputFormat.SCHEMA
+//            "mongodb-schema-v4" -> OutputFormat.MONGODB_SCHEMA_V4
+//            else -> throw InvalidArgumentException("""Output format for schema extractor, one of ["schema", "json-schema-v4"], ex: [--output schema]""")
+//        }
+//    }.default(OutputFormat.SCHEMA)
+//
+//    val outputDirectory by parser.storing("--output-directory", help = """Extract: Output directory for the extracted schemas, ex: [--output-directory ./]""") {
+//        val file = File(this)
+//        if (!file.isDirectory) {
+//            throw IllegalArgumentException("$this is not a valid directory path, directory not found")
+//        }
+//
+//        file
+//    }.default(File("./"))
+//
+//    val namespaces by parser.adding("--namespace", help = "Extract: Add a namespace to extract the schema from, format <db.collection:sampleSize (int = 0 means all)>, ex: [db1.coll:1000]") {
+//        val parts = this.split(":")
+//
+//        if (parts.size != 2) {
+//            throw IllegalArgumentException("--namespace must be of format <db.collection:sampleSize (int = 0 means all)>, ex: [db1.coll:1000]")
+//        }
+//
+//        // Second part must be an integer
+//        try {
+//            parts.last().toLong()
+//        } catch (ex: NumberFormatException) {
+//            throw IllegalArgumentException("--namespace must be of format <db.collection:sampleSize (int = 0 means all)>, ex: [db1.coll:1000]")
+//        }
+//
+//        val namespaceParts = parts.first().split(".")
+//
+//        // Validate the namespace
+//        if (namespaceParts.size != 2) {
+//            throw IllegalArgumentException("--namespace must be of format <db.collection:sampleSize (int = 0 means all)>, ex: [db1.coll:1000]")
+//        }
+//
+//        Namespace(namespaceParts.first(), namespaceParts.last(), parts.last().toLong())
+//    }
 }
 
 class ShowVersionException(version: String) : SystemExitException(version, 0)

@@ -11,10 +11,6 @@ import ch.qos.logback.core.ConsoleAppender
 import ch.qos.logback.core.FileAppender
 import ch.qos.logback.core.encoder.Encoder
 import ch.qos.logback.core.spi.FilterReply
-import com.mconsulting.mrelational.schema.commands.SetJsonSchemaOnCollectionCommand
-import com.mconsulting.mrelational.schema.commands.ValidationOptions
-import com.mconsulting.mrelational.schema.extractor.SchemaExtractorExecutor
-import com.mconsulting.mrelational.schema.extractor.SchemaExtractorOptions
 import com.mongodb.MongoClient
 import com.xenomachina.argparser.ArgParser
 import com.xenomachina.argparser.HelpFormatter
@@ -84,40 +80,40 @@ object App : KLogging() {
     }
 
     private fun applySchemas(client: MongoClient, config: Config) {
-        // For each namespace apply it
-        config.apply.schemas.forEach {
-            // Load and parse the json document into a BsonDocument
-            val json = it.file.readText()
-            val document = BsonDocument.parse(json)
-            logger.info { "applying schema from [${it.file.absolutePath}] to [${it.db}.${it.collection}]" }
-            try {
-                // Execute the command
-                SetJsonSchemaOnCollectionCommand(client)
-                    .execute(it.db, it.collection, document, ValidationOptions(it.validationLevel))
-            } catch (exception: Exception) {
-                logger.info { "failed to apply schema from [${it.file.absolutePath}] to [${it.db}.${it.collection}]" }
-                throw SystemExitException("${exception.message}", 1)
-            }
-
-            logger.info { "successfully applied schema from [${it.file.absolutePath}] to [${it.db}.${it.collection}]" }
-        }
+//        // For each namespace apply it
+//        config.apply.schemas.forEach {
+//            // Load and parse the json document into a BsonDocument
+//            val json = it.file.readText()
+//            val document = BsonDocument.parse(json)
+//            logger.info { "applying schema from [${it.file.absolutePath}] to [${it.db}.${it.collection}]" }
+//            try {
+//                // Execute the command
+//                SetJsonSchemaOnCollectionCommand(client)
+//                    .execute(it.db, it.collection, document, ValidationOptions(it.validationLevel))
+//            } catch (exception: Exception) {
+//                logger.info { "failed to apply schema from [${it.file.absolutePath}] to [${it.db}.${it.collection}]" }
+//                throw SystemExitException("${exception.message}", 1)
+//            }
+//
+//            logger.info { "successfully applied schema from [${it.file.absolutePath}] to [${it.db}.${it.collection}]" }
+//        }
     }
 
     private fun extractSchemas(client: MongoClient, config: Config) {
-        // Create SchemaExtractorExecutor
-        val schemas = SchemaExtractorExecutor(client, SchemaExtractorOptions(
-            namespaces = config.extract.namespaces,
-            mergeDocuments = config.extract.mergeDocuments
-        )).execute()
-
-        // Write the schemas out
-        schemas.forEach {
-            val json = it.toJson(config.extract.outputFormat)
-            val fileName = "${it.db}_${it.collection}_${dateFormat.format(Date())}.json"
-            val file = File("${config.extract.outputDirectory}", fileName)
-            logger.info { "writing collection [${it.namespace} schema to ${file.absolutePath}" }
-            file.writeText(json)
-        }
+//        // Create SchemaExtractorExecutor
+//        val schemas = SchemaExtractorExecutor(client, SchemaExtractorOptions(
+//            namespaces = config.extract.namespaces,
+//            mergeDocuments = config.extract.mergeDocuments
+//        )).execute()
+//
+//        // Write the schemas out
+//        schemas.forEach {
+//            val json = it.toJson(config.extract.outputFormat)
+//            val fileName = "${it.db}_${it.collection}_${dateFormat.format(Date())}.json"
+//            val file = File("${config.extract.outputDirectory}", fileName)
+//            logger.info { "writing collection [${it.namespace} schema to ${file.absolutePath}" }
+//            file.writeText(json)
+//        }
     }
 
     private fun execute(body: () -> Unit) {
