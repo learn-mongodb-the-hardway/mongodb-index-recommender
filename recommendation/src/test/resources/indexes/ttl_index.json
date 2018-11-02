@@ -1,0 +1,9 @@
+{
+  "v" : 2,
+  "key" : {
+    "lastModifiedDate" : 1
+  },
+  "name" : "lastModifiedDate_1",
+  "ns" : "digitalvault_integration.games",
+  "expireAfterSeconds" : 3600
+}

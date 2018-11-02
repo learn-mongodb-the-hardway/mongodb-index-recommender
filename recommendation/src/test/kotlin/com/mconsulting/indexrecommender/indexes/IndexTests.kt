@@ -6,15 +6,15 @@ import com.mongodb.MongoClientURI
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import org.bson.BsonDocument
+import org.bson.BsonInt32
 import org.bson.Document
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class IndexTests {
-
     private fun createIndex(doc: BsonDocument) : Index {
         val parser = IndexParser(client, IndexParserOptions(true))
         return parser.createIndex(doc)
@@ -22,123 +22,113 @@ class IndexTests {
 
     @Test
     fun _idIndex() {
-        val index = createIndex(readJsonAsBsonDocument("indexes/_id_index.json"))
-        assertTrue(index is IdIndex)
+        val index = createIndex(readJsonAsBsonDocument("indexes/_id_index.json")) as IdIndex
+        assertEquals("_id_", index.name)
         assertEquals(true, index.unique)
     }
 
     @Test
     fun singleFieldIndex() {
-        val index = createIndex(readJsonAsBsonDocument("indexes/single_field_index.json"))
-        assertTrue(index is SingleFieldIndex)
-        assertEquals(Field("name", IndexDirection.ASCENDING), (index as SingleFieldIndex).field)
+        val index = createIndex(readJsonAsBsonDocument("indexes/single_field_index.json")) as SingleFieldIndex
+        assertEquals("name_1", index.name)
+        assertEquals(Field("name", IndexDirection.ASCENDING), index.field)
         assertEquals(false, index.sparse)
         assertEquals(false, index.unique)
     }
 
     @Test
     fun compoundIndex() {
-        val index = createIndex(readJsonAsBsonDocument("indexes/compound_field_index.json"))
-        assertTrue(index is CompoundIndex)
+        val index = createIndex(readJsonAsBsonDocument("indexes/compound_field_index.json")) as CompoundIndex
+        assertEquals("name_1_text_-1", index.name)
         assertEquals(listOf(
             Field("name", IndexDirection.ASCENDING),
             Field("text", IndexDirection.DESCENDING)
-        ), (index as CompoundIndex).fields)
+        ), index.fields)
         assertEquals(false, index.sparse)
         assertEquals(false, index.unique)
     }
 
     @Test
     fun hashedIndex() {
-        val index = createIndex(readJsonAsBsonDocument("indexes/hashed_index.json"))
-        assertTrue(index is HashedIndex)
-        assertEquals("_id", (index as HashedIndex).field)
+        val index = createIndex(readJsonAsBsonDocument("indexes/hashed_index.json")) as HashedIndex
+        assertEquals("_id", index.field)
+        assertEquals("_id_hashed", index.name)
         assertEquals(false, index.sparse)
         assertEquals(false, index.unique)
     }
 
     @Test
     fun multiKeyIndex() {
-        val index = createIndex(readJsonAsBsonDocument("indexes/multikey_index.json"))
-        assertTrue(index is MultikeyIndex)
-//        assertEquals(listOf(
-//            Field("name", IndexDirection.ASCENDING),
-//            Field("text", IndexDirection.DESCENDING)
-//        ), (index as CompoundIndex).fields)
-//        assertEquals(false, index.sparse)
-//        assertEquals(false, index.unique)
+        val index = createIndex(readJsonAsBsonDocument("indexes/multikey_index.json")) as MultikeyIndex
+        assertEquals("values.a_-1", index.name)
+        assertEquals(listOf(
+            Field("values.a", IndexDirection.DESCENDING)
+        ), index.fields)
+        assertEquals(false, index.sparse)
+        assertEquals(false, index.unique)
     }
 
     @Test
     fun partialIndex() {
-        val index = createIndex(readJsonAsBsonDocument("indexes/partial_index.json"))
-        assertTrue(index is PartialIndex)
-//        assertEquals(listOf(
-//            Field("name", IndexDirection.ASCENDING),
-//            Field("text", IndexDirection.DESCENDING)
-//        ), (index as CompoundIndex).fields)
-//        assertEquals(false, index.sparse)
-//        assertEquals(false, index.unique)
+        val index = createIndex(readJsonAsBsonDocument("indexes/partial_index.json")) as SingleFieldIndex
+        assertEquals("game_1", index.name)
+        assertEquals("game", index.field.name)
+        assertEquals(IndexDirection.ASCENDING, index.field.direction)
+        assertEquals(false, index.sparse)
+        assertEquals(false, index.unique)
+        assertEquals(BsonDocument().append("rating", BsonDocument().append("\$gt", BsonInt32(5))), index.partialFilterExpression)
     }
 
     @Test
     fun sparseIndex() {
-        val index = createIndex(readJsonAsBsonDocument("indexes/sparse_index.json"))
-        assertTrue(index is SingleFieldIndex)
-//        assertEquals(listOf(
-//            Field("name", IndexDirection.ASCENDING),
-//            Field("text", IndexDirection.DESCENDING)
-//        ), (index as CompoundIndex).fields)
+        val index = createIndex(readJsonAsBsonDocument("indexes/sparse_index.json")) as SingleFieldIndex
+        assertEquals("description_1", index.name)
+        assertEquals("description", index.field.name)
+        assertEquals(IndexDirection.ASCENDING, index.field.direction)
         assertEquals(true, index.sparse)
-//        assertEquals(false, index.unique)
+        assertEquals(false, index.unique)
     }
 
     @Test
     fun textIndex() {
-        val index = createIndex(readJsonAsBsonDocument("indexes/text_index.json"))
-        assertTrue(index is TextIndex)
-//        assertEquals(listOf(
-//            Field("name", IndexDirection.ASCENDING),
-//            Field("text", IndexDirection.DESCENDING)
-//        ), (index as CompoundIndex).fields)
-//        assertEquals(true, index.sparse)
-//        assertEquals(false, index.unique)
+        val index = createIndex(readJsonAsBsonDocument("indexes/text_index.json")) as TextIndex
+        assertEquals("name_text", index.name)
+        assertEquals(mapOf(
+            "name" to 1
+        ), index.weights)
+        assertEquals(false, index.sparse)
+        assertEquals(false, index.unique)
+        assertNull(index.partialFilterExpression)
     }
 
     @Test
     fun twoDIndex() {
-        val index = createIndex(readJsonAsBsonDocument("indexes/two_d_index.json"))
-        assertTrue(index is TwoDIndex)
-//        assertEquals(listOf(
-//            Field("name", IndexDirection.ASCENDING),
-//            Field("text", IndexDirection.DESCENDING)
-//        ), (index as CompoundIndex).fields)
-//        assertEquals(true, index.sparse)
-//        assertEquals(false, index.unique)
+        val index = createIndex(readJsonAsBsonDocument("indexes/two_d_index.json")) as TwoDIndex
+        assertEquals("coordinates_2d", index.name)
+        assertEquals("coordinates", index.key)
+        assertEquals(false, index.sparse)
+        assertEquals(false, index.unique)
+        assertNull(index.partialFilterExpression)
     }
 
     @Test
     fun twoDSphereIndex() {
-        val index = createIndex(readJsonAsBsonDocument("indexes/two_d_sphere_index.json"))
-        assertTrue(index is TwoDSphereIndex)
-//        assertEquals(listOf(
-//            Field("name", IndexDirection.ASCENDING),
-//            Field("text", IndexDirection.DESCENDING)
-//        ), (index as CompoundIndex).fields)
-//        assertEquals(true, index.sparse)
-//        assertEquals(false, index.unique)
+        val index = createIndex(readJsonAsBsonDocument("indexes/two_d_sphere_index.json")) as TwoDSphereIndex
+        assertEquals("loc_2dsphere", index.name)
+        assertEquals("loc", index.key)
+        assertEquals(false, index.sparse)
+        assertEquals(false, index.unique)
+        assertNull(index.partialFilterExpression)
     }
 
     @Test
     fun uniqueIndex() {
-        val index = createIndex(readJsonAsBsonDocument("indexes/unique_index.json"))
-        assertTrue(index is SingleFieldIndex)
-//        assertEquals(listOf(
-//            Field("name", IndexDirection.ASCENDING),
-//            Field("text", IndexDirection.DESCENDING)
-//        ), (index as CompoundIndex).fields)
-//        assertEquals(true, index.sparse)
+        val index = createIndex(readJsonAsBsonDocument("indexes/unique_index.json")) as SingleFieldIndex
+        assertEquals("title_1", index.name)
+        assertEquals(Field("title", IndexDirection.ASCENDING), index.field)
+        assertEquals(false, index.sparse)
         assertEquals(true, index.unique)
+        assertNull(index.partialFilterExpression)
     }
 
     companion object {

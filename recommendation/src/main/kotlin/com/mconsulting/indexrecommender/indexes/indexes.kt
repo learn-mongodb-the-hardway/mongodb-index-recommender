@@ -3,12 +3,16 @@ package com.mconsulting.indexrecommender.indexes
 import com.mconsulting.indexrecommender.queryplans.QueryPlan
 import com.mongodb.MongoClient
 import org.bson.BsonDocument
-import org.bson.BsonElement
 import org.bson.BsonInt32
+import org.bson.BsonString
 import org.bson.Document
 import org.bson.json.JsonWriterSettings
 
-abstract class Index(val sparse: Boolean = false, val unique: Boolean = false)
+abstract class Index(
+    val name: String,
+    val sparse: Boolean = false,
+    val unique: Boolean = false,
+    val partialFilterExpression: BsonDocument? = null)
 
 enum class IndexDirection {
     ASCENDING, DESCENDING, UNKNOWN;
@@ -34,35 +38,65 @@ enum class IndexDirection {
 
 data class Field(val name: String, val direction: IndexDirection)
 
-class IdIndex : Index(unique = true)
+class IdIndex(name: String, partialFilterExpression: BsonDocument?) : Index(name = name, unique = true, partialFilterExpression = partialFilterExpression)
 
-class SingleFieldIndex(val field: Field, sparse: Boolean = false, unique: Boolean = false) : Index(sparse, unique)
+class SingleFieldIndex(name: String, val field: Field, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument?) : Index(name, sparse, unique, partialFilterExpression)
 
-class CompoundIndex(val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false) : Index(sparse, unique)
+class CompoundIndex(name: String, val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument?) : Index(name, sparse, unique, partialFilterExpression)
 
-class MultikeyIndex(val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false) : Index(sparse, unique)
+class MultikeyIndex(name: String, val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument?) : Index(name, sparse, unique, partialFilterExpression)
 
-abstract class GeospatialIndex : Index()
+abstract class GeospatialIndex(name: String, partialFilterExpression: BsonDocument?) : Index(name, partialFilterExpression = partialFilterExpression)
 
-class TwoDSphereIndex : GeospatialIndex()
+class TwoDSphereIndex(name: String, val key: String, partialFilterExpression: BsonDocument?) : GeospatialIndex(name, partialFilterExpression = partialFilterExpression)
 
-class TwoDIndex: GeospatialIndex()
+class TwoDIndex(name: String, val key: String, partialFilterExpression: BsonDocument?) : GeospatialIndex(name, partialFilterExpression = partialFilterExpression)
 
-class TextIndex : Index()
+class TextIndex(name: String, val weights: Map<String, Int>, partialFilterExpression: BsonDocument?) : Index(name, partialFilterExpression = partialFilterExpression)
 
-class HashedIndex(val field: String) : Index()
+class HashedIndex(name: String, val field: String, partialFilterExpression: BsonDocument?) : Index(name, partialFilterExpression = partialFilterExpression)
 
-class PartialIndex : Index()
-
-class TTLIndex : Index()
+class TTLIndex(name: String, val expireAfterSeconds: Int, partialFilterExpression: BsonDocument?) : Index(name, partialFilterExpression = partialFilterExpression)
 
 data class IndexParserOptions(val allowExplainExecution: Boolean = false)
 
-class IndexParser(val client: MongoClient?, val options: IndexParserOptions = IndexParserOptions()) {
+class IndexParser(val client: MongoClient?, private val options: IndexParserOptions = IndexParserOptions()) {
 
     fun createIndex(document: BsonDocument) : Index {
-        println(document.toJson(JsonWriterSettings.builder().indent(true).build()))
+//        println(document.toJson(JsonWriterSettings.builder().indent(true).build()))
+        var partialFilterExpression: BsonDocument? = null
 
+        // Get partial index expression
+        if (document.containsKey("partialFilterExpression")) {
+            partialFilterExpression = document.getDocument("partialFilterExpression")
+        }
+
+        // Check if we have a text index
+        if (isTextIndex(document)) {
+            return createTextIndex(document, partialFilterExpression)
+        }
+
+        // Check if we have a geospatial index
+        if (isGeoSpatialIndex(document)) {
+            return createGeoSpatialIndex(document, partialFilterExpression)
+        }
+
+        // Check if we have a hashed index
+        if (isHashedIndex(document)) {
+            return createHashedIndex(document, partialFilterExpression)
+        }
+
+        // Check if we have a primary key index
+        if (isPrimaryKeyIndex(document)) {
+            return createPrimaryKeyIndex(document, partialFilterExpression)
+        }
+
+        // Check if we have a ttl index
+        if (isTTLIndex(document)) {
+            return createTTLIndex(document, partialFilterExpression)
+        }
+
+        // The rest of the indexes
         if (document.containsKey("key")) {
             val key = document.getDocument("key")
             val name = document.getString("name")
@@ -81,52 +115,158 @@ class IndexParser(val client: MongoClient?, val options: IndexParserOptions = In
             // Do we allow explain execution
             val queryPlan = extractQueryPlan(document, key)
 
-            // Single field index
-            if (key.size == 1) {
-                // Check if the key is hashed
-                if (key.isString(key.firstKey) && key.getString(key.firstKey).value.toLowerCase() == "hashed") {
-                    return HashedIndex(key.firstKey)
-                }
+            // Return index
+            return createSingleCompoundOrMultiKeyIndex(document, queryPlan, name, key, sparse, unique, partialFilterExpression)
+        }
 
-                // Check if it's an id index
-                if (key.containsKey("_id")) {
-                    return IdIndex()
-                }
+        throw Exception("does not support the index type in [${document.toJson()}]")
+    }
 
-                // Is it actually a multikey index
-                if (queryPlan != null
-                    && queryPlan.isMultiKey()
-                    && queryPlan.indexName() == name.value) {
-                    return MultikeyIndex(
-                        key.entries.map { Field(it.key, IndexDirection.intValueOf((it.value as BsonInt32).value)) },
-                        sparse, unique)
-                }
+    private fun createTTLIndex(document: BsonDocument, partialFilterExpression: BsonDocument?): Index {
+        return TTLIndex(document.getString("name").value, document.getInt32("expireAfterSeconds").value, partialFilterExpression)
+    }
 
-                // Otherwise return regular single field
-                return SingleFieldIndex(Field(
-                    key.firstKey,
-                    IndexDirection.intValueOf(key.getInt32(key.firstKey).value)),
-                    sparse, unique)
-            } else if (key.size > 1) {
+    private fun isTTLIndex(document: BsonDocument): Boolean {
+        return document.containsKey("expireAfterSeconds")
+    }
 
-                // TODO: Check if we have multikey indexes (we need to query using this index and look at the explain plan)
-                // to detect if it's a multikey index
-                if (queryPlan != null
-                    && queryPlan.isMultiKey()
-                    && queryPlan.indexName() == name.value) {
-                    return MultikeyIndex(
-                        key.entries.map { Field(it.key, IndexDirection.intValueOf((it.value as BsonInt32).value)) },
-                        sparse, unique)
-                }
+    private fun createSingleCompoundOrMultiKeyIndex(document: BsonDocument, queryPlan: QueryPlan?, name: BsonString, key: BsonDocument, sparse: Boolean, unique: Boolean, partialFilterExpression: BsonDocument?): Index {
+        if (queryPlan != null
+            && queryPlan.isMultiKey()
+            && queryPlan.indexName() == name.value) {
+            return MultikeyIndex(
+                document.getString("name").value,
+                key.entries.map { Field(it.key, IndexDirection.intValueOf((it.value as BsonInt32).value)) },
+                sparse, unique, partialFilterExpression)
+        }
 
-                // Otherwise return a compound index
-                return CompoundIndex(
-                    key.entries.map { Field(it.key, IndexDirection.intValueOf((it.value as BsonInt32).value)) },
-                    sparse, unique)
+        return when (key.size) {
+            1 -> SingleFieldIndex(document.getString("name").value, Field(
+                key.firstKey,
+                IndexDirection.intValueOf(key.getInt32(key.firstKey).value)),
+                sparse, unique, partialFilterExpression)
+            else -> CompoundIndex(document.getString("name").value,
+                key.entries.map { Field(it.key, IndexDirection.intValueOf((it.value as BsonInt32).value)) },
+                sparse, unique, partialFilterExpression)
+        }
+    }
+
+    private fun createPrimaryKeyIndex(document: BsonDocument, partialFilterExpression: BsonDocument?): Index {
+        var index: Index? = null
+
+        if (document.getDocument("key").containsKey("_id") && document.getDocument("key").size == 1) {
+            index = IdIndex(document.getString("name").value, partialFilterExpression)
+        }
+
+        return index!!
+    }
+
+    private fun isPrimaryKeyIndex(document: BsonDocument): Boolean {
+        if (document.getDocument("key").containsKey("_id") && document.getDocument("key").size == 1) {
+            return true
+        }
+
+        return false
+    }
+
+    private fun createHashedIndex(document: BsonDocument, partialFilterExpression: BsonDocument?): Index {
+        var index: Index? = null
+
+        for (entry in document.getDocument("key").entries) {
+            index = when (entry.value.asString().value) {
+                "hashed" -> HashedIndex(document.getString("name").value, entry.key, partialFilterExpression)
+                else -> null
+            }
+
+            if (index != null) break
+        }
+
+        return index!!
+    }
+
+    private fun isHashedIndex(document: BsonDocument): Boolean {
+        for (entry in document.getDocument("key").entries) {
+            if (entry.value.isString && entry.value.asString().value in listOf("hashed")) {
+                return true
             }
         }
 
-        return TTLIndex()
+        return false
+    }
+
+    private fun isTextIndex(document: BsonDocument): Boolean {
+        return document.containsKey("textIndexVersion")
+    }
+
+    private fun createGeoSpatialIndex(document: BsonDocument, partialFilterExpression: BsonDocument?): Index {
+        var index: Index? = null
+
+        for (entry in document.getDocument("key").entries) {
+            index = when (entry.value.asString().value) {
+                "2d" -> TwoDIndex(document.getString("name").value, entry.key, partialFilterExpression)
+                "2dsphere" -> TwoDSphereIndex(document.getString("name").value, entry.key, partialFilterExpression)
+                else -> null
+            }
+
+            if (index != null) break
+        }
+
+        return index!!
+    }
+
+    /*
+        {
+          "v" : 2,
+          "key" : {
+            "coordinates" : "2d"
+          },
+          "name" : "coordinates_2d",
+          "ns" : "digitalvault_integration.users"
+        }
+
+        {
+          "v" : 2,
+          "key" : {
+            "loc" : "2dsphere"
+          },
+          "name" : "loc_2dsphere",
+          "ns" : "digitalvault_integration.users",
+          "2dsphereIndexVersion" : 3
+        }
+     */
+    private fun isGeoSpatialIndex(document: BsonDocument): Boolean {
+        for (entry in document.getDocument("key").entries) {
+            if (entry.value.isString && entry.value.asString().value in listOf("2d", "2dsphere")) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    /*
+        {
+          "v" : 2,
+          "key" : {
+            "_fts" : "text",
+            "_ftsx" : 1
+          },
+          "name" : "name_text",
+          "ns" : "digitalvault_integration.users",
+          "weights" : {
+            "name" : 1
+          },
+          "default_language" : "english",
+          "language_override" : "language",
+          "textIndexVersion" : 3
+        }
+     */
+    private fun createTextIndex(document: BsonDocument, partialFilterExpression: BsonDocument?): Index {
+        return TextIndex(
+            document.getString("name").value,
+            document.getDocument("weights").map {
+              Pair(it.key, it.value.asInt32().value)
+            }.toMap(), partialFilterExpression)
     }
 
     private fun extractQueryPlan(document: BsonDocument, key: BsonDocument?) : QueryPlan? {
@@ -150,12 +290,12 @@ class IndexParser(val client: MongoClient?, val options: IndexParserOptions = In
                 ))
             ))
 
-            println(explainCommand.toJson(JsonWriterSettings.builder().indent(true).build()))
+//            println(explainCommand.toJson(JsonWriterSettings.builder().indent(true).build()))
 
             // Find first document using the index and run the explain
             val result = db.runCommand(explainCommand, BsonDocument::class.java)
 
-            println(result.toJson(JsonWriterSettings.builder().indent(true).build()))
+//            println(result.toJson(JsonWriterSettings.builder().indent(true).build()))
 
             return QueryPlan(result)
         }
