@@ -40,11 +40,19 @@ data class Field(val name: String, val direction: IndexDirection)
 
 class IdIndex(name: String, partialFilterExpression: BsonDocument?) : Index(name = name, unique = true, partialFilterExpression = partialFilterExpression)
 
-class SingleFieldIndex(name: String, val field: Field, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument?) : Index(name, sparse, unique, partialFilterExpression)
+class SingleFieldIndex(name: String, val field: Field, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument? = null) : Index(name, sparse, unique, partialFilterExpression) {
+    override fun equals(other: Any?): Boolean {
+        if (other == null) return false
+        if (other !is SingleFieldIndex) return false
+        if (other.field.name != this.field.name) return false
+        if (other.field.direction != this.field.direction) return false
+        return true
+    }
+}
 
-class CompoundIndex(name: String, val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument?) : Index(name, sparse, unique, partialFilterExpression)
+class CompoundIndex(name: String, val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument? = null) : Index(name, sparse, unique, partialFilterExpression)
 
-class MultikeyIndex(name: String, val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument?) : Index(name, sparse, unique, partialFilterExpression)
+class MultikeyIndex(name: String, val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument? = null) : Index(name, sparse, unique, partialFilterExpression)
 
 abstract class GeospatialIndex(name: String, partialFilterExpression: BsonDocument?) : Index(name, partialFilterExpression = partialFilterExpression)
 

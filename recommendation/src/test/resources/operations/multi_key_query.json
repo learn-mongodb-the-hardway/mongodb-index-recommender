@@ -1,0 +1,62 @@
+{
+  "op" : "query",
+  "ns" : "digitalvault_integration.users",
+  "command" : {
+    "find" : "users",
+    "filter" : {
+      "games.id" : 1
+    },
+    "$db" : "digitalvault_integration"
+  },
+  "keysExamined" : 0,
+  "docsExamined" : 6,
+  "cursorExhausted" : true,
+  "numYield" : 0,
+  "nreturned" : 0,
+  "queryHash" : "6933785B",
+  "locks" : {
+    "Global" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "1" }
+      }
+    },
+    "Database" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "1" }
+      }
+    },
+    "Collection" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "1" }
+      }
+    }
+  },
+  "responseLength" : 119,
+  "protocol" : "op_msg",
+  "millis" : 2,
+  "planSummary" : "COLLSCAN",
+  "execStats" : {
+    "stage" : "COLLSCAN",
+    "filter" : {
+      "games.id" : {
+        "$eq" : 1
+      }
+    },
+    "nReturned" : 0,
+    "executionTimeMillisEstimate" : 0,
+    "works" : 8,
+    "advanced" : 0,
+    "needTime" : 7,
+    "needYield" : 0,
+    "saveState" : 0,
+    "restoreState" : 0,
+    "isEOF" : 1,
+    "direction" : "forward",
+    "docsExamined" : 6
+  },
+  "ts" : { "$numberLong": "1540758839829" },
+  "client" : "127.0.0.1",
+  "appName" : "MongoDB Shell",
+  "allUsers" : [ ],
+  "user" : ""
+}
