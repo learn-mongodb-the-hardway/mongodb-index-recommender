@@ -311,13 +311,8 @@ class IndexParser(val client: MongoClient?, private val options: IndexParserOpti
                 ))
             ))
 
-//            println(explainCommand.toJson(JsonWriterSettings.builder().indent(true).build()))
-
             // Find first document using the index and run the explain
             val result = db.runCommand(explainCommand, BsonDocument::class.java)
-
-//            println(result.toJson(JsonWriterSettings.builder().indent(true).build()))
-
             return QueryPlan(result)
         }
 
