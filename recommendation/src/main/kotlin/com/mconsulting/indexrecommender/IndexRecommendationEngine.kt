@@ -1,5 +1,6 @@
 package com.mconsulting.indexrecommender
 
+import com.mconsulting.indexrecommender.indexes.CompoundIndex
 import com.mconsulting.indexrecommender.indexes.Field
 import com.mconsulting.indexrecommender.indexes.Index
 import com.mconsulting.indexrecommender.indexes.IndexDirection
@@ -8,12 +9,21 @@ import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
 import com.mconsulting.indexrecommender.profiling.QueryCommand
+import com.mongodb.MongoClient
 import org.bson.BsonArray
+import org.bson.BsonBoolean
 import org.bson.BsonDocument
+import org.bson.BsonValue
+import org.bson.Document
+
+data class IndexRecommendationOptions(val executeQueries: Boolean = true)
 
 class IndexRecommendations(val indexes: List<Index>)
 
-class IndexRecommendationEngine {
+class IndexRecommendationEngine(
+    val client: MongoClient,
+    val options: IndexRecommendationOptions = IndexRecommendationOptions()) {
+
     val candidateIndexes = mutableListOf<Index>()
 
     fun add(operation: Operation) {
@@ -21,34 +31,15 @@ class IndexRecommendationEngine {
             is Query -> {
                 val query = operation.command()
 
-//                // Analyse the query and build candidate indexes
-//                if (isTopLevelQuery(query)) {
-                    // Get sort document
-                    val sort = query.sort
+                // Query document
+                isMultiKeyIndex(query)
 
-                    // Check what kind of filter it is
-                    if (query.filter.entries.size == 1) {
-                        addSingleFieldIndex(query, candidateIndexes)
-                    } else if (query.filter.entries.size > 1) {
-                        addCompoundFieldIndex(query, candidateIndexes)
-                    }
-
-//                    // Does it contain a sort statement (then use those for the extraction of direction)
-//                    candidateIndexes += Index(query.filter.entries.map {
-//                        // Establish the direction
-//                        var direction: IndexDirection = IndexDirection.UNKNOWN
-//
-//                        // If the field is present in the sort use it
-//                        if (sort.containsKey(it.key)) {
-//                            direction = IndexDirection.intValueOf(sort.getInt32(it.key).value)
-//                        }
-//
-//                        // Add the field with the sort direction
-//                        Field(it.key, direction)
-//                    })
-//                } else {
-//
-//                }
+                // Check what kind of potential index it is
+                if (query.filter.entries.size == 1) {
+                    addSingleFieldIndex(query, candidateIndexes)
+                } else if (query.filter.entries.size > 1) {
+                    addCompoundFieldIndex(query, candidateIndexes)
+                }
             }
             is Aggregation -> {
 
@@ -57,18 +48,55 @@ class IndexRecommendationEngine {
 
     }
 
+    private fun isMultiKeyIndex(query: QueryCommand) : Boolean {
+        // Find the document specified
+        val doc = client
+            .getDatabase(query.db)
+            .getCollection(query.collection, BsonDocument::class.java)
+            .find(query.filter)
+            .projection(generateProjection(query.filter))
+            .firstOrNull()
+
+        // Establish the types for each field to check if we are multikey or not
+        doc ?: return false
+
+        // If one of the fields in the document is an array we are dealing with a candidate multikey index
+        // ex: { games: [1, 2, 3] } or { games: [{ id: 1 }] }
+        if (containsArray(doc)) {
+            return true
+        }
+
+        // Not a multikey index
+        return false
+    }
+
     private fun addCompoundFieldIndex(query: QueryCommand, candidateIndexes: MutableList<Index>) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        // Create list of fields
+        val fields = query.filter.entries.map {
+            Field(it.key, getIndexDirection(query, it.key, IndexDirection.UNKNOWN))
+        }
+
+        // Create index name
+        val fieldName = createIndexName(query)
+
+        // Create compound index
+        val index = CompoundIndex(fieldName, fields)
+
+        // Add to candidate list if it does not already exist in it
+        if (!candidateIndexes.contains(index)) {
+            candidateIndexes += index
+        }
     }
 
     private fun addSingleFieldIndex(query: QueryCommand, candidateIndexes: MutableList<Index>) {
         // Get the first entry
         val entry = query.filter.entries.first()
         val fieldName = createIndexName(query)
+
         // Create the index entry
         val index = SingleFieldIndex(
             fieldName,
-            Field(entry.key, getIndexDirection(query, fieldName, IndexDirection.UNKNOWN)))
+            Field(entry.key, getIndexDirection(query, entry.key, IndexDirection.UNKNOWN)))
 
         // Check if the key exists
         if (!candidateIndexes.contains(index)) {
@@ -90,12 +118,6 @@ class IndexRecommendationEngine {
         return query.filter.entries.map {
             "${it.key}_${getIndexDirection(query, it.key).value()}"
         }.joinToString("_")
-    }
-
-    private fun isTopLevelQuery(query: QueryCommand): Boolean {
-        return query.filter.entries
-            .map { it.value !is BsonDocument && it.value !is BsonArray }
-            .fold(true) { acc, value -> acc.and(value) }
     }
 
     fun recommend() : IndexRecommendations {

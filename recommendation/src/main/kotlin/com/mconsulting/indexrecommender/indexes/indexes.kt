@@ -50,7 +50,20 @@ class SingleFieldIndex(name: String, val field: Field, sparse: Boolean = false, 
     }
 }
 
-class CompoundIndex(name: String, val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument? = null) : Index(name, sparse, unique, partialFilterExpression)
+class CompoundIndex(name: String, val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument? = null) : Index(name, sparse, unique, partialFilterExpression) {
+    override fun equals(other: Any?): Boolean {
+        if (other == null) return false
+        if (other !is CompoundIndex) return false
+        if (other.fields.size != this.fields.size) return false
+
+        // Check that all fields are the same
+        for (field in other.fields) {
+            if (!this.fields.contains(field)) return false
+        }
+
+        return true
+    }
+}
 
 class MultikeyIndex(name: String, val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument? = null) : Index(name, sparse, unique, partialFilterExpression)
 
@@ -71,7 +84,6 @@ data class IndexParserOptions(val allowExplainExecution: Boolean = false)
 class IndexParser(val client: MongoClient?, private val options: IndexParserOptions = IndexParserOptions()) {
 
     fun createIndex(document: BsonDocument) : Index {
-//        println(document.toJson(JsonWriterSettings.builder().indent(true).build()))
         var partialFilterExpression: BsonDocument? = null
 
         // Get partial index expression
@@ -139,6 +151,7 @@ class IndexParser(val client: MongoClient?, private val options: IndexParserOpti
     }
 
     private fun createSingleCompoundOrMultiKeyIndex(document: BsonDocument, queryPlan: QueryPlan?, name: BsonString, key: BsonDocument, sparse: Boolean, unique: Boolean, partialFilterExpression: BsonDocument?): Index {
+        println()
         if (queryPlan != null
             && queryPlan.isMultiKey()
             && queryPlan.indexName() == name.value) {

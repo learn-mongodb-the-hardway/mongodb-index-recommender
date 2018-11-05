@@ -1,8 +1,8 @@
 {
   "v" : 2,
   "key" : {
-    "values.a" : -1
+    "a.b" : -1
   },
-  "name" : "values.a_-1",
-  "ns" : "digitalvault_integration.users"
+  "name" : "a.b_-1",
+  "ns" : "mindex_recommendation_tests.index_tests"
 }

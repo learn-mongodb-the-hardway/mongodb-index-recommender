@@ -5,6 +5,7 @@ import com.mongodb.MongoClient
 import com.mongodb.MongoClientURI
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
+import com.mongodb.client.model.IndexOptions
 import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.Document
@@ -53,17 +54,6 @@ class IndexTests {
         val index = createIndex(readJsonAsBsonDocument("indexes/hashed_index.json")) as HashedIndex
         assertEquals("_id", index.field)
         assertEquals("_id_hashed", index.name)
-        assertEquals(false, index.sparse)
-        assertEquals(false, index.unique)
-    }
-
-    @Test
-    fun multiKeyIndex() {
-        val index = createIndex(readJsonAsBsonDocument("indexes/multikey_index.json")) as MultikeyIndex
-        assertEquals("values.a_-1", index.name)
-        assertEquals(listOf(
-            Field("values.a", IndexDirection.DESCENDING)
-        ), index.fields)
         assertEquals(false, index.sparse)
         assertEquals(false, index.unique)
     }
@@ -131,6 +121,17 @@ class IndexTests {
         assertNull(index.partialFilterExpression)
     }
 
+    @Test
+    fun multiKeyIndex() {
+        val index = createIndex(readJsonAsBsonDocument("indexes/multikey_index.json")) as MultikeyIndex
+        assertEquals("a.b_-1", index.name)
+        assertEquals(listOf(
+            Field("a.b", IndexDirection.DESCENDING)
+        ), index.fields)
+        assertEquals(false, index.sparse)
+        assertEquals(false, index.unique)
+    }
+
     companion object {
         lateinit var client: MongoClient
         lateinit var db: MongoDatabase
@@ -155,8 +156,8 @@ class IndexTests {
 
             // Generate test indexes
             collection.createIndex(Document(mapOf(
-                "a.b" to 1
-            )))
+                "a.b" to -1
+            )), IndexOptions().background(false))
         }
 
         @AfterAll

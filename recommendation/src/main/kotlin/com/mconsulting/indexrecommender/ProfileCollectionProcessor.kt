@@ -14,7 +14,7 @@ class ProfileCollectionProcessor(
     val db: String,
     val collection: String,
     val options: ProfileCollectionProcessorOptions = ProfileCollectionProcessorOptions()) {
-    val indexRecommendationEngine = IndexRecommendationEngine()
+    val indexRecommendationEngine = IndexRecommendationEngine(client)
 
     /**
      * Process all the entries in the profile
