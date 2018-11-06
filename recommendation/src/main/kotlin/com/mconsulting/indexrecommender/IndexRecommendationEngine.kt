@@ -10,11 +10,7 @@ import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
 import com.mconsulting.indexrecommender.profiling.QueryCommand
 import com.mongodb.MongoClient
-import org.bson.BsonArray
-import org.bson.BsonBoolean
 import org.bson.BsonDocument
-import org.bson.BsonValue
-import org.bson.Document
 
 data class IndexRecommendationOptions(val executeQueries: Boolean = true)
 
