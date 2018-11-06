@@ -39,7 +39,10 @@ class StatisticsProcessorTest {
 
     @Test
     fun shouldUpdateExistingStatisticsEntry() {
-        val statisticsProcessor = StatisticsProcessor()
+        val statisticsProcessor = StatisticsProcessor(StatisticsProcessorOptions(
+            bucketResolution = TimeResolution.HOUR
+        ))
+
         statisticsProcessor.process(Query(toBsonDocument(Document(mapOf(
             "command" to mapOf(
                 "\$db" to "test",
@@ -79,8 +82,7 @@ class StatisticsProcessorTest {
             )
         ))), statisticsProcessor.shapes.first().shape)
         assertEquals(2, statisticsProcessor.shapes.first().count)
-        assertEquals(2, statisticsProcessor.shapes.first().frequency.size)
-        assertEquals(1, statisticsProcessor.shapes.first().frequency.values.first().count)
-        assertEquals(1, statisticsProcessor.shapes.last().frequency.values.first().count)
+        assertEquals(1, statisticsProcessor.shapes.first().frequency.size)
+        assertEquals(2, statisticsProcessor.shapes.first().frequency.values.first().count)
     }
 }

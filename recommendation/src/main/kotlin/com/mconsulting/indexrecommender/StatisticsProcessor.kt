@@ -8,14 +8,20 @@ import org.bson.BsonBoolean
 import org.bson.BsonDocument
 import org.bson.BsonElement
 import org.bson.BsonInt32
+import java.time.temporal.ChronoUnit
+import java.time.temporal.Temporal
+import java.util.*
 
 class Frequency(var count: Long = 1)
 
-class ShapeStatistics(val shape: BsonDocument, val timestamp: Long, var count: Long = 1) {
+class ShapeStatistics(val shape: BsonDocument, val timestamp: Long, var count: Long = 1, val resolution: TimeResolution) {
     val frequency = mutableMapOf<Long, Frequency>()
 
     init {
-        frequency[timestamp] = Frequency()
+        // Adjust the timestamp for the bucket
+        val adjustedTimestamp = adjustTimeStamp(timestamp, resolution)
+
+        frequency[adjustedTimestamp] = Frequency()
     }
 
     override fun equals(other: Any?): Boolean {
@@ -27,15 +33,42 @@ class ShapeStatistics(val shape: BsonDocument, val timestamp: Long, var count: L
     fun merge(shapeStatistics: ShapeStatistics) {
         this.count += shapeStatistics.count
 
-        if (frequency.containsKey(shapeStatistics.timestamp)) {
-            frequency[shapeStatistics.timestamp]!!.count += shapeStatistics.count
+        // Adjust the timestamp for the bucket
+        val adjustedTimestamp = adjustTimeStamp(shapeStatistics.timestamp, resolution)
+
+        if (frequency.containsKey(adjustedTimestamp)) {
+            frequency[adjustedTimestamp]!!.count += shapeStatistics.count
         } else {
-            frequency[shapeStatistics.timestamp] = Frequency(shapeStatistics.count)
+            frequency[adjustedTimestamp] = Frequency(shapeStatistics.count)
+        }
+    }
+
+    private fun adjustTimeStamp(timestamp: Long, resolution: TimeResolution): Long {
+        return when (resolution) {
+            TimeResolution.MILLISECOND -> timestamp
+            TimeResolution.SECOND -> {
+                Date(timestamp).toInstant().truncatedTo(ChronoUnit.SECONDS).toEpochMilli()
+            }
+            TimeResolution.MINUTE -> {
+                Date(timestamp).toInstant().truncatedTo(ChronoUnit.MINUTES).toEpochMilli()
+            }
+            TimeResolution.HOUR -> {
+                Date(timestamp).toInstant().truncatedTo(ChronoUnit.HOURS).toEpochMilli()
+            }
+            TimeResolution.DAY -> {
+                Date(timestamp).toInstant().truncatedTo(ChronoUnit.DAYS).toEpochMilli()
+            }
         }
     }
 }
 
-class StatisticsProcessor() {
+enum class TimeResolution {
+    MILLISECOND, SECOND, MINUTE, HOUR, DAY
+}
+
+data class StatisticsProcessorOptions(val bucketResolution: TimeResolution = TimeResolution.SECOND)
+
+class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsProcessorOptions()) {
     val shapes: MutableList<ShapeStatistics> = mutableListOf()
 
     fun process(operation: Operation) {
@@ -49,7 +82,10 @@ class StatisticsProcessor() {
         // Turn the query filter into a fixed shape (all basic values are changed to 1's)
         val filterShape = normalizeFilter(operation.command().filter)
         // Create a statistics shape
-        val shapeStatistics = ShapeStatistics(filterShape, operation.timestamp().value)
+        val shapeStatistics = ShapeStatistics(
+            shape = filterShape,
+            timestamp = operation.timestamp().value,
+            resolution = options.bucketResolution)
         // Check if the filter exists
         if (!shapes.contains(shapeStatistics)) {
             shapes += shapeStatistics
