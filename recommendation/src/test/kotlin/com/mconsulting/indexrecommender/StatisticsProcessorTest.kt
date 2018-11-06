@@ -1,8 +1,10 @@
 package com.mconsulting.indexrecommender
 
 import com.mconsulting.indexrecommender.profiling.Query
+import org.bson.BsonDateTime
 import org.bson.Document
 import org.junit.jupiter.api.Test
+import java.util.*
 import kotlin.test.assertEquals
 
 class StatisticsProcessorTest {
@@ -21,7 +23,8 @@ class StatisticsProcessorTest {
                         "d" to 10.1
                     )
                 )
-            )
+            ),
+            "ts" to BsonDateTime(Date().time)
         )))))
 
         assertEquals(1, statisticsProcessor.shapes.size)
@@ -48,7 +51,8 @@ class StatisticsProcessorTest {
                         "d" to 10.1
                     )
                 )
-            )
+            ),
+            "ts" to BsonDateTime(Date().time - 2000)
         )))))
 
         statisticsProcessor.process(Query(toBsonDocument(Document(mapOf(
@@ -62,7 +66,8 @@ class StatisticsProcessorTest {
                         "d" to 10
                     )
                 )
-            )
+            ),
+            "ts" to BsonDateTime(Date().time)
         )))))
 
         assertEquals(1, statisticsProcessor.shapes.size)
@@ -74,5 +79,8 @@ class StatisticsProcessorTest {
             )
         ))), statisticsProcessor.shapes.first().shape)
         assertEquals(2, statisticsProcessor.shapes.first().count)
+        assertEquals(2, statisticsProcessor.shapes.first().frequency.size)
+        assertEquals(1, statisticsProcessor.shapes.first().frequency.values.first().count)
+        assertEquals(1, statisticsProcessor.shapes.last().frequency.values.first().count)
     }
 }

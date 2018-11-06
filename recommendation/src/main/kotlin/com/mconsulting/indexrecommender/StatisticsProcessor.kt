@@ -9,7 +9,15 @@ import org.bson.BsonDocument
 import org.bson.BsonElement
 import org.bson.BsonInt32
 
-class ShapeStatistics(val shape: BsonDocument, var count: Long = 1) {
+class Frequency(var count: Long = 1)
+
+class ShapeStatistics(val shape: BsonDocument, val timestamp: Long, var count: Long = 1) {
+    val frequency = mutableMapOf<Long, Frequency>()
+
+    init {
+        frequency[timestamp] = Frequency()
+    }
+
     override fun equals(other: Any?): Boolean {
         if (other == null) return false
         if (other !is ShapeStatistics) return false
@@ -18,6 +26,12 @@ class ShapeStatistics(val shape: BsonDocument, var count: Long = 1) {
 
     fun merge(shapeStatistics: ShapeStatistics) {
         this.count += shapeStatistics.count
+
+        if (frequency.containsKey(shapeStatistics.timestamp)) {
+            frequency[shapeStatistics.timestamp]!!.count += shapeStatistics.count
+        } else {
+            frequency[shapeStatistics.timestamp] = Frequency(shapeStatistics.count)
+        }
     }
 }
 
@@ -35,7 +49,7 @@ class StatisticsProcessor() {
         // Turn the query filter into a fixed shape (all basic values are changed to 1's)
         val filterShape = normalizeFilter(operation.command().filter)
         // Create a statistics shape
-        val shapeStatistics = ShapeStatistics(filterShape)
+        val shapeStatistics = ShapeStatistics(filterShape, operation.timestamp().value)
         // Check if the filter exists
         if (!shapes.contains(shapeStatistics)) {
             shapes += shapeStatistics
