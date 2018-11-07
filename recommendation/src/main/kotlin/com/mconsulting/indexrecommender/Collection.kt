@@ -5,18 +5,17 @@ import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.indexes.IndexParser
 import com.mconsulting.indexrecommender.indexes.IndexParserOptions
 import com.mconsulting.indexrecommender.profiling.Aggregation
+import com.mconsulting.indexrecommender.profiling.Delete
+import com.mconsulting.indexrecommender.profiling.Insert
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
+import com.mconsulting.indexrecommender.profiling.Update
 import com.mongodb.MongoClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
-import org.bson.BsonArray
-import org.bson.BsonBoolean
 import org.bson.BsonDocument
-import org.bson.BsonElement
 import org.bson.BsonInt32
 import org.bson.BsonString
-import org.bson.BsonValue
 
 data class CollectionOptions(
     val allowExplainExecution: Boolean = true,
@@ -82,11 +81,17 @@ class Collection(
     }
 }
 
-private fun createOperation(doc: BsonDocument): Operation? {
+fun createOperation(doc: BsonDocument): Operation? {
     var operation: Operation? = null
 
     if (doc.getString("op") == BsonString("query")) {
         return Query(doc)
+    } else if (doc.getString("op") == BsonString("insert")) {
+        return Insert(doc)
+    } else if (doc.getString("op") == BsonString("remove")) {
+        return Delete(doc)
+    } else if (doc.getString("op") == BsonString("update")) {
+        return Update(doc)
     } else if (doc.getString("op") == BsonString("command")) {
         // Identify the operation
         // (we care only about operations that contain reads (query, agg, update, count etc.)

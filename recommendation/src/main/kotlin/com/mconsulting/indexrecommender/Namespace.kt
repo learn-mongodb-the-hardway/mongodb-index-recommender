@@ -1,6 +1,6 @@
 package com.mconsulting.indexrecommender
 
-class Namespace(val db: String, val collection: String) {
+data class Namespace(val db: String, val collection: String) {
     companion object {
         fun parse(ns: String) : Namespace {
             val parts = ns.split(".")
