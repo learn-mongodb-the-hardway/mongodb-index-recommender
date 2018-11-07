@@ -1,0 +1,90 @@
+{
+  "op" : "remove",
+  "ns" : "digitalvault_integration.users",
+  "command" : {
+    "q" : {
+      "name" : "ole"
+    },
+    "limit" : 1
+  },
+  "keysExamined" : 1,
+  "docsExamined" : 1,
+  "fromMultiPlanner" : true,
+  "ndeleted" : 1,
+  "keysDeleted" : 6,
+  "numYield" : 0,
+  "queryHash" : "0BE5F32C",
+  "locks" : {
+    "Global" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "1" },
+        "w" : { "$numberLong": "1" }
+      }
+    },
+    "Database" : {
+      "acquireCount" : {
+        "w" : { "$numberLong": "1" }
+      }
+    },
+    "Collection" : {
+      "acquireCount" : {
+        "w" : { "$numberLong": "1" }
+      }
+    }
+  },
+  "millis" : 0,
+  "planSummary" : "IXSCAN { name: 1 }",
+  "execStats" : {
+    "stage" : "FETCH",
+    "nReturned" : 1,
+    "executionTimeMillisEstimate" : 0,
+    "works" : 2,
+    "advanced" : 1,
+    "needTime" : 0,
+    "needYield" : 0,
+    "saveState" : 1,
+    "restoreState" : 1,
+    "isEOF" : 1,
+    "docsExamined" : 1,
+    "alreadyHasObj" : 0,
+    "inputStage" : {
+      "stage" : "IXSCAN",
+      "nReturned" : 1,
+      "executionTimeMillisEstimate" : 0,
+      "works" : 2,
+      "advanced" : 1,
+      "needTime" : 0,
+      "needYield" : 0,
+      "saveState" : 1,
+      "restoreState" : 1,
+      "isEOF" : 1,
+      "keyPattern" : {
+        "name" : 1
+      },
+      "indexName" : "name_1",
+      "isMultiKey" : false,
+      "multiKeyPaths" : {
+        "name" : [ ]
+      },
+      "isUnique" : false,
+      "isSparse" : false,
+      "isPartial" : false,
+      "indexVersion" : 2,
+      "direction" : "forward",
+      "indexBounds" : {
+        "name" : [
+          "[\"ole\", \"ole\"]"
+        ]
+      },
+      "keysExamined" : 1,
+      "seeks" : 1,
+      "dupsTested" : 0,
+      "dupsDropped" : 0
+    }
+  },
+  "ts" : { "$date": { "$numberLong": "1540758839829" } },
+  "client" : "127.0.0.1",
+  "appName" : "MongoDB Shell",
+  "allUsers" : [ ],
+  "user" : ""
+}

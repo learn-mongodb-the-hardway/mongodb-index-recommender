@@ -1,0 +1,117 @@
+{
+  "op" : "update",
+  "ns" : "digitalvault_integration.users",
+  "command" : {
+    "q" : {
+      "_id" : 6,
+      "name" : "ole"
+    },
+    "u" : {
+      "$set" : {
+        "a" : 1
+      }
+    },
+    "multi" : false,
+    "upsert" : false
+  },
+  "keysExamined" : 1,
+  "docsExamined" : 1,
+  "nMatched" : 1,
+  "nModified" : 1,
+  "numYield" : 0,
+  "queryHash" : "4557892D",
+  "locks" : {
+    "Global" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "1" },
+        "w" : { "$numberLong": "1" }
+      }
+    },
+    "Database" : {
+      "acquireCount" : {
+        "w" : { "$numberLong": "1" }
+      }
+    },
+    "Collection" : {
+      "acquireCount" : {
+        "w" : { "$numberLong": "1" }
+      }
+    }
+  },
+  "millis" : 1,
+  "planSummary" : "IXSCAN { _id: 1 }",
+  "execStats" : {
+    "stage" : "UPDATE",
+    "nReturned" : 0,
+    "executionTimeMillisEstimate" : 0,
+    "works" : 2,
+    "advanced" : 0,
+    "needTime" : 1,
+    "needYield" : 0,
+    "saveState" : 0,
+    "restoreState" : 0,
+    "isEOF" : 1,
+    "nMatched" : 1,
+    "nWouldModify" : 1,
+    "wouldInsert" : false,
+    "fastmodinsert" : false,
+    "inputStage" : {
+      "stage" : "FETCH",
+      "filter" : {
+        "name" : {
+          "$eq" : "ole"
+        }
+      },
+      "nReturned" : 1,
+      "executionTimeMillisEstimate" : 0,
+      "works" : 1,
+      "advanced" : 1,
+      "needTime" : 0,
+      "needYield" : 0,
+      "saveState" : 1,
+      "restoreState" : 1,
+      "isEOF" : 0,
+      "docsExamined" : 1,
+      "alreadyHasObj" : 0,
+      "inputStage" : {
+        "stage" : "IXSCAN",
+        "nReturned" : 1,
+        "executionTimeMillisEstimate" : 0,
+        "works" : 1,
+        "advanced" : 1,
+        "needTime" : 0,
+        "needYield" : 0,
+        "saveState" : 1,
+        "restoreState" : 1,
+        "isEOF" : 0,
+        "keyPattern" : {
+          "_id" : 1
+        },
+        "indexName" : "_id_",
+        "isMultiKey" : false,
+        "multiKeyPaths" : {
+          "_id" : [ ]
+        },
+        "isUnique" : true,
+        "isSparse" : false,
+        "isPartial" : false,
+        "indexVersion" : 2,
+        "direction" : "forward",
+        "indexBounds" : {
+          "_id" : [
+            "[6.0, 6.0]"
+          ]
+        },
+        "keysExamined" : 1,
+        "seeks" : 1,
+        "dupsTested" : 0,
+        "dupsDropped" : 0
+      }
+    }
+  },
+  "ts" : { "$date": { "$numberLong": "1540758839829" } },
+  "client" : "127.0.0.1",
+  "appName" : "MongoDB Shell",
+  "allUsers" : [ ],
+  "user" : ""
+}

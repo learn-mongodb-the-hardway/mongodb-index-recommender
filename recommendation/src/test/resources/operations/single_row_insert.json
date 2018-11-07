@@ -1,0 +1,38 @@
+{
+  "op" : "insert",
+  "ns" : "digitalvault_integration.users",
+  "command" : {
+    "insert" : "users",
+    "ordered" : true,
+    "$db" : "digitalvault_integration"
+  },
+  "ninserted" : 1,
+  "keysInserted" : 6,
+  "numYield" : 0,
+  "locks" : {
+    "Global" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "1" },
+        "w" :{ "$numberLong": "1" }
+      }
+    },
+    "Database" : {
+      "acquireCount" : {
+        "w" : { "$numberLong": "1" }
+      }
+    },
+    "Collection" : {
+      "acquireCount" : {
+        "w" : { "$numberLong": "1" }
+      }
+    }
+  },
+  "responseLength" : 45,
+  "protocol" : "op_msg",
+  "millis" : 13,
+  "ts" : { "$date": { "$numberLong": "1540758839829" } },
+  "client" : "127.0.0.1",
+  "appName" : "MongoDB Shell",
+  "allUsers" : [ ],
+  "user" : ""
+}
