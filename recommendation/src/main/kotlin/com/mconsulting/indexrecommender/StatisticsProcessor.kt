@@ -207,6 +207,12 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
             shapes.find { it == shapeStatistics }!!.merge(shapeStatistics)
         }
     }
+
+    fun done(): List<ShapeStatistics> {
+        val finalShapes = shapes.toMutableList()
+        if (inserts != null) finalShapes += inserts!!
+        return shapes
+    }
 }
 
 private fun normalizeFilter(value: BsonValue) : BsonValue {

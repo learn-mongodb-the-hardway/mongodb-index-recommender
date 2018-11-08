@@ -29,11 +29,11 @@ class QueryRecommendationTest {
         recommender.add(operation)
 
         // Return the recommendation
-        val recommendation = recommender.recommend()
+        val indexes = recommender.recommend()
 
         // Validate the indexes
-        assertEquals(1, recommendation.indexes.size)
-        assertEquals(recommendation.indexes[0], SingleFieldIndex(
+        assertEquals(1, indexes.size)
+        assertEquals(indexes[0], SingleFieldIndex(
             "name_-1",
             Field("name", IndexDirection.UNKNOWN)
         ))
@@ -48,11 +48,11 @@ class QueryRecommendationTest {
         recommender.add(operation)
 
         // Return the recommendation
-        val recommendation = recommender.recommend()
+        val indexes = recommender.recommend()
 
         // Validate the indexes
-        assertEquals(1, recommendation.indexes.size)
-        assertEquals(recommendation.indexes[0], SingleFieldIndex(
+        assertEquals(1, indexes.size)
+        assertEquals(indexes[0], SingleFieldIndex(
             "name_-1",
             Field("name", IndexDirection.DESCENDING)
         ))
@@ -70,11 +70,11 @@ class QueryRecommendationTest {
         recommender.add(operation)
 
         // Return the recommendation
-        val recommendation = recommender.recommend()
+        val indexes = recommender.recommend()
 
         // Validate the indexes
-        assertEquals(1, recommendation.indexes.size)
-        assertEquals(recommendation.indexes[0], CompoundIndex(
+        assertEquals(1, indexes.size)
+        assertEquals(indexes[0], CompoundIndex(
             "name_-1_number_-1",
             listOf(
                 Field("name", IndexDirection.UNKNOWN),
@@ -92,11 +92,11 @@ class QueryRecommendationTest {
         recommender.add(operation)
 
         // Return the recommendation
-        val recommendation = recommender.recommend()
+        val indexes = recommender.recommend()
 
         // Validate the indexes
-        assertEquals(1, recommendation.indexes.size)
-        assertEquals(recommendation.indexes[0], CompoundIndex(
+        assertEquals(1, indexes.size)
+        assertEquals(indexes[0], CompoundIndex(
             "name_-1_number_-1",
             listOf(
                 Field("name", IndexDirection.DESCENDING),

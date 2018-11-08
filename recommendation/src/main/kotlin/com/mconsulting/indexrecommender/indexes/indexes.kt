@@ -38,7 +38,14 @@ enum class IndexDirection {
 
 data class Field(val name: String, val direction: IndexDirection)
 
-class IdIndex(name: String, partialFilterExpression: BsonDocument?) : Index(name = name, unique = true, partialFilterExpression = partialFilterExpression)
+class IdIndex(name: String, partialFilterExpression: BsonDocument? = null) : Index(name = name, unique = true, partialFilterExpression = partialFilterExpression) {
+    override fun equals(other: Any?): Boolean {
+        if (other == null) return false
+        if (other !is IdIndex) return false
+        if (other.name != name) return false
+        return true
+    }
+}
 
 class SingleFieldIndex(name: String, val field: Field, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument? = null) : Index(name, sparse, unique, partialFilterExpression) {
     override fun equals(other: Any?): Boolean {

@@ -14,8 +14,6 @@ import org.bson.BsonDocument
 
 data class IndexRecommendationOptions(val executeQueries: Boolean = true)
 
-class IndexRecommendations(val indexes: List<Index>)
-
 class IndexRecommendationEngine(
     val client: MongoClient,
     val options: IndexRecommendationOptions = IndexRecommendationOptions()) {
@@ -42,6 +40,19 @@ class IndexRecommendationEngine(
             }
         }
 
+    }
+
+    fun add(index: Index) {
+        if (!candidateIndexes.contains(index)) {
+            candidateIndexes += index
+        }
+    }
+
+    fun recommend() : List<Index> {
+        // Coalesce all the indexes
+        val indexes = coalesce(candidateIndexes)
+        // Return the index recommendations
+        return indexes
     }
 
     private fun isMultiKeyIndex(query: QueryCommand) : Boolean {
@@ -114,13 +125,6 @@ class IndexRecommendationEngine(
         return query.filter.entries.map {
             "${it.key}_${getIndexDirection(query, it.key).value()}"
         }.joinToString("_")
-    }
-
-    fun recommend() : IndexRecommendations {
-        // Coalesce all the indexes
-        val indexes = coalesce(candidateIndexes)
-        // Return the index recommendations
-        return IndexRecommendations(indexes)
     }
 
     private fun coalesce(candidateIndexes: MutableList<Index>): List<Index> {

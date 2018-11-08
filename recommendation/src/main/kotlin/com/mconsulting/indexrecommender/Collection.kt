@@ -22,15 +22,24 @@ data class CollectionOptions(
     val executeQueries: Boolean = true
 )
 
+data class CollectionIndexResults(
+    val namespace: Namespace,
+    val indexes: List<Index>,
+    val shapeStatistics: List<ShapeStatistics>
+) {
+    fun getIndex(name: String): Index? {
+        return indexes.firstOrNull { it.name == name }
+    }
+}
+
 class Collection(
     val client: MongoClient,
-    namespace: Namespace,
+    val namespace: Namespace,
     options: CollectionOptions = CollectionOptions()) {
 
     private var database: MongoDatabase
     private var collection: MongoCollection<BsonDocument>
     private var systemProfileCollection: MongoCollection<BsonDocument>
-    private var documentCount: Long = -1
     private var existingIndexes: List<Index> = listOf()
     private var statisticsProcessor: StatisticsProcessor = StatisticsProcessor()
 
@@ -50,24 +59,36 @@ class Collection(
         systemProfileCollection = database.getCollection("system.profile", BsonDocument::class.java)
     }
 
-    fun count() : Long {
-        if (documentCount > 0) return documentCount
-        documentCount = collection.count()
-        return documentCount
-    }
+    fun process(processProfile: Boolean = true) : CollectionIndexResults {
+        // Read the existing indexes
+        existingIndexes = collection.listIndexes(BsonDocument::class.java).map {
+            indexParser.createIndex(it)
+        }.toList()
 
-    fun readExistingIndexes() : List<Index> {
-        if (existingIndexes.isEmpty()) {
-            existingIndexes = collection.listIndexes(BsonDocument::class.java).map {
-                indexParser.createIndex(it)
-            }.toList()
+        // Feed the existing indexes to the recommendation engine
+        existingIndexes.forEach {
+            recommendationEngine.add(it)
         }
 
-        return existingIndexes
+        // Process the profiling information
+        if (processProfile) {
+            processProfilingInformation()
+        }
+
+        // Return the results
+        val recommendedIndexes = recommendationEngine.recommend()
+        val shapeStatistics = statisticsProcessor.done()
+
+        // Return the
+        return CollectionIndexResults(
+            namespace = namespace,
+            indexes = recommendedIndexes,
+            shapeStatistics = shapeStatistics
+        )
     }
 
-    fun processProfilingInformation() {
-        collection.find().sort(BsonDocument()
+    private fun processProfilingInformation() {
+        systemProfileCollection.find().sort(BsonDocument()
             .append("ts", BsonInt32(IndexDirection.ASCENDING.value()))).map {
             createOperation(it)
         }.forEach {
