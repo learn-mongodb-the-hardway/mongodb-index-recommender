@@ -4,6 +4,7 @@ import org.bson.BsonArray
 import org.bson.BsonDocument
 import org.bson.BsonElement
 import org.bson.BsonInt32
+import org.bson.BsonValue
 
 fun generateProjection(document: BsonDocument): BsonDocument {
     val paths = mutableListOf<String>()
@@ -50,4 +51,40 @@ fun containsArray(doc: BsonDocument): Boolean {
     }
 
     return contains
+}
+
+fun array(doc: BsonArray, parent: BsonValue?, func: (doc: BsonDocument, parent: BsonValue?, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Boolean) : Boolean {
+    var contains = false
+
+    for (entry in doc) {
+        contains = contains.or(when (entry) {
+            is BsonArray -> array(entry, doc, func)
+            is BsonDocument -> document(entry, doc, func)
+            else -> contains
+        })
+    }
+
+    return contains
+}
+
+fun document(doc: BsonDocument, parent: BsonValue?, func: (doc: BsonDocument, parent: BsonValue?, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Boolean) : Boolean {
+    var contains = false
+
+    for (entry in doc.entries) {
+        contains = contains.or(func(doc, parent, entry))
+
+        val value = entry.value
+
+        contains = contains.or(when (value) {
+            is BsonArray -> array(value, doc, func)
+            is BsonDocument -> document(value, doc, func)
+            else -> contains
+        })
+    }
+
+    return contains
+}
+
+fun containsGeoSpatialPredicate(doc: BsonDocument, func: (doc: BsonDocument, parent: BsonValue?, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Boolean): Boolean {
+    return document(doc, null, func)
 }

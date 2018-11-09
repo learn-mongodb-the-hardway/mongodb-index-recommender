@@ -26,18 +26,44 @@ class IndexRecommendationEngine(
             is Query -> {
                 val query = operation.command()
 
-                // Query document
-                when {
-                    isMultiKeyIndex(query) -> addMultiKeyIndex(query, candidateIndexes)
-                    query.filter.entries.size == 1 -> addSingleFieldIndex(query, candidateIndexes)
-                    query.filter.entries.size > 1 -> addCompoundFieldIndex(query, candidateIndexes)
+                // Check if we have a $geoIntersects or $geoWithin query
+                if (isGeoQueryIndex(query)) {
+                    return addGeoQueryIndex(query, candidateIndexes)
+                }
+
+                // Check if w have a multikey index
+                if (isMultiKeyIndex(query)) {
+                    return addMultiKeyIndex(query, candidateIndexes)
+                }
+
+                // Check if it's a single field index
+                if (query.filter.entries.size == 1) {
+                    addSingleFieldIndex(query, candidateIndexes)
+                }
+
+                // Check if it's a compound index
+                if (query.filter.entries.size > 1) {
+                    addCompoundFieldIndex(query, candidateIndexes)
                 }
             }
             is Aggregation -> {
-
             }
         }
 
+    }
+
+    private fun addGeoQueryIndex(query: QueryCommand, candidateIndexes: MutableList<Index>) {
+
+    }
+
+    private fun isGeoQueryIndex(query: QueryCommand): Boolean {
+        return containsGeoSpatialPredicate(query.filter) { doc, parent, entry ->
+            if (entry.key in listOf("\$geoWithin", "\$near", "\$geoIntersects", "\$nearSphere")) {
+                true
+            } else {
+                false
+            }
+        }
     }
 
     fun add(index: Index) {
