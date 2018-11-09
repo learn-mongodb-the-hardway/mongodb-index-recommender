@@ -4,6 +4,7 @@ import com.mconsulting.indexrecommender.indexes.CompoundIndex
 import com.mconsulting.indexrecommender.indexes.Field
 import com.mconsulting.indexrecommender.indexes.Index
 import com.mconsulting.indexrecommender.indexes.IndexDirection
+import com.mconsulting.indexrecommender.indexes.MultikeyIndex
 import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.Operation
@@ -26,13 +27,10 @@ class IndexRecommendationEngine(
                 val query = operation.command()
 
                 // Query document
-                isMultiKeyIndex(query)
-
-                // Check what kind of potential index it is
-                if (query.filter.entries.size == 1) {
-                    addSingleFieldIndex(query, candidateIndexes)
-                } else if (query.filter.entries.size > 1) {
-                    addCompoundFieldIndex(query, candidateIndexes)
+                when {
+                    isMultiKeyIndex(query) -> addMultiKeyIndex(query, candidateIndexes)
+                    query.filter.entries.size == 1 -> addSingleFieldIndex(query, candidateIndexes)
+                    query.filter.entries.size > 1 -> addCompoundFieldIndex(query, candidateIndexes)
                 }
             }
             is Aggregation -> {
@@ -49,10 +47,7 @@ class IndexRecommendationEngine(
     }
 
     fun recommend() : List<Index> {
-        // Coalesce all the indexes
-        val indexes = coalesce(candidateIndexes)
-        // Return the index recommendations
-        return indexes
+        return coalesce(candidateIndexes)
     }
 
     private fun isMultiKeyIndex(query: QueryCommand) : Boolean {
@@ -75,6 +70,24 @@ class IndexRecommendationEngine(
 
         // Not a multikey index
         return false
+    }
+
+    private fun addMultiKeyIndex(query: QueryCommand, candidateIndexes: MutableList<Index>) {
+        // Create list of fields
+        val fields = query.filter.entries.map {
+            Field(it.key, getIndexDirection(query, it.key, IndexDirection.UNKNOWN))
+        }
+
+        // Create index name
+        val fieldName = createIndexName(query)
+
+        // Create Multikey index
+        val index = MultikeyIndex(fieldName, fields)
+
+        // Add to candidate list if it does not already exist in it
+        if (!candidateIndexes.contains(index)) {
+            candidateIndexes += index
+        }
     }
 
     private fun addCompoundFieldIndex(query: QueryCommand, candidateIndexes: MutableList<Index>) {

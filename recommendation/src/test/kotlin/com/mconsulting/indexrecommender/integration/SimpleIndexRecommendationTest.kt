@@ -1,22 +1,12 @@
 package com.mconsulting.indexrecommender.integration
 
-import com.mconsulting.indexrecommender.Collection
-import com.mconsulting.indexrecommender.CollectionOptions
-import com.mconsulting.indexrecommender.Namespace
+import com.mconsulting.indexrecommender.indexes.CompoundIndex
 import com.mconsulting.indexrecommender.indexes.Field
 import com.mconsulting.indexrecommender.indexes.IdIndex
 import com.mconsulting.indexrecommender.indexes.IndexDirection
+import com.mconsulting.indexrecommender.indexes.MultikeyIndex
 import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
-import com.mongodb.MongoClient
-import com.mongodb.MongoClientURI
-import com.mongodb.client.MongoCollection
-import com.mongodb.client.MongoDatabase
-import com.mongodb.client.model.IndexOptions
 import org.bson.Document
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -26,69 +16,22 @@ import kotlin.test.assertEquals
 // 3. Perform operation(s)
 // 4. Turn off profiling
 // 5. Run Recommendation Engine
-class SimpleIndexRecommendationTest {
-    private var index = 0
-    private lateinit var collectionName: String
-    private lateinit var collection: MongoCollection<Document>
-
-    private fun createCollectionName() : String {
-        return "SimpleIndexRecommendationTest_${index++}"
-    }
-
-    private fun turnOffProfiling() {
-        val result = db.runCommand(Document(mapOf(
-            "profile" to 0
-        )))
-
-        assertEquals("1.0", result.get("ok").toString())
-    }
-
-    private fun turnOnProfiling(level: Int = 2, slowMs: Int = 0) {
-        val result = db.runCommand(Document(mapOf(
-            "profile" to level,
-            "slowms" to slowMs
-        )))
-
-        assertEquals("1.0", result.get("ok").toString())
-    }
-
-    @BeforeEach
-    fun beforeEach() {
-        collectionName = createCollectionName()
-        collection = db.getCollection(collectionName)
-
-        if (db.listCollectionNames().firstOrNull { it == collectionName } != null) {
-            collection.drop()
-        }
-    }
-
-    @AfterEach
-    fun afterEach() {
-        collection.drop()
-    }
-
+class SimpleIndexRecommendationTest : IntegrationTestBase() {
     @Test
     fun simpleSingleIndexRecommendation() {
-        // Turn on profiling
-        turnOnProfiling()
+        // Setup the case
+        executeOperations {
+            // Insert a document
+            collection.insertOne(Document(mapOf("a" to 1)))
 
-        // Insert a document
-        collection.insertOne(Document(mapOf("a" to 1)))
-
-        // Execute a query (expect us to get one)
-        collection.find(Document(mapOf(
-            "a" to 1
-        ))).first()
-
-        // Turn off profiling
-        turnOffProfiling()
+            // Execute a query (expect us to get one)
+            collection.find(Document(mapOf(
+                "a" to 1
+            ))).first()
+        }
 
         // Run the recommendation engine
-        val coll = Collection(
-            client,
-            Namespace(db.name, collectionName),
-            CollectionOptions(true, true))
-        val results = coll.process()
+        val results = runRecommendationEngine()
 
         // Validate that we have the expected indexes
         assertEquals(2, results.indexes.size)
@@ -100,21 +43,66 @@ class SimpleIndexRecommendationTest {
             results.getIndex("a_1"))
     }
 
-    companion object {
-        lateinit var client: MongoClient
-        lateinit var db: MongoDatabase
+    @Test
+    fun simpleCompoundIndexRecommendation() {
+        // Setup the case
+        executeOperations {
+            // Insert a document
+            collection.insertOne(Document(mapOf("a" to 1, "b" to 1)))
 
-        @BeforeAll
-        @JvmStatic
-        internal fun beforeAll() {
-            client = MongoClient(MongoClientURI("mongodb://localhost:27017"))
-            db = client.getDatabase("mindex_recommendation_tests")
+            // Execute a query (expect us to get one)
+            collection.find(Document(mapOf(
+                "a" to 1, "b" to 1
+            ))).first()
         }
 
-        @AfterAll
-        @JvmStatic
-        internal fun afterAll() {
-            client.close()
+        // Run the recommendation engine
+        val results = runRecommendationEngine()
+
+        // Validate that we have the expected indexes
+        assertEquals(2, results.indexes.size)
+        assertEquals(
+            IdIndex("_id_"),
+            results.getIndex("_id_"))
+        assertEquals(
+            CompoundIndex("a_1_b_1", listOf(
+                Field("a", IndexDirection.UNKNOWN),
+                Field("b", IndexDirection.UNKNOWN)
+            )),
+            results.getIndex("a_1_b_1"))
+    }
+
+    @Test
+    fun simpleMultikeyIndexRecommendation() {
+        // Setup the case
+        executeOperations {
+            // Insert a document
+            collection.insertOne(Document(mapOf(
+                "a" to 1,
+                "b" to listOf(
+                    Document(mapOf("c" to 1))
+                ))
+            ))
+
+            // Execute a query (expect us to get one)
+            collection.find(Document(mapOf(
+                "a" to 1, "b.c" to 1
+            ))).first()
         }
+
+        // Run the recommendation engine
+        val results = runRecommendationEngine()
+
+        // Validate that we have the expected indexes
+        assertEquals(2, results.indexes.size)
+        assertEquals(
+            IdIndex("_id_"),
+            results.getIndex("_id_"))
+        assertEquals(
+            MultikeyIndex("a_1_b.c_1", listOf(
+                Field("a", IndexDirection.UNKNOWN),
+                Field("b.c", IndexDirection.UNKNOWN)
+            )),
+            results.getIndex("a_1_b.c_1"))
     }
 }

@@ -72,7 +72,20 @@ class CompoundIndex(name: String, val fields: List<Field>, sparse: Boolean = fal
     }
 }
 
-class MultikeyIndex(name: String, val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument? = null) : Index(name, sparse, unique, partialFilterExpression)
+class MultikeyIndex(name: String, val fields: List<Field>, sparse: Boolean = false, unique: Boolean = false, partialFilterExpression: BsonDocument? = null) : Index(name, sparse, unique, partialFilterExpression) {
+    override fun equals(other: Any?): Boolean {
+        if (other == null) return false
+        if (other !is MultikeyIndex) return false
+        if (other.fields.size != this.fields.size) return false
+
+        // Check that all fields are the same
+        for (field in other.fields) {
+            if (!this.fields.contains(field)) return false
+        }
+
+        return true
+    }
+}
 
 abstract class GeospatialIndex(name: String, partialFilterExpression: BsonDocument?) : Index(name, partialFilterExpression = partialFilterExpression)
 
