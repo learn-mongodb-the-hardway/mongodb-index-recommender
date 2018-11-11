@@ -6,6 +6,7 @@ import com.mconsulting.indexrecommender.indexes.Index
 import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.indexes.MultikeyIndex
 import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
+import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
@@ -53,11 +54,24 @@ class IndexRecommendationEngine(
     }
 
     private fun addGeoQueryIndex(query: QueryCommand, candidateIndexes: MutableList<Index>) {
+        var path: MutableList<String> = mutableListOf()
 
-    }
+        containsGeoSpatialPredicate(query.filter) { doc, _path, entry ->
+            if (entry.key in listOf("\$geoWithin", "\$near", "\$geoIntersects", "\$nearSphere")) {
+               path.addAll(_path)
+            }
+
+            true
+        }
+
+        // If we have a path, we have a geo index candidate
+        if (path.isNotEmpty()) {
+            candidateIndexes += TwoDSphereIndex(createIndexName(query), path.joinToString("."))
+        }
+   }
 
     private fun isGeoQueryIndex(query: QueryCommand): Boolean {
-        return containsGeoSpatialPredicate(query.filter) { doc, parent, entry ->
+        return containsGeoSpatialPredicate(query.filter) { doc, _path, entry ->
             if (entry.key in listOf("\$geoWithin", "\$near", "\$geoIntersects", "\$nearSphere")) {
                 true
             } else {

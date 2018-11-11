@@ -53,38 +53,45 @@ fun containsArray(doc: BsonDocument): Boolean {
     return contains
 }
 
-fun array(doc: BsonArray, parent: BsonValue?, func: (doc: BsonDocument, parent: BsonValue?, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Boolean) : Boolean {
+fun array(doc: BsonArray, path: MutableList<String>, func: (doc: BsonDocument, path: MutableList<String>, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Boolean) : Boolean {
     var contains = false
 
-    for (entry in doc) {
+    doc.forEachIndexed { index, entry ->
+        path.add(index.toString())
+
         contains = contains.or(when (entry) {
-            is BsonArray -> array(entry, doc, func)
-            is BsonDocument -> document(entry, doc, func)
+            is BsonArray -> array(entry, path, func)
+            is BsonDocument -> document(entry, path, func)
             else -> contains
         })
+
+        path.removeAt(path.lastIndexOf(index.toString()))
     }
 
     return contains
 }
 
-fun document(doc: BsonDocument, parent: BsonValue?, func: (doc: BsonDocument, parent: BsonValue?, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Boolean) : Boolean {
+fun document(doc: BsonDocument, path: MutableList<String>, func: (doc: BsonDocument, path: MutableList<String>, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Boolean) : Boolean {
     var contains = false
 
     for (entry in doc.entries) {
-        contains = contains.or(func(doc, parent, entry))
+        contains = contains.or(func(doc, path, entry))
+        path.add(entry.key)
 
         val value = entry.value
 
         contains = contains.or(when (value) {
-            is BsonArray -> array(value, doc, func)
-            is BsonDocument -> document(value, doc, func)
+            is BsonArray -> array(value, path, func)
+            is BsonDocument -> document(value, path, func)
             else -> contains
         })
+
+        path.removeAt(path.lastIndexOf(entry.key))
     }
 
     return contains
 }
 
-fun containsGeoSpatialPredicate(doc: BsonDocument, func: (doc: BsonDocument, parent: BsonValue?, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Boolean): Boolean {
-    return document(doc, null, func)
+fun containsGeoSpatialPredicate(doc: BsonDocument, func: (doc: BsonDocument, path: MutableList<String>, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Boolean): Boolean {
+    return document(doc, mutableListOf<String>(), func)
 }

@@ -1,9 +1,7 @@
 package com.mconsulting.indexrecommender.integration
 
-import com.mconsulting.indexrecommender.indexes.Field
 import com.mconsulting.indexrecommender.indexes.IdIndex
-import com.mconsulting.indexrecommender.indexes.IndexDirection
-import com.mconsulting.indexrecommender.indexes.MultikeyIndex
+import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
 import org.bson.Document
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -44,10 +42,7 @@ class GeoSpatialRecommendationTest : IntegrationTestBase() {
             IdIndex("_id_"),
             results.getIndex("_id_"))
         assertEquals(
-            MultikeyIndex("a_1_b.c_1", listOf(
-                Field("a", IndexDirection.UNKNOWN),
-                Field("b.c", IndexDirection.UNKNOWN)
-            )),
-            results.getIndex("a_1_b.c_1"))
+            TwoDSphereIndex("location_1", "location"),
+            results.getIndex("location_1"))
     }
 }

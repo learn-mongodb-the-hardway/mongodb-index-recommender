@@ -87,17 +87,31 @@ class MultikeyIndex(name: String, val fields: List<Field>, sparse: Boolean = fal
     }
 }
 
-abstract class GeospatialIndex(name: String, partialFilterExpression: BsonDocument?) : Index(name, partialFilterExpression = partialFilterExpression)
+abstract class GeospatialIndex(name: String, partialFilterExpression: BsonDocument? = null) : Index(name, partialFilterExpression = partialFilterExpression)
 
-class TwoDSphereIndex(name: String, val key: String, partialFilterExpression: BsonDocument?) : GeospatialIndex(name, partialFilterExpression = partialFilterExpression)
+class TwoDSphereIndex(name: String, val key: String, partialFilterExpression: BsonDocument? = null) : GeospatialIndex(name, partialFilterExpression = partialFilterExpression) {
+    override fun equals(other: Any?): Boolean {
+        if (other == null) return false
+        if (other !is TwoDSphereIndex) return false
+        if (key != other.key) return false
+        return true
+    }
+}
 
-class TwoDIndex(name: String, val key: String, partialFilterExpression: BsonDocument?) : GeospatialIndex(name, partialFilterExpression = partialFilterExpression)
+class TwoDIndex(name: String, val key: String, partialFilterExpression: BsonDocument? = null) : GeospatialIndex(name, partialFilterExpression = partialFilterExpression) {
+    override fun equals(other: Any?): Boolean {
+        if (other == null) return false
+        if (other !is TwoDIndex) return false
+        if (key != other.key) return false
+        return true
+    }
+}
 
-class TextIndex(name: String, val weights: Map<String, Int>, partialFilterExpression: BsonDocument?) : Index(name, partialFilterExpression = partialFilterExpression)
+class TextIndex(name: String, val weights: Map<String, Int>, partialFilterExpression: BsonDocument? = null) : Index(name, partialFilterExpression = partialFilterExpression)
 
-class HashedIndex(name: String, val field: String, partialFilterExpression: BsonDocument?) : Index(name, partialFilterExpression = partialFilterExpression)
+class HashedIndex(name: String, val field: String, partialFilterExpression: BsonDocument? = null) : Index(name, partialFilterExpression = partialFilterExpression)
 
-class TTLIndex(name: String, val expireAfterSeconds: Int, partialFilterExpression: BsonDocument?) : Index(name, partialFilterExpression = partialFilterExpression)
+class TTLIndex(name: String, val expireAfterSeconds: Int, partialFilterExpression: BsonDocument? = null) : Index(name, partialFilterExpression = partialFilterExpression)
 
 data class IndexParserOptions(val allowExplainExecution: Boolean = false)
 
