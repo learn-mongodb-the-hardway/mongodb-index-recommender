@@ -6,15 +6,41 @@ import com.mconsulting.indexrecommender.indexes.Index
 import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.indexes.MultikeyIndex
 import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
+import com.mconsulting.indexrecommender.indexes.TextField
+import com.mconsulting.indexrecommender.indexes.TextIndex
 import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
 import com.mconsulting.indexrecommender.profiling.QueryCommand
 import com.mongodb.MongoClient
+import org.bson.BsonArray
 import org.bson.BsonDocument
+import org.bson.BsonElement
+import org.bson.BsonInt32
+import org.bson.BsonRegularExpression
+import org.bson.BsonValue
 
 data class IndexRecommendationOptions(val executeQueries: Boolean = true)
+
+fun BsonDocument.remove(path: List<String>) {
+    var pointer: BsonValue? = this
+    var previousPointer: BsonValue? = this
+
+    for(entry in path) {
+        previousPointer = pointer
+        pointer = when (pointer) {
+            is BsonDocument -> pointer.get(entry)
+            is BsonArray -> pointer[entry.toInt()]
+            else -> pointer
+        }
+    }
+
+    when (previousPointer) {
+        is BsonDocument -> previousPointer.remove(path.last())
+        is BsonArray -> previousPointer.removeAt(path.last().toInt())
+    }
+}
 
 class IndexRecommendationEngine(
     val client: MongoClient,
@@ -24,44 +50,91 @@ class IndexRecommendationEngine(
 
     fun add(operation: Operation) {
         when (operation) {
-            is Query -> {
-                val query = operation.command()
-
-                // Check if we have a $geoIntersects or $geoWithin query
-                if (isGeoQueryIndex(query)) {
-                    return addGeoQueryIndex(query, candidateIndexes)
-                }
-
-                // Check if w have a multikey index
-                if (isMultiKeyIndex(query)) {
-                    return addMultiKeyIndex(query, candidateIndexes)
-                }
-
-                // Check if it's a single field index
-                if (query.filter.entries.size == 1) {
-                    addSingleFieldIndex(query, candidateIndexes)
-                }
-
-                // Check if it's a compound index
-                if (query.filter.entries.size > 1) {
-                    addCompoundFieldIndex(query, candidateIndexes)
-                }
-            }
+            is Query -> processQuery(operation.command())
             is Aggregation -> {
             }
         }
 
     }
 
+    private fun processQuery(query: QueryCommand) {
+        // Check if we have a $geoIntersects or $geoWithin query
+        if (isGeoQueryIndex(query)) {
+            return addGeoQueryIndex(query, candidateIndexes)
+        }
+
+        // Do we have query that contains a regular expression
+        if (containsRegularExpression(query)) {
+            return processRegularExpression(query, candidateIndexes)
+        }
+
+        // Check if w have a multikey index
+        if (isMultiKeyIndex(query)) {
+            return addMultiKeyIndex(query, candidateIndexes)
+        }
+
+        // Check if it's a single field index
+        if (query.filter.entries.size == 1) {
+            addSingleFieldIndex(query, candidateIndexes)
+        }
+
+        // Check if it's a compound index
+        if (query.filter.entries.size > 1) {
+            addCompoundFieldIndex(query, candidateIndexes)
+        }
+    }
+
+    /**
+     * We will specify a possible text index for each regular expression entry
+     * The left over fields will then be processed against other possible index candidates
+     */
+    private fun processRegularExpression(query: QueryCommand, candidateIndexes: MutableList<Index>) {
+        val regularExpressions = mutableListOf<List<String>>()
+        val filteredOutDoc = query.filter.clone()
+        val filteredSortDoc = query.sort.clone()
+
+        traverse(query.filter) { doc, _path, entry ->
+            if (entry.value is BsonRegularExpression) {
+                // Add to the list of regular expressions
+                regularExpressions.add(_path.toList() + entry.key)
+                // Remove from the filtered out Doc
+                filteredOutDoc.remove(_path + entry.key)
+                // Remove from the sort
+                filteredSortDoc.remove(_path + entry.key)
+            }
+        }
+
+        // Generate a text index recommendation
+        candidateIndexes += TextIndex(
+            createIndexName(QueryCommand(query.db, query.collection, BsonDocument(regularExpressions.map {
+                BsonElement(it.joinToString("."), BsonInt32(1))
+            }), BsonDocument())), regularExpressions.map {
+                TextField(it)
+            })
+
+        // Process the rest of the filter as a possible other index
+        if (filteredOutDoc.isNotEmpty()) {
+            processQuery(QueryCommand(query.db, query.collection, filteredOutDoc, filteredSortDoc))
+        }
+    }
+
+    private fun containsRegularExpression(query: QueryCommand): Boolean {
+        var contains = false
+
+        traverse(query.filter) { doc, _path, entry ->
+            if (entry.value is BsonRegularExpression) contains = true
+        }
+
+        return contains
+    }
+
     private fun addGeoQueryIndex(query: QueryCommand, candidateIndexes: MutableList<Index>) {
         var path: MutableList<String> = mutableListOf()
 
-        containsGeoSpatialPredicate(query.filter) { doc, _path, entry ->
+        traverse(query.filter) { doc, _path, entry ->
             if (entry.key in listOf("\$geoWithin", "\$near", "\$geoIntersects", "\$nearSphere")) {
                path.addAll(_path)
             }
-
-            true
         }
 
         // If we have a path, we have a geo index candidate
@@ -71,13 +144,15 @@ class IndexRecommendationEngine(
    }
 
     private fun isGeoQueryIndex(query: QueryCommand): Boolean {
-        return containsGeoSpatialPredicate(query.filter) { doc, _path, entry ->
+        var contains = false
+
+        traverse(query.filter) { doc, _path, entry ->
             if (entry.key in listOf("\$geoWithin", "\$near", "\$geoIntersects", "\$nearSphere")) {
-                true
-            } else {
-                false
+                contains = true
             }
         }
+
+        return contains
     }
 
     fun add(index: Index) {

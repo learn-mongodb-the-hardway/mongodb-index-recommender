@@ -83,9 +83,9 @@ class IndexTests {
     fun textIndex() {
         val index = createIndex(readJsonAsBsonDocument("indexes/text_index.json")) as TextIndex
         assertEquals("name_text", index.name)
-        assertEquals(mapOf(
-            "name" to 1
-        ), index.weights)
+        assertEquals(listOf(
+            TextField(listOf("name"), 1)
+        ), index.fields)
         assertEquals(false, index.sparse)
         assertEquals(false, index.unique)
         assertNull(index.partialFilterExpression)

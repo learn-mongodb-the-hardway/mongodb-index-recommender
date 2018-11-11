@@ -107,7 +107,20 @@ class TwoDIndex(name: String, val key: String, partialFilterExpression: BsonDocu
     }
 }
 
-class TextIndex(name: String, val weights: Map<String, Int>, partialFilterExpression: BsonDocument? = null) : Index(name, partialFilterExpression = partialFilterExpression)
+data class TextField(val path: List<String>, val weight: Int = 1)
+
+class TextIndex(name: String, val fields: List<TextField>, partialFilterExpression: BsonDocument? = null) : Index(name, partialFilterExpression = partialFilterExpression) {
+    override fun equals(other: Any?): Boolean {
+        if (other == null) return false
+        if (other !is TextIndex) return false
+        if (other.fields.size != this.fields.size) return false
+        for (field in this.fields) {
+            if (!other.fields.contains(field)) return false
+        }
+
+        return true
+    }
+}
 
 class HashedIndex(name: String, val field: String, partialFilterExpression: BsonDocument? = null) : Index(name, partialFilterExpression = partialFilterExpression)
 
@@ -320,8 +333,8 @@ class IndexParser(val client: MongoClient?, private val options: IndexParserOpti
         return TextIndex(
             document.getString("name").value,
             document.getDocument("weights").map {
-              Pair(it.key, it.value.asInt32().value)
-            }.toMap(), partialFilterExpression)
+                TextField(listOf(it.key), it.value.asInt32().value)
+            }, partialFilterExpression)
     }
 
     private fun extractQueryPlan(document: BsonDocument, key: BsonDocument?) : QueryPlan? {

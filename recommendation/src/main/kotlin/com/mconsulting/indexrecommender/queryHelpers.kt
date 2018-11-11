@@ -53,45 +53,37 @@ fun containsArray(doc: BsonDocument): Boolean {
     return contains
 }
 
-fun array(doc: BsonArray, path: MutableList<String>, func: (doc: BsonDocument, path: MutableList<String>, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Boolean) : Boolean {
-    var contains = false
-
+fun array(doc: BsonArray, path: MutableList<String>, func: (doc: BsonDocument, path: MutableList<String>, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Any?) {
     doc.forEachIndexed { index, entry ->
         path.add(index.toString())
 
-        contains = contains.or(when (entry) {
+        when (entry) {
             is BsonArray -> array(entry, path, func)
             is BsonDocument -> document(entry, path, func)
-            else -> contains
-        })
+        }
 
         path.removeAt(path.lastIndexOf(index.toString()))
     }
-
-    return contains
 }
 
-fun document(doc: BsonDocument, path: MutableList<String>, func: (doc: BsonDocument, path: MutableList<String>, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Boolean) : Boolean {
-    var contains = false
-
+fun document(doc: BsonDocument, path: MutableList<String>, func: (doc: BsonDocument, path: MutableList<String>, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Any?) {
     for (entry in doc.entries) {
-        contains = contains.or(func(doc, path, entry))
+
+        func(doc, path, entry)
+
         path.add(entry.key)
 
         val value = entry.value
 
-        contains = contains.or(when (value) {
+        when (value) {
             is BsonArray -> array(value, path, func)
             is BsonDocument -> document(value, path, func)
-            else -> contains
-        })
+        }
 
         path.removeAt(path.lastIndexOf(entry.key))
     }
-
-    return contains
 }
 
-fun containsGeoSpatialPredicate(doc: BsonDocument, func: (doc: BsonDocument, path: MutableList<String>, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Boolean): Boolean {
-    return document(doc, mutableListOf<String>(), func)
+fun traverse(doc: BsonDocument, func: (doc: BsonDocument, path: MutableList<String>, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Any?) {
+    document(doc, mutableListOf(), func)
 }
