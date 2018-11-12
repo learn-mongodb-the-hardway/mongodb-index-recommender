@@ -1,6 +1,7 @@
 package com.mconsulting.indexrecommender.log
 
 import com.mconsulting.indexrecommender.Namespace
+import com.mconsulting.indexrecommender.commandToBsonDocument
 import org.bson.BsonDocument
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -223,32 +224,6 @@ class LogParser(val reader: BufferedReader) {
         }
 
         return entry
-    }
-
-    /**
-    {
-        find: "t",
-        filter: {
-            $text: {
-                $search: "world"
-            }
-        },
-        limit: 1.0,
-        singleBatch: true,
-        lsid: {
-            id: UUID("b8a51588-fc4d-4bfc-89e4-903ba7ffadc1")
-        },
-        $db: "mindex_recommendation_tests"
-    }
-     */
-    private fun commandToBsonDocument(json: String): BsonDocument {
-        // Rewrite all the keys to be json compatible
-        var modifiedJson = json.replace(Regex("""([\d|\w|\$|\.|\_]+)\:"""), "\"$1\":")
-        // Rewrite any UUID field as a bson type
-        modifiedJson = modifiedJson.replace(
-            Regex("""UUID\("([\d|\w|\-]+)"\)"""),
-            "{\"\\${'$'}binary\": \"$1\", \"\\${'$'}type\": \"4\"}")
-        return BsonDocument.parse(modifiedJson)
     }
 
     fun forEach(function: (entry: LogEntry) -> Unit) {

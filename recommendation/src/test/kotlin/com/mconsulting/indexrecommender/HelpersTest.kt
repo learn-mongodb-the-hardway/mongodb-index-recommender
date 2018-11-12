@@ -4,6 +4,7 @@ import org.bson.BsonArray
 import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.BsonString
+import org.bson.json.JsonWriterSettings
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -99,5 +100,14 @@ class HelpersTest {
         assertTrue(result2)
         assertTrue(result3)
         assertFalse(result4)
+    }
+
+    @Test
+    fun testCommandToBsonDocument() {
+        val document = commandToBsonDocument("""
+            { a: ISODate("2012-12-19T06:01:17.171Z") }
+        """.trimIndent())
+
+        println(document.toJson(JsonWriterSettings(true)))
     }
 }

@@ -87,3 +87,35 @@ fun document(doc: BsonDocument, path: MutableList<String>, func: (doc: BsonDocum
 fun traverse(doc: BsonDocument, func: (doc: BsonDocument, path: MutableList<String>, entry: MutableMap.MutableEntry<String, BsonValue?>) -> Any?) {
     document(doc, mutableListOf(), func)
 }
+
+/**
+{
+find: "t",
+filter: {
+$text: {
+$search: "world"
+}
+},
+limit: 1.0,
+singleBatch: true,
+lsid: {
+id: UUID("b8a51588-fc4d-4bfc-89e4-903ba7ffadc1")
+},
+$db: "mindex_recommendation_tests"
+}
+ */
+fun commandToBsonDocument(json: String): BsonDocument {
+    // Rewrite all the keys to be json compatible
+    var modifiedJson = json.replace(Regex("""([\d|\w|\$|\.|\_]+)\:"""), "\"$1\":")
+    // Rewrite any UUID field as a bson type
+    modifiedJson = modifiedJson.replace(
+        Regex("""UUID\("([\d|\w|\-]+)"\)"""),
+        "{\"\\${'$'}binary\": \"$1\", \"\\${'$'}type\": \"4\"}")
+    // Rewrite any ISODate fields ISODate("2012-12-19T06:01:17.171Z")
+//    modifiedJson = modifiedJson.replace(
+//        Regex("""ISODate\("([\d|\w|\-|\:]+)"\)"""),
+//        "{\"\\${'$'}binary\": \"$1\", \"\\${'$'}type\": \"4\"}")
+
+    println(modifiedJson)
+    return BsonDocument.parse(modifiedJson)
+}
