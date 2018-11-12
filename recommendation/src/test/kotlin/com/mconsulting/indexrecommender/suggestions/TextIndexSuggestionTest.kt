@@ -12,6 +12,7 @@ import org.bson.Document
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
+import kotlin.test.assertTrue
 
 class TextIndexSuggestionTest : IntegrationTestBase() {
 
@@ -51,6 +52,55 @@ class TextIndexSuggestionTest : IntegrationTestBase() {
         assertEquals(
             TextIndex("b.text_1", listOf(TextField(listOf("b.text"), 1))),
             results.getIndex("b.text_1"))
+        assertEquals(
+            SingleFieldIndex("a_1", Field("a", IndexDirection.UNKNOWN)),
+            results.getIndex("a_1"))
+    }
+
+    @Test
+    fun shouldCompactTwoRegularExpressionsIntoSingleTextIndexSuggestion() {
+        // Setup the case
+        executeOperations {
+            // Insert a document
+            collection.insertOne(Document(mapOf(
+                "b" to mapOf(
+                    "text" to "hello world what is going on",
+                    "text2" to "peter pan"
+                ),
+                "a" to mapOf(
+                    "b" to 1
+                )
+            )))
+
+            //{ location: { $geoWithin: { $center: [ [ -73.856077, 40.848447 ], 10 ] } } }
+            // Execute a query (expect us to get one)
+            val doc = collection.find(Document(mapOf(
+                "b.text" to BsonRegularExpression("world", "i"),
+                "b.text2" to BsonRegularExpression("peter", "i"),
+                "a" to mapOf(
+                    "b" to 1
+                )
+            ))).firstOrNull()
+            assertNotNull(doc)
+        }
+
+        // Run the recommendation engine
+        val results = runRecommendationEngine()
+
+        // Validate that we have the expected indexes
+        assertEquals(3, results.indexes.size)
+        assertTrue(results.contains("_id_"))
+        assertTrue(results.contains("b.text_1_b.text2_1"))
+        assertTrue(results.contains("a_1"))
+        assertEquals(
+            IdIndex("_id_"),
+            results.getIndex("_id_"))
+        assertEquals(
+            TextIndex("b.text_1_b.text2_1", listOf(
+                TextField(listOf("b.text"), 1),
+                TextField(listOf("b.text2"), 1)
+            )),
+            results.getIndex("b.text_1_b.text2_1"))
         assertEquals(
             SingleFieldIndex("a_1", Field("a", IndexDirection.UNKNOWN)),
             results.getIndex("a_1"))

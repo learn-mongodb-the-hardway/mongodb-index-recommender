@@ -30,6 +30,10 @@ data class CollectionIndexResults(
     fun getIndex(name: String): Index? {
         return indexes.firstOrNull { it.name == name }
     }
+
+    fun contains(name: String): Boolean {
+        return getIndex(name) != null
+    }
 }
 
 class Collection(
