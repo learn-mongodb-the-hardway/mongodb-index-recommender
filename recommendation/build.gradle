@@ -7,6 +7,8 @@ dependencies {
     // https://mvnrepository.com/artifact/joda-time/joda-time
     // compile group: 'joda-time', name: 'joda-time', version: '2.10'
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
+    // https://mvnrepository.com/artifact/joda-time/joda-time
+    compile group: 'joda-time', name: 'joda-time', version: '2.10.1'
 }
 
 //implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.25.0'

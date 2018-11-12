@@ -1,7 +1,9 @@
 package com.mconsulting.indexrecommender.log
 
-import jdk.nashorn.internal.runtime.regexp.RegExp
+import com.mconsulting.indexrecommender.Namespace
 import org.bson.BsonDocument
+import org.joda.time.DateTime
+import org.joda.time.format.ISODateTimeFormat
 import java.io.BufferedReader
 import java.util.*
 
@@ -20,11 +22,15 @@ enum class LogTypeNames {
 //2018-11-12T09:58:58.960+0100 I COMMAND  [conn1] command mindex_recommendation_tests.t appName: "MongoDB Shell" command: find { find: "t", filter: { $text: { $search: "world" } }, limit: 1.0, singleBatch: true, lsid: { id: UUID("b8a51588-fc4d-4bfc-89e4-903ba7ffadc1") }, $db: "mindex_recommendation_tests" } planSummary: IXSCAN { _fts: "text", _ftsx: 1 } keysExamined:1 docsExamined:1 cursorExhausted:1 numYields:0 nreturned:1 queryHash:7E2D582B reslen:212 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 2 } }, Collection: { acquireCount: { r: 2 } } } protocol:op_msg 0ms
 //2018-11-12T09:58:58.961+0100 I COMMAND  [conn1] command mindex_recommendation_tests.$cmd appName: "MongoDB Shell" command: isMaster { isMaster: 1.0, forShell: 1.0, $db: "mindex_recommendation_tests" } numYields:0 reslen:242 locks:{} protocol:op_msg 0ms
 
-abstract class LogEntry
+interface LogEntry
+
+abstract class LogEntryBase(val dateTime: DateTime, val severityLevel: SeverityLevels, val namespace: Namespace) : LogEntry
 
 class PlanSummary(val type: String = "", val document: BsonDocument = BsonDocument())
 
-class CommandLogEntry : LogEntry() {
+class CommandLogEntry(dateTime: DateTime, severityLevel: SeverityLevels, namespace: Namespace) : LogEntryBase(
+    dateTime, severityLevel, namespace
+) {
     var appName: String = ""
     var command: BsonDocument = BsonDocument()
     var planSummary: PlanSummary = PlanSummary()
@@ -41,7 +47,7 @@ class CommandLogEntry : LogEntry() {
     var executionTimeMS: Int = -1
 }
 
-class NoSupportedLogEntry : LogEntry()
+class NoSupportedLogEntry : LogEntry
 
 class LogParser(val reader: BufferedReader) {
     private var line: String? = null
@@ -66,7 +72,10 @@ class LogParser(val reader: BufferedReader) {
         // Start parsing itK
         val tokenizer = StringTokenizer(currentLine, " ")
         // Get the date timestamp
-        val dateTime = tokenizer.nextToken()
+        val dateTimeString = tokenizer.nextToken()
+        // 2018-11-12T09:57:00.792+0100
+        val formatter = ISODateTimeFormat.dateTime()
+        val dateTime = formatter.parseDateTime(dateTimeString)
         // Read the log entry severity level
         val severityLevel = tokenizer.nextToken()
         // Read the log entry type
@@ -81,25 +90,21 @@ class LogParser(val reader: BufferedReader) {
 
         // Process the types we know
         return when (logType.toUpperCase()) {
-            LogTypeNames.COMMAND.name -> parseInfo(dateTime, severityLevel, currentLine, tokenizer)
+            LogTypeNames.COMMAND.name -> parseInfo(dateTime, SeverityLevels.valueOf(severityLevel), tokenizer)
             else -> NoSupportedLogEntry()
         }
     }
 
-    private fun parseInfo(dateTime: String?, severityLevel: String?, line: String, tokenizer: StringTokenizer): LogEntry {
+    private fun parseInfo(dateTime: DateTime, severityLevel: SeverityLevels, tokenizer: StringTokenizer): LogEntry {
         // Read the connection information
         val connection = tokenizer.nextToken()
         // Skip the next token
         tokenizer.nextToken()
         // Read the namespace
-        val namespace = tokenizer.nextToken()
-
+        val namespaceString = tokenizer.nextToken()
+        val namespace = Namespace.parse(namespaceString)
         // We have a valid line
-        if (line.contains("command: find")) {
-            return parserFindCommand(line, tokenizer)
-        }
-
-        return NoSupportedLogEntry()
+        return parseCommand(tokenizer, dateTime, severityLevel, namespace)
     }
 
     // 2018-11-12T09:58:58.960+0100
@@ -120,12 +125,12 @@ class LogParser(val reader: BufferedReader) {
     // locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 2 } }, Collection: { acquireCount: { r: 2 } } }
     // protocol:op_msg
     // 0ms
-    private fun parserFindCommand(line: String, tokenizer: StringTokenizer) : LogEntry {
+    private fun parseCommand(tokenizer: StringTokenizer, dateTime: DateTime, severityLevel: SeverityLevels, namespace: Namespace) : LogEntry {
         // Split the line into ever key we can
         var restOfLine = tokenizer.toList().joinToString(" ")
 
         // Create command log entry
-        val entry = CommandLogEntry()
+        val entry = CommandLogEntry(dateTime, severityLevel, namespace)
 
         // Extract the miliseconds execution
         val msMatch = Regex("""(\d)+ms""").find(restOfLine)
@@ -206,7 +211,13 @@ class LogParser(val reader: BufferedReader) {
                 val token = StringTokenizer(it)
                 token.nextToken()
                 val scanType = token.nextToken().trim()
-                val scanDocument = commandToBsonDocument(token.toList().joinToString(" "))
+                val restOfSummary = token.toList().joinToString(" ")
+                var scanDocument = BsonDocument()
+
+                if (restOfSummary.contains("{")) {
+                    scanDocument = commandToBsonDocument(restOfSummary)
+                }
+
                 entry.planSummary = PlanSummary(scanType, scanDocument)
             }
         }
@@ -238,10 +249,6 @@ class LogParser(val reader: BufferedReader) {
             Regex("""UUID\("([\d|\w|\-]+)"\)"""),
             "{\"\\${'$'}binary\": \"$1\", \"\\${'$'}type\": \"4\"}")
         return BsonDocument.parse(modifiedJson)
-    }
-
-    private fun readJson(tokenizer: StringTokenizer): String {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
     fun forEach(function: (entry: LogEntry) -> Unit) {
