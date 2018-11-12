@@ -5,6 +5,7 @@ import org.bson.BsonDocument
 import org.bson.BsonElement
 import org.bson.BsonInt32
 import org.bson.BsonValue
+import java.util.*
 
 fun generateProjection(document: BsonDocument): BsonDocument {
     val paths = mutableListOf<String>()
@@ -104,18 +105,44 @@ id: UUID("b8a51588-fc4d-4bfc-89e4-903ba7ffadc1")
 $db: "mindex_recommendation_tests"
 }
  */
-fun commandToBsonDocument(json: String): BsonDocument {
-    // Rewrite all the keys to be json compatible
-    var modifiedJson = json.replace(Regex("""([\d|\w|\$|\.|\_]+)\:"""), "\"$1\":")
-    // Rewrite any UUID field as a bson type
-    modifiedJson = modifiedJson.replace(
-        Regex("""UUID\("([\d|\w|\-]+)"\)"""),
-        "{\"\\${'$'}binary\": \"$1\", \"\\${'$'}type\": \"4\"}")
-    // Rewrite any ISODate fields ISODate("2012-12-19T06:01:17.171Z")
-//    modifiedJson = modifiedJson.replace(
-//        Regex("""ISODate\("([\d|\w|\-|\:]+)"\)"""),
-//        "{\"\\${'$'}binary\": \"$1\", \"\\${'$'}type\": \"4\"}")
 
-    println(modifiedJson)
-    return BsonDocument.parse(modifiedJson)
+private val ISO_REGEX = Regex("""ISODate\(\"([\d|\w|\-|\:|\.]+)\"\)""")
+private val KEY_REGEX = Regex("^([\\d|\\w|\\-|]+)\\:")
+
+fun commandToBsonDocument(json: String): BsonDocument {
+    // Go over all the tokens
+    val tokenizer = StringTokenizer(json, " ")
+    val tokens = mutableListOf<String>()
+
+    while (tokenizer.hasMoreTokens()) {
+        val token = tokenizer.nextToken()
+
+        if (token.matches(ISO_REGEX)) {
+            tokens += token.replace(ISO_REGEX, "{ \"\\${'$'}date\": \"$1\" }")
+        } else if (token.matches(KEY_REGEX)) {
+            tokens += token.replace(KEY_REGEX, "\"$1\":")
+        } else {
+            tokens += token
+        }
+    }
+
+
+//    // Rewrite all the keys to be json compatible
+//    var modifiedJson = json.replace(Regex("""([\d|\w|\$|\.|\_]+)\:"""), "\"$1\":")
+//    // Rewrite any UUID field as a bson type
+//    modifiedJson = modifiedJson.replace(
+//        Regex("""UUID\("([\d|\w|\-]+)"\)"""),
+//        "{\"\\${'$'}binary\": \"$1\", \"\\${'$'}type\": \"4\"}")
+//    // Rewrite any ISODate fields ISODate("2012-12-19T06:01:17.171Z")
+////    modifiedJson = modifiedJson.replace(
+////        Regex("""ISODate\("([\d|\w|\-|\:]+)"\)"""),
+////        "{\"\\${'$'}binary\": \"$1\", \"\\${'$'}type\": \"4\"}")
+//
+//    println(modifiedJson)
+
+    // TokenJSON
+    val finalJson = tokens.joinToString(" ")
+
+    // Returned the processed tokens
+    return BsonDocument.parse(finalJson)
 }

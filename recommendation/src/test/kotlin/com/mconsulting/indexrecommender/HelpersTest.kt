@@ -1,8 +1,10 @@
 package com.mconsulting.indexrecommender
 
 import org.bson.BsonArray
+import org.bson.BsonDateTime
 import org.bson.BsonDocument
 import org.bson.BsonInt32
+import org.bson.BsonInt64
 import org.bson.BsonString
 import org.bson.json.JsonWriterSettings
 import org.junit.jupiter.api.Test
@@ -108,6 +110,10 @@ class HelpersTest {
             { a: ISODate("2012-12-19T06:01:17.171Z") }
         """.trimIndent())
 
-        println(document.toJson(JsonWriterSettings(true)))
+//        println(document.toJson(JsonWriterSettings(true)))
+        assertEquals(BsonDocument()
+            .append("a", BsonDateTime(
+                isoDateTimeStringToDateTime("2012-12-19T06:01:17.171Z").millis
+            )), document)
     }
 }

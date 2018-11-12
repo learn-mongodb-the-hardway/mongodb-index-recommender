@@ -6,6 +6,8 @@ import org.bson.codecs.BsonValueCodecProvider
 import org.bson.codecs.DocumentCodecProvider
 import org.bson.codecs.ValueCodecProvider
 import org.bson.codecs.configuration.CodecRegistries
+import org.joda.time.DateTime
+import org.joda.time.format.ISODateTimeFormat
 import java.io.InputStreamReader
 
 fun readResourceAsString(resource: String) =
@@ -24,4 +26,10 @@ val registry = CodecRegistries.fromProviders(
 
 fun toBsonDocument(document: Document) : BsonDocument {
     return document.toBsonDocument(BsonDocument::class.java, registry)
+}
+
+val formatter = ISODateTimeFormat.dateTime()
+
+fun isoDateTimeStringToDateTime(value: String) : DateTime {
+    return formatter.parseDateTime(value)
 }
