@@ -11,6 +11,9 @@ import java.io.InputStreamReader
 fun readResourceAsString(resource: String) =
     InputStreamReader(QueryRecommendationTest::class.java.classLoader.getResourceAsStream(resource)).readText()
 
+fun readResourceAsReader(resource: String) =
+    InputStreamReader(QueryRecommendationTest::class.java.classLoader.getResourceAsStream(resource))
+
 fun readJsonAsBsonDocument(resource: String) = BsonDocument.parse(readResourceAsString(resource))
 
 val registry = CodecRegistries.fromProviders(
