@@ -10,9 +10,20 @@ class LogParserTest {
     fun parseQueryAndAggregationLogEntriesTest() {
         val reader = readResourceAsReader("logs/query_and_aggregation_log_4_0.txt")
         val logParser = LogParser(BufferedReader(reader))
+        val logEntries = mutableListOf<LogEntry>()
 
-        while (logParser.hasNext()) {
-            logParser.next()
+        // Go over the log
+        logParser.forEach {
+            if (it is CommandLogEntry) {
+                logEntries += it
+            }
         }
+
+        println()
+
+
+//        while (logParser.hasNext()) {
+//            logParser.next()
+//        }
     }
 }
