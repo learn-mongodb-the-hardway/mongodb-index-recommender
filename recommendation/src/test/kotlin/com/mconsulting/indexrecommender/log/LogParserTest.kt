@@ -8,7 +8,7 @@ class LogParserTest {
 
     @Test
     fun parseQueryAndAggregationLogEntriesTest() {
-        val reader = readResourceAsReader("logs/query_and_aggregation_log_4_0.log")
+        val reader = readResourceAsReader("logs/query_and_aggregation_log_4_0.txt")
         val logParser = LogParser(BufferedReader(reader))
 
         while (logParser.hasNext()) {

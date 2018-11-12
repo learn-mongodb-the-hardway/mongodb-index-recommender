@@ -1,0 +1,42 @@
+Christians-MacBook-Pro:~ christkv$ mongod --dbpath=./scratch/
+2018-11-12T09:56:59.614+0100 I CONTROL  [main] Automatically disabling TLS 1.0, to force-enable TLS 1.0 specify --sslDisabledProtocols 'none'
+2018-11-12T09:56:59.670+0100 I CONTROL  [initandlisten] MongoDB starting : pid=23262 port=27017 dbpath=./scratch/ 64-bit host=Christians-MacBook-Pro.local
+2018-11-12T09:56:59.670+0100 I CONTROL  [initandlisten] db version v4.1.4
+2018-11-12T09:56:59.670+0100 I CONTROL  [initandlisten] git version: 2f4b5918497b09a226a3ec5dcff930edd52ea1e9
+2018-11-12T09:56:59.670+0100 I CONTROL  [initandlisten] allocator: system
+2018-11-12T09:56:59.670+0100 I CONTROL  [initandlisten] modules: none
+2018-11-12T09:56:59.670+0100 I CONTROL  [initandlisten] build environment:
+2018-11-12T09:56:59.670+0100 I CONTROL  [initandlisten]     distarch: x86_64
+2018-11-12T09:56:59.670+0100 I CONTROL  [initandlisten]     target_arch: x86_64
+2018-11-12T09:56:59.670+0100 I CONTROL  [initandlisten] options: { storage: { dbPath: "./scratch/" } }
+2018-11-12T09:56:59.673+0100 I STORAGE  [initandlisten] Detected data files in ./scratch/ created by the 'wiredTiger' storage engine, so setting the active storage engine to 'wiredTiger'.
+2018-11-12T09:56:59.673+0100 I STORAGE  [initandlisten] wiredtiger_open config: create,cache_size=7680M,session_max=20000,eviction=(threads_min=4,threads_max=4),config_base=false,statistics=(fast),log=(enabled=true,archive=true,path=journal,compressor=snappy),file_manager=(close_idle_time=100000),statistics_log=(wait=0),verbose=(recovery_progress),
+2018-11-12T09:57:00.698+0100 I STORAGE  [initandlisten] WiredTiger message [1542013020:698722][23262:0x7ffff01c33c0], txn-recover: Main recovery loop: starting at 6/792192 to 7/256
+2018-11-12T09:57:00.792+0100 I STORAGE  [initandlisten] WiredTiger message [1542013020:792511][23262:0x7ffff01c33c0], txn-recover: Recovering log 6 through 7
+2018-11-12T09:57:00.856+0100 I STORAGE  [initandlisten] WiredTiger message [1542013020:856173][23262:0x7ffff01c33c0], txn-recover: Recovering log 7 through 7
+2018-11-12T09:57:00.902+0100 I STORAGE  [initandlisten] WiredTiger message [1542013020:902410][23262:0x7ffff01c33c0], txn-recover: Set global recovery timestamp: 0
+2018-11-12T09:57:00.970+0100 I RECOVERY [initandlisten] WiredTiger recoveryTimestamp. Ts: Timestamp(0, 0)
+2018-11-12T09:57:00.988+0100 I CONTROL  [initandlisten]
+2018-11-12T09:57:00.988+0100 I CONTROL  [initandlisten] ** NOTE: This is a development version (4.1.4) of MongoDB.
+2018-11-12T09:57:00.988+0100 I CONTROL  [initandlisten] **       Not recommended for production.
+2018-11-12T09:57:00.988+0100 I CONTROL  [initandlisten]
+2018-11-12T09:57:00.988+0100 I CONTROL  [initandlisten] ** WARNING: Access control is not enabled for the database.
+2018-11-12T09:57:00.988+0100 I CONTROL  [initandlisten] **          Read and write access to data and configuration is unrestricted.
+2018-11-12T09:57:00.989+0100 I CONTROL  [initandlisten]
+2018-11-12T09:57:00.989+0100 I CONTROL  [initandlisten] ** WARNING: This server is bound to localhost.
+2018-11-12T09:57:00.989+0100 I CONTROL  [initandlisten] **          Remote systems will be unable to connect to this server.
+2018-11-12T09:57:00.989+0100 I CONTROL  [initandlisten] **          Start the server with --bind_ip <address> to specify which IP
+2018-11-12T09:57:00.989+0100 I CONTROL  [initandlisten] **          addresses it should serve responses from, or with --bind_ip_all to
+2018-11-12T09:57:00.989+0100 I CONTROL  [initandlisten] **          bind to all interfaces. If this behavior is desired, start the
+2018-11-12T09:57:00.989+0100 I CONTROL  [initandlisten] **          server with --bind_ip 127.0.0.1 to disable this warning.
+2018-11-12T09:57:00.989+0100 I CONTROL  [initandlisten]
+2018-11-12T09:57:01.061+0100 I FTDC     [initandlisten] Initializing full-time diagnostic data capture with directory './scratch/diagnostic.data'
+2018-11-12T09:57:01.086+0100 I NETWORK  [initandlisten] waiting for connections on port 27017
+2018-11-12T09:57:04.795+0100 I NETWORK  [listener] connection accepted from 127.0.0.1:58257 #1 (1 connection now open)
+2018-11-12T09:57:04.798+0100 I NETWORK  [conn1] received client metadata from 127.0.0.1:58257 conn1: { application: { name: "MongoDB Shell" }, driver: { name: "MongoDB Internal Client", version: "4.1.4" }, os: { type: "Darwin", name: "Mac OS X", architecture: "x86_64", version: "16.7.0" } }
+2018-11-12T09:58:08.162+0100 I COMMAND  [conn1] command mindex_recommendation_tests.$cmd appName: "MongoDB Shell" command: profile { profile: 2.0, slowms: 0.0, lsid: { id: UUID("b8a51588-fc4d-4bfc-89e4-903ba7ffadc1") }, $db: "mindex_recommendation_tests" } numYields:0 reslen:79 locks:{ Global: { acquireCount: { r: 1, w: 1 } }, Database: { acquireCount: { W: 1 } } } protocol:op_msg 0ms
+2018-11-12T09:58:08.164+0100 I COMMAND  [conn1] command mindex_recommendation_tests.$cmd appName: "MongoDB Shell" command: isMaster { isMaster: 1.0, forShell: 1.0, $db: "mindex_recommendation_tests" } numYields:0 reslen:242 locks:{} protocol:op_msg 0ms
+2018-11-12T09:58:10.450+0100 I COMMAND  [conn1] command mindex_recommendation_tests.t appName: "MongoDB Shell" command: aggregate { aggregate: "t", pipeline: [ { $match: {} } ], cursor: {}, lsid: { id: UUID("b8a51588-fc4d-4bfc-89e4-903ba7ffadc1") }, $db: "mindex_recommendation_tests" } planSummary: COLLSCAN keysExamined:0 docsExamined:4 cursorExhausted:1 numYields:0 nreturned:4 reslen:403 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 2 } }, Collection: { acquireCount: { r: 2 } } } protocol:op_msg 0ms
+2018-11-12T09:58:10.452+0100 I COMMAND  [conn1] command mindex_recommendation_tests.$cmd appName: "MongoDB Shell" command: isMaster { isMaster: 1.0, forShell: 1.0, $db: "mindex_recommendation_tests" } numYields:0 reslen:242 locks:{} protocol:op_msg 0ms
+2018-11-12T09:58:58.960+0100 I COMMAND  [conn1] command mindex_recommendation_tests.t appName: "MongoDB Shell" command: find { find: "t", filter: { $text: { $search: "world" } }, limit: 1.0, singleBatch: true, lsid: { id: UUID("b8a51588-fc4d-4bfc-89e4-903ba7ffadc1") }, $db: "mindex_recommendation_tests" } planSummary: IXSCAN { _fts: "text", _ftsx: 1 } keysExamined:1 docsExamined:1 cursorExhausted:1 numYields:0 nreturned:1 queryHash:7E2D582B reslen:212 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 2 } }, Collection: { acquireCount: { r: 2 } } } protocol:op_msg 0ms
+2018-11-12T09:58:58.961+0100 I COMMAND  [conn1] command mindex_recommendation_tests.$cmd appName: "MongoDB Shell" command: isMaster { isMaster: 1.0, forShell: 1.0, $db: "mindex_recommendation_tests" } numYields:0 reslen:242 locks:{} protocol:op_msg 0ms
