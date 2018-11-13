@@ -3,6 +3,7 @@ package com.mconsulting.indexrecommender.integration
 import com.mconsulting.indexrecommender.Collection
 import com.mconsulting.indexrecommender.CollectionIndexResults
 import com.mconsulting.indexrecommender.CollectionOptions
+import com.mconsulting.indexrecommender.Db
 import com.mconsulting.indexrecommender.Namespace
 import com.mongodb.MongoClient
 import com.mongodb.MongoClientURI
@@ -19,6 +20,10 @@ abstract class IntegrationTestBase {
     private  var index = 0
     private lateinit var collectionName: String
     protected  lateinit var collection: MongoCollection<Document>
+    val namespace: Namespace
+        get() = Namespace(
+            this.collection.namespace.databaseName,
+            this.collection.namespace.collectionName)
 
     private  fun createCollectionName() : String {
         return "SimpleIndexRecommendationTest_${index++}"
@@ -68,8 +73,9 @@ abstract class IntegrationTestBase {
         val coll = Collection(
             client,
             Namespace(db.name, collectionName),
+            Db(client, Namespace(db.name, collectionName)),
             CollectionOptions(true, true))
-        return coll.process()
+        return coll.done()
     }
 
     protected fun executeOperations(setup: () -> Unit) {

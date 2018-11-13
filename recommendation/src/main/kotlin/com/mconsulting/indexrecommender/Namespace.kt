@@ -9,4 +9,8 @@ data class Namespace(val db: String, val collection: String) {
             return Namespace(db, collection)
         }
     }
+
+    override fun toString(): String {
+        return "${db}.${collection}"
+    }
 }

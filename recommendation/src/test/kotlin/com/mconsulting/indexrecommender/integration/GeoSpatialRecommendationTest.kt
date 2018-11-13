@@ -1,7 +1,9 @@
 package com.mconsulting.indexrecommender.integration
 
+import com.mconsulting.indexrecommender.Processor
 import com.mconsulting.indexrecommender.indexes.IdIndex
 import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
+import com.mconsulting.indexrecommender.ingress.ProfileCollectionIngress
 import org.bson.Document
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -33,16 +35,22 @@ class GeoSpatialRecommendationTest : IntegrationTestBase() {
             assertNotNull(doc)
         }
 
-        // Run the recommendation engine
-        val results = runRecommendationEngine()
+        // Set up the processor
+        val processor = Processor(client, listOf(this.namespace))
+        processor.addSource(ProfileCollectionIngress(client, this.namespace))
+
+        // Process
+        val results = processor.process()
+        // Get the indexes
+        val indexes = results.getIndexes(this.namespace)
 
         // Validate that we have the expected indexes
-        assertEquals(2, results.indexes.size)
+        assertEquals(2, indexes.size)
         assertEquals(
             IdIndex("_id_"),
-            results.getIndex("_id_"))
+            results.getIndex(this.namespace, "_id_"))
         assertEquals(
             TwoDSphereIndex("location_1", "location"),
-            results.getIndex("location_1"))
+            results.getIndex(this.namespace, "location_1"))
     }
 }

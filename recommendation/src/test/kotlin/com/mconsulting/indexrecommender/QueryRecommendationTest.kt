@@ -24,9 +24,9 @@ class QueryRecommendationTest {
     fun singleField() {
         val operation = Query(readJsonAsBsonDocument("operations/top_level_single_field_query.json"))
 
-        // Create index recommendation engine and add operation
+        // Create index recommendation engine and process operation
         val recommender = IndexRecommendationEngine(client)
-        recommender.add(operation)
+        recommender.process(operation)
 
         // Return the recommendation
         val indexes = recommender.recommend()
@@ -43,9 +43,9 @@ class QueryRecommendationTest {
     fun singleFieldAndSort() {
         val operation = Query(readJsonAsBsonDocument("operations/top_level_single_field_query_with_sort.json"))
 
-        // Create index recommendation engine and add operation
+        // Create index recommendation engine and process operation
         val recommender = IndexRecommendationEngine(client)
-        recommender.add(operation)
+        recommender.process(operation)
 
         // Return the recommendation
         val indexes = recommender.recommend()
@@ -65,9 +65,9 @@ class QueryRecommendationTest {
     fun twoTopLevelFields() {
         val operation = Query(readJsonAsBsonDocument("operations/top_level_two_field_query.json"))
 
-        // Create index recommendation engine and add operation
+        // Create index recommendation engine and process operation
         val recommender = IndexRecommendationEngine(client)
-        recommender.add(operation)
+        recommender.process(operation)
 
         // Return the recommendation
         val indexes = recommender.recommend()
@@ -87,9 +87,9 @@ class QueryRecommendationTest {
     fun twoLevelFieldsAndSort() {
         val operation = Query(readJsonAsBsonDocument("operations/top_level_two_field_query_with_sort.json"))
 
-        // Create index recommendation engine and add operation
+        // Create index recommendation engine and process operation
         val recommender = IndexRecommendationEngine(client)
-        recommender.add(operation)
+        recommender.process(operation)
 
         // Return the recommendation
         val indexes = recommender.recommend()
@@ -112,9 +112,9 @@ class QueryRecommendationTest {
     fun multiKeyFieldQuery() {
         val operation = Query(readJsonAsBsonDocument("operations/multi_key_query.json"))
 
-        // Create index recommendation engine and add operation
+        // Create index recommendation engine and process operation
         val recommender = IndexRecommendationEngine(client)
-        recommender.add(operation)
+        recommender.process(operation)
 
         // Return the recommendation
         val recommendation = recommender.recommend()

@@ -4,6 +4,9 @@ import com.mconsulting.indexrecommender.indexes.Index
 import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.indexes.IndexParser
 import com.mconsulting.indexrecommender.indexes.IndexParserOptions
+import com.mconsulting.indexrecommender.ingress.Ingress
+import com.mconsulting.indexrecommender.log.LogEntry
+import com.mconsulting.indexrecommender.log.LogEntryBase
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.Delete
 import com.mconsulting.indexrecommender.profiling.Insert
@@ -39,11 +42,11 @@ data class CollectionIndexResults(
 class Collection(
     val client: MongoClient,
     val namespace: Namespace,
+    val db: Db,
     options: CollectionOptions = CollectionOptions()) {
 
     private var database: MongoDatabase
     private var collection: MongoCollection<BsonDocument>
-    private var systemProfileCollection: MongoCollection<BsonDocument>
     private var existingIndexes: List<Index> = listOf()
     private var statisticsProcessor: StatisticsProcessor = StatisticsProcessor()
 
@@ -53,17 +56,18 @@ class Collection(
     ))
 
     // Recommendation engine
-    private var recommendationEngine: IndexRecommendationEngine = IndexRecommendationEngine(client, IndexRecommendationOptions(
+    private var recommendationEngine: IndexRecommendationEngine = IndexRecommendationEngine(client, this, IndexRecommendationOptions(
         executeQueries = options.executeQueries
     ))
 
     init {
         database = client.getDatabase(namespace.db)
         collection = database.getCollection(namespace.collection, BsonDocument::class.java)
-        systemProfileCollection = database.getCollection("system.profile", BsonDocument::class.java)
+        // Process any existing indexes
+        processExistingIndexes()
     }
 
-    fun process(processProfile: Boolean = true) : CollectionIndexResults {
+    private fun processExistingIndexes() {
         // Read the existing indexes
         existingIndexes = collection.listIndexes(BsonDocument::class.java).map {
             indexParser.createIndex(it)
@@ -71,38 +75,26 @@ class Collection(
 
         // Feed the existing indexes to the recommendation engine
         existingIndexes.forEach {
-            recommendationEngine.add(it)
+            recommendationEngine.process(it)
         }
+    }
 
-        // Process the profiling information
-        if (processProfile) {
-            processProfilingInformation()
-        }
-
-        // Return the results
-        val recommendedIndexes = recommendationEngine.recommend()
-        val shapeStatistics = statisticsProcessor.done()
-
-        // Return the
+    fun done() : CollectionIndexResults {
         return CollectionIndexResults(
             namespace = namespace,
-            indexes = recommendedIndexes,
-            shapeStatistics = shapeStatistics
+            indexes = recommendationEngine.recommend(),
+            shapeStatistics = statisticsProcessor.done()
         )
     }
 
-    private fun processProfilingInformation() {
-        systemProfileCollection.find().sort(BsonDocument()
-            .append("ts", BsonInt32(IndexDirection.ASCENDING.value()))).map {
-            createOperation(it)
-        }.forEach {
-            if (it != null) {
-                // Add the shape to the recommendation engine
-                recommendationEngine.add(it)
-                // Collect information about the query shape
-                statisticsProcessor.process(it)
-            }
-        }
+    fun addLogEntry(logEntry: LogEntry) {
+        recommendationEngine.process(logEntry)
+        statisticsProcessor.process(logEntry)
+    }
+
+    fun addOperation(operation: Operation) {
+        recommendationEngine.process(operation)
+        statisticsProcessor.process(operation)
     }
 }
 

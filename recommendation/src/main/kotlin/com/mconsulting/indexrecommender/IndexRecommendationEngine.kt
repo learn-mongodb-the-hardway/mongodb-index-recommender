@@ -9,6 +9,7 @@ import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
 import com.mconsulting.indexrecommender.indexes.TextField
 import com.mconsulting.indexrecommender.indexes.TextIndex
 import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
+import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
@@ -44,17 +45,21 @@ fun BsonDocument.remove(path: List<String>) {
 
 class IndexRecommendationEngine(
     val client: MongoClient,
+    val collection: Collection? = null,
     val options: IndexRecommendationOptions = IndexRecommendationOptions()) {
 
     val candidateIndexes = mutableListOf<Index>()
 
-    fun add(operation: Operation) {
+    fun process(operation: Operation) {
         when (operation) {
             is Query -> processQuery(operation.command())
             is Aggregation -> {
             }
         }
+    }
 
+    fun process(logEntry: LogEntry) {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
     private fun processQuery(query: QueryCommand) {
@@ -93,7 +98,7 @@ class IndexRecommendationEngine(
         val filteredOutDoc = query.filter.clone()
         val filteredSortDoc = query.sort.clone()
 
-        traverse(query.filter) { doc, _path, entry ->
+        traverse(query.filter) { _, _path, entry ->
             if (entry.value is BsonRegularExpression) {
                 // Add to the list of regular expressions
                 regularExpressions.add(_path.toList() + entry.key)
@@ -121,7 +126,7 @@ class IndexRecommendationEngine(
     private fun containsRegularExpression(query: QueryCommand): Boolean {
         var contains = false
 
-        traverse(query.filter) { doc, _path, entry ->
+        traverse(query.filter) { _, _, entry ->
             if (entry.value is BsonRegularExpression) contains = true
         }
 
@@ -131,7 +136,7 @@ class IndexRecommendationEngine(
     private fun addGeoQueryIndex(query: QueryCommand, candidateIndexes: MutableList<Index>) {
         var path: MutableList<String> = mutableListOf()
 
-        traverse(query.filter) { doc, _path, entry ->
+        traverse(query.filter) { _, _path, entry ->
             if (entry.key in listOf("\$geoWithin", "\$near", "\$geoIntersects", "\$nearSphere")) {
                path.addAll(_path)
             }
@@ -146,7 +151,7 @@ class IndexRecommendationEngine(
     private fun isGeoQueryIndex(query: QueryCommand): Boolean {
         var contains = false
 
-        traverse(query.filter) { doc, _path, entry ->
+        traverse(query.filter) { _, _, entry ->
             if (entry.key in listOf("\$geoWithin", "\$near", "\$geoIntersects", "\$nearSphere")) {
                 contains = true
             }
@@ -155,7 +160,7 @@ class IndexRecommendationEngine(
         return contains
     }
 
-    fun add(index: Index) {
+    fun process(index: Index) {
         if (!candidateIndexes.contains(index)) {
             candidateIndexes += index
         }

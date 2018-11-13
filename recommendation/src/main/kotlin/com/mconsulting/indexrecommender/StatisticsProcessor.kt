@@ -1,5 +1,6 @@
 package com.mconsulting.indexrecommender
 
+import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.Delete
 import com.mconsulting.indexrecommender.profiling.Insert
@@ -212,6 +213,10 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
         val finalShapes = shapes.toMutableList()
         if (inserts != null) finalShapes += inserts!!
         return shapes
+    }
+
+    fun process(operation: LogEntry) {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 }
 
