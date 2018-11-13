@@ -28,12 +28,12 @@ class LogParserTest {
         // Assertions
         assertEquals(1, aggregateCommands.size)
         assertEquals(BsonDocument.parse("""
-            { "aggregate" : "t", "pipeline" : [{ "${'$'}match" : { } }], "cursor" : { }, "lsid" : { "id" : { "${'$'}binary" : "b8a51588Afc4dA4bfcA89e4A903ba7ffadc1", "${'$'}type" : "04" } }, "${'$'}db" : "mindex_recommendation_tests" }
+            { "aggregate" : "t", "pipeline" : [{ "${'$'}match" : { } }], "cursor" : { }, "lsid" : { "id" : { "${'$'}binary" : "YjhhNTE1ODgtZmM0ZC00YmZjLTg5ZTQtOTAzYmE3ZmZhZGMx", "${'$'}type" : "04" } }, "${'$'}db" : "mindex_recommendation_tests" }
         """.trimIndent()), (aggregateCommands.first() as CommandLogEntry).command)
 
         assertEquals(1, findCommands.size)
         assertEquals(BsonDocument.parse("""
-            { "find" : "t", "filter" : { "${'$'}text" : { "${'$'}search" : "world" } }, "limit" : 1.0, "singleBatch" : true, "lsid" : { "id" : { "${'$'}binary" : "b8a51588Afc4dA4bfcA89e4A903ba7ffadc1", "${'$'}type" : "04" } }, "${'$'}db" : "mindex_recommendation_tests" }
+            { "find" : "t", "filter" : { "${'$'}text" : { "${'$'}search" : "world" } }, "limit" : 1.0, "singleBatch" : true, "lsid" : { "id" : { "${'$'}binary" : "YjhhNTE1ODgtZmM0ZC00YmZjLTg5ZTQtOTAzYmE3ZmZhZGMx", "${'$'}type" : "04" } }, "${'$'}db" : "mindex_recommendation_tests" }
         """.trimIndent()), (findCommands.first() as CommandLogEntry).command)
     }
 
