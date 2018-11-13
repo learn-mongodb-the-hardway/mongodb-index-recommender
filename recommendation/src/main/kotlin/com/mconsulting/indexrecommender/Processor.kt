@@ -1,6 +1,5 @@
 package com.mconsulting.indexrecommender
 
-import com.mconsulting.indexrecommender.indexes.IdIndex
 import com.mconsulting.indexrecommender.indexes.Index
 import com.mconsulting.indexrecommender.ingress.Ingress
 import com.mconsulting.indexrecommender.log.LogEntryBase
@@ -74,5 +73,9 @@ class IndexResults(val dbIndexResults: List<DbIndexResult>) {
 
     fun getIndex(namespace: Namespace, name: String): Index? {
         return getIndexes(namespace).firstOrNull { it.name == name }
+    }
+
+    fun contains(namespace: Namespace, name: String): Boolean {
+        return getIndex(namespace, name) != null
     }
 }

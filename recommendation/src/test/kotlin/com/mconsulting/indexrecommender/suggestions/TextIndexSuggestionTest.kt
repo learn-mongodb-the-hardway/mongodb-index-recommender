@@ -1,11 +1,13 @@
 package com.mconsulting.indexrecommender.suggestions
 
+import com.mconsulting.indexrecommender.Processor
 import com.mconsulting.indexrecommender.indexes.Field
 import com.mconsulting.indexrecommender.indexes.IdIndex
 import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
 import com.mconsulting.indexrecommender.indexes.TextField
 import com.mconsulting.indexrecommender.indexes.TextIndex
+import com.mconsulting.indexrecommender.ingress.ProfileCollectionIngress
 import com.mconsulting.indexrecommender.integration.IntegrationTestBase
 import org.bson.BsonRegularExpression
 import org.bson.Document
@@ -41,20 +43,26 @@ class TextIndexSuggestionTest : IntegrationTestBase() {
             assertNotNull(doc)
         }
 
-        // Run the recommendation engine
-        val results = runRecommendationEngine()
+        // Set up the processor
+        val processor = Processor(client, listOf(this.namespace))
+        processor.addSource(ProfileCollectionIngress(client, this.namespace))
+
+        // Process
+        val results = processor.process()
+        // Get the indexes
+        val indexes = results.getIndexes(this.namespace)
 
         // Validate that we have the expected indexes
-        assertEquals(3, results.indexes.size)
+        assertEquals(3, indexes.size)
         assertEquals(
             IdIndex("_id_"),
-            results.getIndex("_id_"))
+            results.getIndex(this.namespace, "_id_"))
         assertEquals(
             TextIndex("b.text_1", listOf(TextField(listOf("b.text"), 1))),
-            results.getIndex("b.text_1"))
+            results.getIndex(this.namespace, "b.text_1"))
         assertEquals(
             SingleFieldIndex("a_1", Field("a", IndexDirection.UNKNOWN)),
-            results.getIndex("a_1"))
+            results.getIndex(this.namespace, "a_1"))
     }
 
     @Test
@@ -84,25 +92,31 @@ class TextIndexSuggestionTest : IntegrationTestBase() {
             assertNotNull(doc)
         }
 
-        // Run the recommendation engine
-        val results = runRecommendationEngine()
+        // Set up the processor
+        val processor = Processor(client, listOf(this.namespace))
+        processor.addSource(ProfileCollectionIngress(client, this.namespace))
+
+        // Process
+        val results = processor.process()
+        // Get the indexes
+        val indexes = results.getIndexes(this.namespace)
 
         // Validate that we have the expected indexes
-        assertEquals(3, results.indexes.size)
-        assertTrue(results.contains("_id_"))
-        assertTrue(results.contains("b.text_1_b.text2_1"))
-        assertTrue(results.contains("a_1"))
+        assertEquals(3, indexes.size)
+        assertTrue(results.contains(this.namespace, "_id_"))
+        assertTrue(results.contains(this.namespace, "b.text_1_b.text2_1"))
+        assertTrue(results.contains(this.namespace, "a_1"))
         assertEquals(
             IdIndex("_id_"),
-            results.getIndex("_id_"))
+            results.getIndex(this.namespace, "_id_"))
         assertEquals(
             TextIndex("b.text_1_b.text2_1", listOf(
                 TextField(listOf("b.text"), 1),
                 TextField(listOf("b.text2"), 1)
             )),
-            results.getIndex("b.text_1_b.text2_1"))
+            results.getIndex(this.namespace, "b.text_1_b.text2_1"))
         assertEquals(
             SingleFieldIndex("a_1", Field("a", IndexDirection.UNKNOWN)),
-            results.getIndex("a_1"))
+            results.getIndex(this.namespace, "a_1"))
     }
 }
