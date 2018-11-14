@@ -11,6 +11,7 @@ import com.mconsulting.indexrecommender.indexes.TextIndex
 import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
 import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
+import com.mconsulting.indexrecommender.profiling.AggregationCommand
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
 import com.mconsulting.indexrecommender.profiling.QueryCommand
@@ -52,9 +53,8 @@ class IndexRecommendationEngine(
 
     fun process(operation: Operation) {
         when (operation) {
-            is Query -> processQuery(operation.command())
-            is Aggregation -> {
-            }
+            is Query -> processQuery(operation)
+            is Aggregation -> processAggregation(operation)
         }
     }
 
@@ -62,30 +62,81 @@ class IndexRecommendationEngine(
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    private fun processQuery(query: QueryCommand) {
+    private fun processAggregation(aggregation: Aggregation) {
+        val indexes = mutableListOf<Index>()
+        val aggregationCommand = aggregation.command()
+
+        // Identify any lookup fields
+        aggregationCommand
+            .pipeline
+            .filterIsInstance<BsonDocument>()
+            .forEach {
+
+                // Do we have a $lookup stage
+                if (it.containsKey("\$lookup")) {
+                    addLookupIndex(indexes, aggregation, it)
+                }
+        }
+
+        // For each index add it to the candidate indexes
+        indexes.forEach {
+            if (!candidateIndexes.contains(it)) {
+                candidateIndexes += it
+            }
+        }
+    }
+
+    private fun addLookupIndex(indexes: MutableList<Index>, aggregation: Aggregation, document: BsonDocument) {
+        // Unpack the fields
+        val lookupDocument = document.getDocument("\$lookup")
+        val from = lookupDocument.getString("from").value
+        val localField = lookupDocument.getString("localField").value
+        val foreignField = lookupDocument.getString("foreignField").value
+        val asField = lookupDocument.getString("as").value
+        val aggregationCommand = aggregation.command()
+
+        // Is the collection self-referential
+        if (aggregationCommand.collection == from) {
+            indexes += SingleFieldIndex("${foreignField}_1", Field(foreignField, IndexDirection.UNKNOWN))
+            return
+        }
+
+        // We need to lookup the other collection and add the index on it
+        // Get the collection
+        val collection = collection!!.db.getCollection(Namespace(aggregation.namespace().db, from))
+
+        // Add the operation to the right collection
+        collection.addIndex(SingleFieldIndex("${foreignField}_1", Field(foreignField, IndexDirection.UNKNOWN)))
+    }
+
+    private fun processQuery(query: Query) {
+        processQueryCommand(query.command())
+    }
+
+    private fun processQueryCommand(queryCommand: QueryCommand) {
         // Check if we have a $geoIntersects or $geoWithin query
-        if (isGeoQueryIndex(query)) {
-            return addGeoQueryIndex(query, candidateIndexes)
+        if (isGeoQueryIndex(queryCommand)) {
+            return addGeoQueryIndex(queryCommand, candidateIndexes)
         }
 
         // Do we have query that contains a regular expression
-        if (containsRegularExpression(query)) {
-            return processRegularExpression(query, candidateIndexes)
+        if (containsRegularExpression(queryCommand)) {
+            return processRegularExpression(queryCommand, candidateIndexes)
         }
 
         // Check if w have a multikey index
-        if (isMultiKeyIndex(query)) {
-            return addMultiKeyIndex(query, candidateIndexes)
+        if (isMultiKeyIndex(queryCommand)) {
+            return addMultiKeyIndex(queryCommand, candidateIndexes)
         }
 
         // Check if it's a single field index
-        if (query.filter.entries.size == 1) {
-            addSingleFieldIndex(query, candidateIndexes)
+        if (queryCommand.filter.entries.size == 1) {
+            addSingleFieldIndex(queryCommand, candidateIndexes)
         }
 
         // Check if it's a compound index
-        if (query.filter.entries.size > 1) {
-            addCompoundFieldIndex(query, candidateIndexes)
+        if (queryCommand.filter.entries.size > 1) {
+            addCompoundFieldIndex(queryCommand, candidateIndexes)
         }
     }
 
@@ -119,7 +170,7 @@ class IndexRecommendationEngine(
 
         // Process the rest of the filter as a possible other index
         if (filteredOutDoc.isNotEmpty()) {
-            processQuery(QueryCommand(query.db, query.collection, filteredOutDoc, filteredSortDoc))
+            processQueryCommand(QueryCommand(query.db, query.collection, filteredOutDoc, filteredSortDoc))
         }
     }
 
@@ -262,5 +313,11 @@ class IndexRecommendationEngine(
 
     private fun coalesce(candidateIndexes: MutableList<Index>): List<Index> {
         return candidateIndexes.toList()
+    }
+
+    fun addIndex(index: Index) {
+        if (!candidateIndexes.contains(index)) {
+            candidateIndexes += index
+        }
     }
 }

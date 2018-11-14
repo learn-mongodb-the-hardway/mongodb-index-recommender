@@ -4,6 +4,7 @@ import com.mconsulting.indexrecommender.indexes.Index
 import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.indexes.IndexParser
 import com.mconsulting.indexrecommender.indexes.IndexParserOptions
+import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
 import com.mconsulting.indexrecommender.ingress.Ingress
 import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.log.LogEntryBase
@@ -95,6 +96,10 @@ class Collection(
     fun addOperation(operation: Operation) {
         recommendationEngine.process(operation)
         statisticsProcessor.process(operation)
+    }
+
+    fun addIndex(index: Index) {
+        recommendationEngine.addIndex(index)
     }
 }
 
