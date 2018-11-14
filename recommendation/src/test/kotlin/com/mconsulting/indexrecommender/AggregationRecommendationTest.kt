@@ -38,7 +38,6 @@ class AggregationRecommendationTest {
         // Get the results
         val usersResults = usersCollection.done()
         val gamesResults = gamesCollection.done()
-        println()
 
         // Validate the indexes
         assertEquals(1, usersResults.indexes.size)
