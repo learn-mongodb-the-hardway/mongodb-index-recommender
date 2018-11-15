@@ -44,16 +44,7 @@ class AggregationRecommendationTest {
      */
     @Test
     fun simpleLookup() {
-        val operation = Aggregation(readJsonAsBsonDocument("operations/aggregations/aggregation_simple_lookup.json"))
-        val db = Db(client, usersNamespace)
-
-        // Users collection
-        val usersCollection = db.getCollection(usersNamespace)
-        val gamesCollection = db.getCollection(gamesNamespace)
-
-        // Add the operation
-        usersCollection.addOperation(operation)
-
+        val (usersCollection, gamesCollection) = executeOperation("operations/aggregations/aggregation_simple_lookup.json")
         // Get the results
         simpleLookupAssertions(usersCollection.done(), gamesCollection.done())
     }
@@ -63,20 +54,7 @@ class AggregationRecommendationTest {
      */
     @Test
     fun simpleLookupFromLog() {
-        val db = Db(client, usersNamespace)
-        val logParser = LogParser(BufferedReader(readResourceAsReader("operations/aggregations/aggregation_simple_lookup.txt")))
-        val entries = mutableListOf<LogEntry>()
-        logParser.forEach {
-            entries += it
-        }
-
-        // Users collection
-        val usersCollection = db.getCollection(usersNamespace)
-        val gamesCollection = db.getCollection(gamesNamespace)
-
-        // Add the operation
-        usersCollection.addLogEntry(entries[0])
-
+        val (usersCollection, gamesCollection) = executeLogEntry("operations/aggregations/aggregation_simple_lookup.txt")
         // Get the results
         simpleLookupAssertions(usersCollection.done(), gamesCollection.done())
     }
@@ -103,15 +81,7 @@ class AggregationRecommendationTest {
      */
     @Test
     fun simpleLookupMultipleJoins() {
-        val operation = Aggregation(readJsonAsBsonDocument("operations/aggregations/aggregation_multiple_join_conditions.json"))
-        val db = Db(client, usersNamespace)
-        // Users collection
-        val usersCollection = db.getCollection(usersNamespace)
-        val gamesCollection = db.getCollection(gamesNamespace)
-
-        // Add the operation
-        usersCollection.addOperation(operation)
-
+        val (usersCollection, gamesCollection) = executeOperation("operations/aggregations/aggregation_multiple_join_conditions.json")
         // Get the results
         simpleLookupMultipleJoinsAssertions(usersCollection.done(), gamesCollection.done())
     }
@@ -121,19 +91,7 @@ class AggregationRecommendationTest {
      */
     @Test
     fun simpleLookupMultipleJoinsLog() {
-        val logParser = LogParser(BufferedReader(readResourceAsReader("operations/aggregations/aggregation_multiple_join_conditions.txt")))
-        val entries = mutableListOf<LogEntry>()
-        logParser.forEach {
-            entries += it
-        }
-        val db = Db(client, usersNamespace)
-        // Users collection
-        val usersCollection = db.getCollection(usersNamespace)
-        val gamesCollection = db.getCollection(gamesNamespace)
-
-        // Add the operation
-        usersCollection.addLogEntry(entries[0])
-
+        val (usersCollection, gamesCollection) = executeLogEntry("operations/aggregations/aggregation_multiple_join_conditions.txt")
         // Get the results
         simpleLookupMultipleJoinsAssertions(usersCollection.done(), gamesCollection.done())
     }
@@ -160,7 +118,20 @@ class AggregationRecommendationTest {
      */
     @Test
     fun simpleLookupUncorrelatedJoins() {
-        val operation = Aggregation(readJsonAsBsonDocument("operations/aggregations/aggregation_uncorrelated_join.json"))
+        val (usersCollection, gamesCollection) = executeOperation("operations/aggregations/aggregation_uncorrelated_join.json")
+        // Get the results
+        simpleLookupUncorrelatedJoinsAssertions(usersCollection.done(), gamesCollection.done())
+    }
+
+    @Test
+    fun simpleLookupUncorrelatedJoinsLog() {
+        val (usersCollection, gamesCollection) = executeLogEntry("operations/aggregations/aggregation_uncorrelated_join.txt")
+        // Get the results
+        simpleLookupUncorrelatedJoinsAssertions(usersCollection.done(), gamesCollection.done())
+    }
+
+    private fun executeOperation(resource: String): Pair<Collection, Collection> {
+        val operation = Aggregation(readJsonAsBsonDocument(resource))
         val db = Db(client, usersNamespace)
         // Users collection
         val usersCollection = db.getCollection(usersNamespace)
@@ -168,14 +139,11 @@ class AggregationRecommendationTest {
 
         // Add the operation
         usersCollection.addOperation(operation)
-
-        // Get the results
-        simpleLookupUncorrelatedJoinsAssertions(usersCollection.done(), gamesCollection.done())
+        return Pair(usersCollection, gamesCollection)
     }
 
-    @Test
-    fun simpleLookupUncorrelatedJoinsLog() {
-        val logParser = LogParser(BufferedReader(readResourceAsReader("operations/aggregations/aggregation_multiple_join_conditions.txt")))
+    private fun executeLogEntry(resource: String): Pair<Collection, Collection> {
+        val logParser = LogParser(BufferedReader(readResourceAsReader(resource)))
         val entries = mutableListOf<LogEntry>()
         logParser.forEach {
             entries += it
@@ -187,9 +155,7 @@ class AggregationRecommendationTest {
 
         // Add the operation
         usersCollection.addLogEntry(entries[0])
-
-        // Get the results
-        simpleLookupUncorrelatedJoinsAssertions(usersCollection.done(), gamesCollection.done())
+        return Pair(usersCollection, gamesCollection)
     }
 
     companion object {
