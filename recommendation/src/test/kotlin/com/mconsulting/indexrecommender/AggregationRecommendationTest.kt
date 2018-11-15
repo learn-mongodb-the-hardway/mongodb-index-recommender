@@ -1,10 +1,11 @@
 package com.mconsulting.indexrecommender
 
-import com.mconsulting.indexrecommender.indexes.CompoundIndex
 import com.mconsulting.indexrecommender.indexes.Field
 import com.mconsulting.indexrecommender.indexes.IdIndex
 import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
+import com.mconsulting.indexrecommender.log.LogEntry
+import com.mconsulting.indexrecommender.log.LogParser
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mongodb.MongoClient
 import com.mongodb.MongoClientURI
@@ -14,31 +15,14 @@ import org.bson.Document
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import java.io.BufferedReader
 import kotlin.test.assertEquals
 
 class AggregationRecommendationTest {
+    val usersNamespace = Namespace.parse("mindex_recommendation_tests.users")
+    val gamesNamespace = Namespace.parse("mindex_recommendation_tests.games")
 
-    /**
-     * Simple lookup query that should trigger two index recommendations
-     */
-    @Test
-    fun simpleLookup() {
-        val operation = Aggregation(readJsonAsBsonDocument("operations/aggregations/aggregation_simple_lookup.json"))
-
-        val usersNamespace = Namespace.parse("mindex_recommendation_tests.users")
-        val gamesNamespace = Namespace.parse("mindex_recommendation_tests.games")
-        val db = Db(client, usersNamespace)
-        // Users collection
-        val usersCollection = db.getCollection(usersNamespace)
-        val gamesCollection = db.getCollection(gamesNamespace)
-
-        // Add the operation
-        usersCollection.addOperation(operation)
-
-        // Get the results
-        val usersResults = usersCollection.done()
-        val gamesResults = gamesCollection.done()
-
+    fun simpleLookupAssertions(usersResults: CollectionIndexResults, gamesResults: CollectionIndexResults) {
         // Validate the indexes
         assertEquals(1, usersResults.indexes.size)
         assertEquals(IdIndex(
@@ -56,14 +40,70 @@ class AggregationRecommendationTest {
     }
 
     /**
+     * Simple lookup query that should trigger two index recommendations
+     */
+    @Test
+    fun simpleLookup() {
+        val operation = Aggregation(readJsonAsBsonDocument("operations/aggregations/aggregation_simple_lookup.json"))
+        val db = Db(client, usersNamespace)
+
+        // Users collection
+        val usersCollection = db.getCollection(usersNamespace)
+        val gamesCollection = db.getCollection(gamesNamespace)
+
+        // Add the operation
+        usersCollection.addOperation(operation)
+
+        // Get the results
+        simpleLookupAssertions(usersCollection.done(), gamesCollection.done())
+    }
+
+    /**
+     * Simple lookup query that should trigger two index recommendations from Log
+     */
+    @Test
+    fun simpleLookupFromLog() {
+        val db = Db(client, usersNamespace)
+        val logParser = LogParser(BufferedReader(readResourceAsReader("operations/aggregations/aggregation_simple_lookup.txt")))
+        val entries = mutableListOf<LogEntry>()
+        logParser.forEach {
+            entries += it
+        }
+
+        // Users collection
+        val usersCollection = db.getCollection(usersNamespace)
+        val gamesCollection = db.getCollection(gamesNamespace)
+
+        // Add the operation
+        usersCollection.addLogEntry(entries[0])
+
+        // Get the results
+        simpleLookupAssertions(usersCollection.done(), gamesCollection.done())
+    }
+
+    fun simpleLookupMultipleJoinsAssertions(usersResults: CollectionIndexResults, gamesResults: CollectionIndexResults) {
+        // Validate the indexes
+        assertEquals(1, usersResults.indexes.size)
+        assertEquals(IdIndex(
+            "_id_"
+        ), usersResults.indexes[0])
+
+        assertEquals(2, gamesResults.indexes.size)
+        assertEquals(IdIndex(
+            "_id_"
+        ), gamesResults.indexes[0])
+        assertEquals(SingleFieldIndex(
+            "b_1",
+            Field("b", IndexDirection.UNKNOWN)
+        ), gamesResults.indexes[1])
+    }
+
+    /**
      * Simple lookup query multiple joins
      */
     @Test
     fun simpleLookupMultipleJoins() {
         val operation = Aggregation(readJsonAsBsonDocument("operations/aggregations/aggregation_multiple_join_conditions.json"))
-
-        val usersNamespace = Namespace.parse("mindex_recommendation_tests.users")
-        val gamesNamespace = Namespace.parse("mindex_recommendation_tests.games")
         val db = Db(client, usersNamespace)
         // Users collection
         val usersCollection = db.getCollection(usersNamespace)
@@ -73,9 +113,32 @@ class AggregationRecommendationTest {
         usersCollection.addOperation(operation)
 
         // Get the results
-        val usersResults = usersCollection.done()
-        val gamesResults = gamesCollection.done()
+        simpleLookupMultipleJoinsAssertions(usersCollection.done(), gamesCollection.done())
+    }
 
+    /**
+     * Simple lookup query multiple joins
+     */
+    @Test
+    fun simpleLookupMultipleJoinsLog() {
+        val logParser = LogParser(BufferedReader(readResourceAsReader("operations/aggregations/aggregation_multiple_join_conditions.txt")))
+        val entries = mutableListOf<LogEntry>()
+        logParser.forEach {
+            entries += it
+        }
+        val db = Db(client, usersNamespace)
+        // Users collection
+        val usersCollection = db.getCollection(usersNamespace)
+        val gamesCollection = db.getCollection(gamesNamespace)
+
+        // Add the operation
+        usersCollection.addLogEntry(entries[0])
+
+        // Get the results
+        simpleLookupMultipleJoinsAssertions(usersCollection.done(), gamesCollection.done())
+    }
+
+    fun simpleLookupUncorrelatedJoinsAssertions(usersResults: CollectionIndexResults, gamesResults: CollectionIndexResults) {
         // Validate the indexes
         assertEquals(1, usersResults.indexes.size)
         assertEquals(IdIndex(
@@ -98,9 +161,6 @@ class AggregationRecommendationTest {
     @Test
     fun simpleLookupUncorrelatedJoins() {
         val operation = Aggregation(readJsonAsBsonDocument("operations/aggregations/aggregation_uncorrelated_join.json"))
-
-        val usersNamespace = Namespace.parse("mindex_recommendation_tests.users")
-        val gamesNamespace = Namespace.parse("mindex_recommendation_tests.games")
         val db = Db(client, usersNamespace)
         // Users collection
         val usersCollection = db.getCollection(usersNamespace)
@@ -110,106 +170,27 @@ class AggregationRecommendationTest {
         usersCollection.addOperation(operation)
 
         // Get the results
-        val usersResults = usersCollection.done()
-        val gamesResults = gamesCollection.done()
-
-        // Validate the indexes
-        assertEquals(1, usersResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), usersResults.indexes[0])
-
-        assertEquals(2, gamesResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), gamesResults.indexes[0])
-        assertEquals(SingleFieldIndex(
-            "b_1",
-            Field("b", IndexDirection.UNKNOWN)
-        ), gamesResults.indexes[1])
+        simpleLookupUncorrelatedJoinsAssertions(usersCollection.done(), gamesCollection.done())
     }
 
-//    @Test
-//    fun singleFieldAndSort() {
-//        val operation = Query(readJsonAsBsonDocument("operations/top_level_single_field_query_with_sort.json"))
-//
-//        // Create index recommendation engine and process operation
-//        val recommender = IndexRecommendationEngine(client)
-//        recommender.process(operation)
-//
-//        // Return the recommendation
-//        val indexes = recommender.recommend()
-//
-//        // Validate the indexes
-//        assertEquals(1, indexes.size)
-//        assertEquals(indexes[0], SingleFieldIndex(
-//            "name_-1",
-//            Field("name", IndexDirection.DESCENDING)
-//        ))
-//    }
-//
-//    /**
-//     * Two field queries
-//     */
-//    @Test
-//    fun twoTopLevelFields() {
-//        val operation = Query(readJsonAsBsonDocument("operations/top_level_two_field_query.json"))
-//
-//        // Create index recommendation engine and process operation
-//        val recommender = IndexRecommendationEngine(client)
-//        recommender.process(operation)
-//
-//        // Return the recommendation
-//        val indexes = recommender.recommend()
-//
-//        // Validate the indexes
-//        assertEquals(1, indexes.size)
-//        assertEquals(indexes[0], CompoundIndex(
-//            "name_-1_number_-1",
-//            listOf(
-//                Field("name", IndexDirection.UNKNOWN),
-//                Field("number", IndexDirection.UNKNOWN)
-//            )
-//        ))
-//    }
-//
-//    @Test
-//    fun twoLevelFieldsAndSort() {
-//        val operation = Query(readJsonAsBsonDocument("operations/top_level_two_field_query_with_sort.json"))
-//
-//        // Create index recommendation engine and process operation
-//        val recommender = IndexRecommendationEngine(client)
-//        recommender.process(operation)
-//
-//        // Return the recommendation
-//        val indexes = recommender.recommend()
-//
-//        // Validate the indexes
-//        assertEquals(1, indexes.size)
-//        assertEquals(indexes[0], CompoundIndex(
-//            "name_-1_number_-1",
-//            listOf(
-//                Field("name", IndexDirection.DESCENDING),
-//                Field("number", IndexDirection.ASCENDING)
-//            )
-//        ))
-//    }
-//
-//    /**
-//     * Multikey query
-//     */
-//    @Test
-//    fun multiKeyFieldQuery() {
-//        val operation = Query(readJsonAsBsonDocument("operations/multi_key_query.json"))
-//
-//        // Create index recommendation engine and process operation
-//        val recommender = IndexRecommendationEngine(client)
-//        recommender.process(operation)
-//
-//        // Return the recommendation
-//        val recommendation = recommender.recommend()
-//        println()
-//    }
+    @Test
+    fun simpleLookupUncorrelatedJoinsLog() {
+        val logParser = LogParser(BufferedReader(readResourceAsReader("operations/aggregations/aggregation_multiple_join_conditions.txt")))
+        val entries = mutableListOf<LogEntry>()
+        logParser.forEach {
+            entries += it
+        }
+        val db = Db(client, usersNamespace)
+        // Users collection
+        val usersCollection = db.getCollection(usersNamespace)
+        val gamesCollection = db.getCollection(gamesNamespace)
+
+        // Add the operation
+        usersCollection.addLogEntry(entries[0])
+
+        // Get the results
+        simpleLookupUncorrelatedJoinsAssertions(usersCollection.done(), gamesCollection.done())
+    }
 
     companion object {
         lateinit var client: MongoClient
@@ -225,18 +206,6 @@ class AggregationRecommendationTest {
 
             // Drop collection
             collection.drop()
-
-//            // Insert a test document
-//            collection.insertOne(Document(mapOf(
-//                "a" to listOf(Document(mapOf(
-//                    "b" to 1
-//                )))
-//            )))
-//
-//            // Generate test indexes
-//            collection.createIndex(Document(mapOf(
-//                "a.b" to 1
-//            )))
         }
 
         @AfterAll

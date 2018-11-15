@@ -9,6 +9,7 @@ import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
 import com.mconsulting.indexrecommender.indexes.TextField
 import com.mconsulting.indexrecommender.indexes.TextIndex
 import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
+import com.mconsulting.indexrecommender.log.CommandLogEntry
 import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.AggregationCommand
@@ -59,13 +60,32 @@ class IndexRecommendationEngine(
     }
 
     fun process(logEntry: LogEntry) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        when (logEntry) {
+            is CommandLogEntry -> processCommandLogEntry(logEntry)
+        }
+    }
+
+    private fun processCommandLogEntry(logEntry: CommandLogEntry) {
+        when (logEntry.commandName) {
+            "aggregate" -> {
+                processAggregationCommand(AggregationCommand(
+                    logEntry.namespace.db,
+                    logEntry.namespace.collection,
+                    logEntry.command.getArray("pipeline")))
+            }
+        }
     }
 
     private fun processAggregation(aggregation: Aggregation) {
-        val indexes = mutableListOf<Index>()
-        val aggregationCommand = aggregation.command()
+        processAggregationCommand(aggregation.command()).forEach {
+            if (!candidateIndexes.contains(it)) {
+                candidateIndexes += it
+            }
+        }
+    }
 
+    private fun processAggregationCommand(aggregationCommand: AggregationCommand) : List<Index> {
+        val indexes = mutableListOf<Index>()
         // Identify any lookup fields
         aggregationCommand
             .pipeline
@@ -74,29 +94,25 @@ class IndexRecommendationEngine(
 
                 // Do we have a $lookup stage
                 if (it.containsKey("\$lookup")) {
-                    addLookupIndex(indexes, aggregation, it)
+                    addLookupIndex(indexes, aggregationCommand, it)
                 }
-        }
+            }
 
         // For each index add it to the candidate indexes
-        indexes.forEach {
-            if (!candidateIndexes.contains(it)) {
-                candidateIndexes += it
-            }
-        }
+        return indexes
     }
 
-    private fun addLookupIndex(indexes: MutableList<Index>, aggregation: Aggregation, document: BsonDocument) {
+    private fun addLookupIndex(indexes: MutableList<Index>, aggregation: AggregationCommand, document: BsonDocument) {
         val lookupDocument = document.getDocument("\$lookup")
 
         if (lookupDocument.containsKey("localField")) {
             processBasicLookup(lookupDocument, aggregation, indexes)
         } else if (lookupDocument.containsKey("pipeline")) {
-            processAdvancedLookup(lookupDocument, aggregation, indexes)
+            processAdvancedLookup(lookupDocument, aggregation)
         }
     }
 
-    private fun processAdvancedLookup(document: BsonDocument, aggregation: Aggregation, indexes: MutableList<Index>) {
+    private fun processAdvancedLookup(document: BsonDocument, aggregation: AggregationCommand) {
         // Unpack the fields
         val from = document.getString("from").value
         val pipeline = document.getArray("pipeline")
@@ -106,11 +122,11 @@ class IndexRecommendationEngine(
 
         // We need to lookup the other collection and add the index on it
         // Get the collection
-        val collection = collection!!.db.getCollection(Namespace(aggregation.namespace().db, from))
+        val collection = collection!!.db.getCollection(Namespace(aggregation.db, from))
 
         // Process the match expression using the same code path as a QUERY
         if (!matchExpression.containsKey("\$expr")) {
-            val indexes = processQueryCommand(QueryCommand(aggregation.namespace().db, from, matchExpression, BsonDocument()))
+            val indexes = processQueryCommand(QueryCommand(aggregation.db, from, matchExpression, BsonDocument()))
 
             indexes.forEach {
                 collection.addIndex(it)
@@ -171,24 +187,17 @@ class IndexRecommendationEngine(
         }.getDocument("\$match")
     }
 
-    private fun processBasicLookup(document: BsonDocument, aggregation: Aggregation, indexes: MutableList<Index>) {
+    private fun processBasicLookup(document: BsonDocument, aggregation: AggregationCommand, indexes: MutableList<Index>) {
         // Unpack the fields
         val from = document.getString("from").value
         val foreignField = document.getString("foreignField").value
-        val aggregationCommand = aggregation.command()
-
-        // Is the collection self-referential
-        if (aggregationCommand.collection == from) {
-            indexes += SingleFieldIndex("${foreignField}_1", Field(foreignField, IndexDirection.UNKNOWN))
-            return
-        }
+        val index = SingleFieldIndex("${foreignField}_1", Field(foreignField, IndexDirection.UNKNOWN))
 
         // We need to lookup the other collection and add the index on it
         // Get the collection
-        val collection = collection!!.db.getCollection(Namespace(aggregation.namespace().db, from))
-
+        val collection = collection!!.db.getCollection(Namespace(aggregation.db, from))
         // Add the operation to the right collection
-        collection.addIndex(SingleFieldIndex("${foreignField}_1", Field(foreignField, IndexDirection.UNKNOWN)))
+        collection.addIndex(index)
     }
 
     private fun processQuery(query: Query) {

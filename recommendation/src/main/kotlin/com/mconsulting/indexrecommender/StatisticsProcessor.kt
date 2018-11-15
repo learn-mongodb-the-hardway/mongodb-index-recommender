@@ -1,5 +1,6 @@
 package com.mconsulting.indexrecommender
 
+import com.mconsulting.indexrecommender.log.CommandLogEntry
 import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.Delete
@@ -68,6 +69,13 @@ private fun mapOperation(operation: Operation): MongoOperation {
         is Query -> MongoOperation.QUERY
         is Aggregation -> MongoOperation.AGGREGATION
         is Delete -> MongoOperation.DELETE
+        else -> MongoOperation.OTHER
+    }
+}
+
+private fun mapOperation(operation: String): MongoOperation {
+    return when (operation) {
+        "aggregate" -> MongoOperation.AGGREGATION
         else -> MongoOperation.OTHER
     }
 }
@@ -167,6 +175,20 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
         }
     }
 
+    fun process(operation: LogEntry) {
+        when (operation) {
+            is CommandLogEntry -> processCommandLogEntry(operation)
+        }
+    }
+
+    private fun processCommandLogEntry(logEntry: CommandLogEntry) {
+        when (logEntry.commandName) {
+            "aggregate" -> {
+                processShape(normalizeFilter(logEntry.command.getArray("pipeline")), logEntry)
+            }
+        }
+    }
+
     private fun processInsert(operation: Insert) {
         // Create a statistics shape
         val shapeStatistics = ShapeStatistics(
@@ -182,6 +204,31 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
             inserts = shapeStatistics
         } else {
             inserts!!.merge(shapeStatistics)
+        }
+    }
+
+    private fun processShape(shape: BsonValue, logEntry: LogEntry) {
+        when (logEntry) {
+            is CommandLogEntry -> {
+                val responseLength = logEntry.resultLength
+
+                // Create a statistics shape
+                val shapeStatistics = ShapeStatistics(
+                    operation = mapOperation(logEntry.commandName),
+                    shape = shape,
+                    timestamp = logEntry.timestamp.millis,
+                    responseLength = responseLength.toDouble(),
+                    resolution = options.bucketResolution,
+                    millis = logEntry.executionTimeMS.toDouble()
+                )
+
+                // Check if the filter exists
+                if (!shapes.contains(shapeStatistics)) {
+                    shapes += shapeStatistics
+                } else {
+                    shapes.find { it == shapeStatistics }!!.merge(shapeStatistics)
+                }
+            }
         }
     }
 
@@ -213,10 +260,6 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
         val finalShapes = shapes.toMutableList()
         if (inserts != null) finalShapes += inserts!!
         return shapes
-    }
-
-    fun process(operation: LogEntry) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 }
 

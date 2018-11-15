@@ -25,7 +25,7 @@ enum class LogTypeNames {
 
 interface LogEntry
 
-abstract class LogEntryBase(val dateTime: DateTime, val severityLevel: SeverityLevels, val namespace: Namespace) : LogEntry
+abstract class LogEntryBase(val timestamp: DateTime, val severityLevel: SeverityLevels, val namespace: Namespace) : LogEntry
 
 class PlanSummary(val type: String = "", val document: BsonDocument = BsonDocument())
 
