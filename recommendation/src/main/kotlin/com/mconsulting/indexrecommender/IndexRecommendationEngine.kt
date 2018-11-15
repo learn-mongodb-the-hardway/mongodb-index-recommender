@@ -87,12 +87,94 @@ class IndexRecommendationEngine(
     }
 
     private fun addLookupIndex(indexes: MutableList<Index>, aggregation: Aggregation, document: BsonDocument) {
-        // Unpack the fields
         val lookupDocument = document.getDocument("\$lookup")
-        val from = lookupDocument.getString("from").value
-        val localField = lookupDocument.getString("localField").value
-        val foreignField = lookupDocument.getString("foreignField").value
-        val asField = lookupDocument.getString("as").value
+
+        if (lookupDocument.containsKey("localField")) {
+            processBasicLookup(lookupDocument, aggregation, indexes)
+        } else if (lookupDocument.containsKey("pipeline")) {
+            processAdvancedLookup(lookupDocument, aggregation, indexes)
+        }
+    }
+
+    private fun processAdvancedLookup(document: BsonDocument, aggregation: Aggregation, indexes: MutableList<Index>) {
+        // Unpack the fields
+        val from = document.getString("from").value
+        val pipeline = document.getArray("pipeline")
+
+        // Locate any $match expression
+        val matchExpression = extractMatchStatement(pipeline)
+
+        // We need to lookup the other collection and add the index on it
+        // Get the collection
+        val collection = collection!!.db.getCollection(Namespace(aggregation.namespace().db, from))
+
+        // Process the match expression using the same code path as a QUERY
+        if (!matchExpression.containsKey("\$expr")) {
+            val indexes = processQueryCommand(QueryCommand(aggregation.namespace().db, from, matchExpression, BsonDocument()))
+
+            indexes.forEach {
+                collection.addIndex(it)
+            }
+
+            return
+        }
+
+        // Contain the index
+        var index: Index
+        val extractFieldNames = extractFieldNamesFromMatchExpression(matchExpression)
+
+        // Create the index
+        if (extractFieldNames.size == 1) {
+            index = SingleFieldIndex("${extractFieldNames[0]}_1", Field(extractFieldNames[0], IndexDirection.UNKNOWN))
+        } else {
+            index = CompoundIndex(
+                extractFieldNames.map { "${it}_1" }.joinToString("_"),
+                extractFieldNames.map { Field(it, IndexDirection.UNKNOWN) })
+        }
+
+        // Add the operation to the right collection
+        collection.addIndex(index)
+    }
+
+    private fun extractFieldNamesFromMatchExpression(matchExpression: BsonDocument): List<String> {
+        val fieldNames = mutableListOf<String>()
+
+        traverse(matchExpression) { doc, path, entry ->
+            // Do we have an $expr for the comparison
+            val value = entry.value
+            if (value is BsonArray) {
+                when (entry.key) {
+                    "\$eq",
+                    "\$gt",
+                    "\$gte",
+                    "\$lt",
+                    "\$lte",
+                    "\$cmp",
+                    "\$ne" -> {
+                        var fieldName = (entry.value as BsonArray).get(0).asString().value
+                        if (fieldName.startsWith("\$")) {
+                            fieldName = fieldName.substring(1)
+                        }
+
+                        fieldNames += fieldName
+                    }
+                }
+            }
+        }
+
+        return fieldNames
+    }
+
+    private fun extractMatchStatement(pipeline: BsonArray): BsonDocument {
+        return pipeline.filterIsInstance<BsonDocument>().first {
+            it.containsKey("\$match")
+        }.getDocument("\$match")
+    }
+
+    private fun processBasicLookup(document: BsonDocument, aggregation: Aggregation, indexes: MutableList<Index>) {
+        // Unpack the fields
+        val from = document.getString("from").value
+        val foreignField = document.getString("foreignField").value
         val aggregationCommand = aggregation.command()
 
         // Is the collection self-referential
@@ -110,34 +192,47 @@ class IndexRecommendationEngine(
     }
 
     private fun processQuery(query: Query) {
-        processQueryCommand(query.command())
+        val indexes = processQueryCommand(query.command())
+
+        indexes.forEach {
+            if (!candidateIndexes.contains(it)) {
+                candidateIndexes += it
+            }
+        }
     }
 
-    private fun processQueryCommand(queryCommand: QueryCommand) {
+    private fun processQueryCommand(queryCommand: QueryCommand) : List<Index> {
+        val indexes = mutableListOf<Index>()
+
         // Check if we have a $geoIntersects or $geoWithin query
         if (isGeoQueryIndex(queryCommand)) {
-            return addGeoQueryIndex(queryCommand, candidateIndexes)
+            addGeoQueryIndex(queryCommand, indexes)
+            return indexes
         }
 
         // Do we have query that contains a regular expression
         if (containsRegularExpression(queryCommand)) {
-            return processRegularExpression(queryCommand, candidateIndexes)
+            processRegularExpression(queryCommand, indexes)
+            return indexes
         }
 
         // Check if w have a multikey index
         if (isMultiKeyIndex(queryCommand)) {
-            return addMultiKeyIndex(queryCommand, candidateIndexes)
+            addMultiKeyIndex(queryCommand, indexes)
+            return indexes
         }
 
         // Check if it's a single field index
         if (queryCommand.filter.entries.size == 1) {
-            addSingleFieldIndex(queryCommand, candidateIndexes)
+            addSingleFieldIndex(queryCommand, indexes)
         }
 
         // Check if it's a compound index
         if (queryCommand.filter.entries.size > 1) {
-            addCompoundFieldIndex(queryCommand, candidateIndexes)
+            addCompoundFieldIndex(queryCommand, indexes)
         }
+
+        return indexes
     }
 
     /**
@@ -170,7 +265,13 @@ class IndexRecommendationEngine(
 
         // Process the rest of the filter as a possible other index
         if (filteredOutDoc.isNotEmpty()) {
-            processQueryCommand(QueryCommand(query.db, query.collection, filteredOutDoc, filteredSortDoc))
+            val indexes = processQueryCommand(QueryCommand(query.db, query.collection, filteredOutDoc, filteredSortDoc))
+
+            indexes.forEach {
+                if (!candidateIndexes.contains(it)) {
+                    candidateIndexes += it
+                }
+            }
         }
     }
 

@@ -55,6 +55,80 @@ class AggregationRecommendationTest {
         ), gamesResults.indexes[1])
     }
 
+    /**
+     * Simple lookup query multiple joins
+     */
+    @Test
+    fun simpleLookupMultipleJoins() {
+        val operation = Aggregation(readJsonAsBsonDocument("operations/aggregations/aggregation_multiple_join_conditions.json"))
+
+        val usersNamespace = Namespace.parse("mindex_recommendation_tests.users")
+        val gamesNamespace = Namespace.parse("mindex_recommendation_tests.games")
+        val db = Db(client, usersNamespace)
+        // Users collection
+        val usersCollection = db.getCollection(usersNamespace)
+        val gamesCollection = db.getCollection(gamesNamespace)
+
+        // Add the operation
+        usersCollection.addOperation(operation)
+
+        // Get the results
+        val usersResults = usersCollection.done()
+        val gamesResults = gamesCollection.done()
+
+        // Validate the indexes
+        assertEquals(1, usersResults.indexes.size)
+        assertEquals(IdIndex(
+            "_id_"
+        ), usersResults.indexes[0])
+
+        assertEquals(2, gamesResults.indexes.size)
+        assertEquals(IdIndex(
+            "_id_"
+        ), gamesResults.indexes[0])
+        assertEquals(SingleFieldIndex(
+            "b_1",
+            Field("b", IndexDirection.UNKNOWN)
+        ), gamesResults.indexes[1])
+    }
+
+    /**
+     * Simple lookup query multiple joins
+     */
+    @Test
+    fun simpleLookupUncorrelatedJoins() {
+        val operation = Aggregation(readJsonAsBsonDocument("operations/aggregations/aggregation_uncorrelated_join.json"))
+
+        val usersNamespace = Namespace.parse("mindex_recommendation_tests.users")
+        val gamesNamespace = Namespace.parse("mindex_recommendation_tests.games")
+        val db = Db(client, usersNamespace)
+        // Users collection
+        val usersCollection = db.getCollection(usersNamespace)
+        val gamesCollection = db.getCollection(gamesNamespace)
+
+        // Add the operation
+        usersCollection.addOperation(operation)
+
+        // Get the results
+        val usersResults = usersCollection.done()
+        val gamesResults = gamesCollection.done()
+
+        // Validate the indexes
+        assertEquals(1, usersResults.indexes.size)
+        assertEquals(IdIndex(
+            "_id_"
+        ), usersResults.indexes[0])
+
+        assertEquals(2, gamesResults.indexes.size)
+        assertEquals(IdIndex(
+            "_id_"
+        ), gamesResults.indexes[0])
+        assertEquals(SingleFieldIndex(
+            "b_1",
+            Field("b", IndexDirection.UNKNOWN)
+        ), gamesResults.indexes[1])
+    }
+
 //    @Test
 //    fun singleFieldAndSort() {
 //        val operation = Query(readJsonAsBsonDocument("operations/top_level_single_field_query_with_sort.json"))
