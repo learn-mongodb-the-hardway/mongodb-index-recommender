@@ -1,0 +1,57 @@
+{
+  "op" : "command",
+  "ns" : "mindex_recommendation_tests.users",
+  "command" : {
+    "aggregate" : "users",
+    "pipeline" : [
+      {
+        "$graphLookup" : {
+          "from" : "users",
+          "startWith" : "$reportsTo",
+          "connectFromField" : "reportsTo",
+          "connectToField" : "name",
+          "as" : "reportingHierarchy",
+          "restrictSearchWithMatch": {
+            "user_id": 10
+          }
+        }
+      }
+    ],
+    "cursor" : {
+
+    },
+    "$db" : "mindex_recommendation_tests"
+  },
+  "keysExamined" : 0,
+  "docsExamined" : 6,
+  "cursorExhausted" : true,
+  "numYield" : 0,
+  "nreturned" : 6,
+  "queryHash" : "01AEE5EC",
+  "locks" : {
+    "Global" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "5" }
+      }
+    },
+    "Database" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "5" }
+      }
+    },
+    "Collection" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "5" }
+      }
+    }
+  },
+  "responseLength" : 1108,
+  "protocol" : "op_msg",
+  "millis" : 0,
+  "planSummary" : "COLLSCAN",
+  "ts" : { "$date": { "$numberLong": "1540758839829" } },
+  "client" : "127.0.0.1",
+  "appName" : "MongoDB Shell",
+  "allUsers" : [ ],
+  "user" : ""
+}

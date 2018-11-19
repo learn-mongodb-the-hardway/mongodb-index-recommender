@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 import java.io.BufferedReader
 import kotlin.test.assertEquals
 
-class AggregationRecommendationTest {
+class LookupAggregationRecommendationTest {
     val usersNamespace = Namespace.parse("mindex_recommendation_tests.users")
     val gamesNamespace = Namespace.parse("mindex_recommendation_tests.games")
 

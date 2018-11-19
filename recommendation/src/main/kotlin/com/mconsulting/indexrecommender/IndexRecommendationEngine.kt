@@ -132,8 +132,34 @@ class IndexRecommendationEngine(
         }
     }
 
-    private fun addGraphLookupIndex(indexes: MutableList<Index>, aggregationCommand: AggregationCommand, bsonDocument: BsonDocument) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    private fun addGraphLookupIndex(indexes: MutableList<Index>, aggregationCommand: AggregationCommand, document: BsonDocument) {
+        // Get the $graphLookup
+        val graphLookupDocument = document.getDocument("\$graphLookup")
+        val from = graphLookupDocument.getString("from").value
+//        val startsWith = graphLookupDocument.getString("startWith").value
+//        val connectFromField = graphLookupDocument.getString("connectFromField").value
+        val connectToField = graphLookupDocument.getString("connectToField").value
+//        val asField = graphLookupDocument.getString("as").value
+
+        // Get the referenced collection
+        val collection = collection!!.db.getCollection(Namespace(aggregationCommand.db, from))
+        val candidateIndexes = mutableListOf<Index>()
+
+        // Add the graphLookup candidate index
+        candidateIndexes += SingleFieldIndex("${connectToField}_1", Field(connectToField, IndexDirection.UNKNOWN))
+
+        // Do we have a filter on the graphlookup, this is a possible candidate
+        // for an index
+        if  (graphLookupDocument.containsKey("restrictSearchWithMatch")) {
+            val restrictSearchWithMatch = graphLookupDocument.getDocument("restrictSearchWithMatch")
+            // Flatten the matches ( a: { b:1 } becomes a.b
+            candidateIndexes.addAll(processQueryCommand(QueryCommand(aggregationCommand.db, aggregationCommand.collection, restrictSearchWithMatch, BsonDocument())))
+        }
+
+        // Merge in all the possible indexes into the collection
+        candidateIndexes.forEach {
+            collection.addIndex(it)
+        }
     }
 
     private fun addLookupIndex(indexes: MutableList<Index>, aggregation: AggregationCommand, document: BsonDocument) {
