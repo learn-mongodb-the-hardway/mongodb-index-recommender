@@ -86,20 +86,54 @@ class IndexRecommendationEngine(
 
     private fun processAggregationCommand(aggregationCommand: AggregationCommand) : List<Index> {
         val indexes = mutableListOf<Index>()
+        // First match we have seen
+        var firstMatchSeen = false
+        var firstLookupSeen = false
+        var firstGraphLookup = false
+
         // Identify any lookup fields
         aggregationCommand
             .pipeline
             .filterIsInstance<BsonDocument>()
-            .forEach {
+            .forEachIndexed { index, bsonDocument ->
+                // Do we have a $match stage (only look at the first one that shows)
+                if (bsonDocument.containsKey("\$match")
+                    && !firstLookupSeen && !firstMatchSeen && !firstGraphLookup) {
+                    addMatchIndex(indexes, aggregationCommand, bsonDocument)
+                    firstMatchSeen = true
+                }
 
                 // Do we have a $lookup stage
-                if (it.containsKey("\$lookup")) {
-                    addLookupIndex(indexes, aggregationCommand, it)
+                if (bsonDocument.containsKey("\$lookup")) {
+                    addLookupIndex(indexes, aggregationCommand, bsonDocument)
+                    firstLookupSeen = true
+                }
+
+                // Do we have a $graphLookup stage
+                if (bsonDocument.containsKey("\$graphLookup")) {
+                    addGraphLookupIndex(indexes, aggregationCommand, bsonDocument)
+                    firstGraphLookup = true
                 }
             }
 
         // For each index add it to the candidate indexes
         return indexes
+    }
+
+    private fun addMatchIndex(indexes: MutableList<Index>, aggregationCommand: AggregationCommand, bsonDocument: BsonDocument) {
+        val matchDocument = bsonDocument.getDocument("\$match")
+        // Process the match as a query command
+        val candidateIndexes = processQueryCommand(QueryCommand(aggregationCommand.db, aggregationCommand.collection, matchDocument, BsonDocument()))
+        /// Add any missed indexes
+        candidateIndexes.forEach {
+            if (!indexes.contains(it)) {
+                indexes += it
+            }
+        }
+    }
+
+    private fun addGraphLookupIndex(indexes: MutableList<Index>, aggregationCommand: AggregationCommand, bsonDocument: BsonDocument) {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
     private fun addLookupIndex(indexes: MutableList<Index>, aggregation: AggregationCommand, document: BsonDocument) {
@@ -213,6 +247,11 @@ class IndexRecommendationEngine(
     private fun processQueryCommand(queryCommand: QueryCommand) : List<Index> {
         val indexes = mutableListOf<Index>()
 
+        // No filter set up at all, no indexes to discover
+        if (queryCommand.filter.isEmpty()) {
+            return indexes
+        }
+
         // Check if we have a $geoIntersects or $geoWithin query
         if (isGeoQueryIndex(queryCommand)) {
             addGeoQueryIndex(queryCommand, indexes)
@@ -225,20 +264,23 @@ class IndexRecommendationEngine(
             return indexes
         }
 
+        // Flatten the index into dot notation for the create index statements
+        val flattenedQuery = generateProjection(queryCommand.filter)
+
         // Check if w have a multikey index
         if (isMultiKeyIndex(queryCommand)) {
-            addMultiKeyIndex(queryCommand, indexes)
+            addMultiKeyIndex(flattenedQuery, queryCommand, indexes)
             return indexes
         }
 
         // Check if it's a single field index
-        if (queryCommand.filter.entries.size == 1) {
-            addSingleFieldIndex(queryCommand, indexes)
+        if (flattenedQuery.size == 1) {
+            addSingleFieldIndex(flattenedQuery, queryCommand, indexes)
         }
 
         // Check if it's a compound index
-        if (queryCommand.filter.entries.size > 1) {
-            addCompoundFieldIndex(queryCommand, indexes)
+        if (flattenedQuery.size > 1) {
+            addCompoundFieldIndex(flattenedQuery, queryCommand, indexes)
         }
 
         return indexes
@@ -252,6 +294,7 @@ class IndexRecommendationEngine(
         val regularExpressions = mutableListOf<List<String>>()
         val filteredOutDoc = query.filter.clone()
         val filteredSortDoc = query.sort.clone()
+        val queryFilterNames = BsonDocument()
 
         traverse(query.filter) { _, _path, entry ->
             if (entry.value is BsonRegularExpression) {
@@ -261,12 +304,14 @@ class IndexRecommendationEngine(
                 filteredOutDoc.remove(_path + entry.key)
                 // Remove from the sort
                 filteredSortDoc.remove(_path + entry.key)
+                // Add to the BsonDocument that will be used for naming
+                queryFilterNames.append("${(_path + entry.key).joinToString(".")}", BsonInt32(1))
             }
         }
 
         // Generate a text index recommendation
         candidateIndexes += TextIndex(
-            createIndexName(QueryCommand(query.db, query.collection, BsonDocument(regularExpressions.map {
+            createIndexName(queryFilterNames, QueryCommand(query.db, query.collection, BsonDocument(regularExpressions.map {
                 BsonElement(it.joinToString("."), BsonInt32(1))
             }), BsonDocument())), regularExpressions.map {
                 TextField(it)
@@ -305,7 +350,7 @@ class IndexRecommendationEngine(
 
         // If we have a path, we have a geo index candidate
         if (path.isNotEmpty()) {
-            candidateIndexes += TwoDSphereIndex(createIndexName(query), path.joinToString("."))
+            candidateIndexes += TwoDSphereIndex(createIndexName(query.filter, query), path.joinToString("."))
         }
    }
 
@@ -353,14 +398,14 @@ class IndexRecommendationEngine(
         return false
     }
 
-    private fun addMultiKeyIndex(query: QueryCommand, candidateIndexes: MutableList<Index>) {
+    private fun addMultiKeyIndex(query: BsonDocument, queryCommand: QueryCommand, candidateIndexes: MutableList<Index>) {
         // Create list of fields
-        val fields = query.filter.entries.map {
-            Field(it.key, getIndexDirection(query, it.key, IndexDirection.UNKNOWN))
+        val fields = query.entries.map {
+            Field(it.key, getIndexDirection(queryCommand, it.key, IndexDirection.UNKNOWN))
         }
 
         // Create index name
-        val fieldName = createIndexName(query)
+        val fieldName = createIndexName(query, queryCommand)
 
         // Create Multikey index
         val index = MultikeyIndex(fieldName, fields)
@@ -371,14 +416,14 @@ class IndexRecommendationEngine(
         }
     }
 
-    private fun addCompoundFieldIndex(query: QueryCommand, candidateIndexes: MutableList<Index>) {
+    private fun addCompoundFieldIndex(query: BsonDocument, queryCommand: QueryCommand, candidateIndexes: MutableList<Index>) {
         // Create list of fields
-        val fields = query.filter.entries.map {
-            Field(it.key, getIndexDirection(query, it.key, IndexDirection.UNKNOWN))
+        val fields = query.entries.map {
+            Field(it.key, getIndexDirection(queryCommand, it.key, IndexDirection.UNKNOWN))
         }
 
         // Create index name
-        val fieldName = createIndexName(query)
+        val fieldName = createIndexName(query, queryCommand)
 
         // Create compound index
         val index = CompoundIndex(fieldName, fields)
@@ -389,15 +434,15 @@ class IndexRecommendationEngine(
         }
     }
 
-    private fun addSingleFieldIndex(query: QueryCommand, candidateIndexes: MutableList<Index>) {
+    private fun addSingleFieldIndex(query: BsonDocument, queryCommand: QueryCommand, candidateIndexes: MutableList<Index>) {
         // Get the first entry
-        val entry = query.filter.entries.first()
-        val fieldName = createIndexName(query)
+        val entry = query.entries.first()
+        val fieldName = createIndexName(query, queryCommand)
 
         // Create the index entry
         val index = SingleFieldIndex(
             fieldName,
-            Field(entry.key, getIndexDirection(query, entry.key, IndexDirection.UNKNOWN)))
+            Field(entry.key, getIndexDirection(queryCommand, entry.key, IndexDirection.UNKNOWN)))
 
         // Check if the key exists
         if (!candidateIndexes.contains(index)) {
@@ -415,9 +460,9 @@ class IndexRecommendationEngine(
         return direction
     }
 
-    private fun createIndexName(query: QueryCommand): String {
-        return query.filter.entries.map {
-            "${it.key}_${getIndexDirection(query, it.key).value()}"
+    private fun createIndexName(query: BsonDocument, queryCommand: QueryCommand): String {
+        return query.entries.map {
+            "${it.key}_${getIndexDirection(queryCommand, it.key).value()}"
         }.joinToString("_")
     }
 

@@ -1,5 +1,6 @@
 package com.mconsulting.indexrecommender
 
+import com.mconsulting.indexrecommender.indexes.CompoundIndex
 import com.mconsulting.indexrecommender.indexes.Field
 import com.mconsulting.indexrecommender.indexes.IdIndex
 import com.mconsulting.indexrecommender.indexes.IndexDirection
@@ -128,6 +129,38 @@ class AggregationRecommendationTest {
         val (usersCollection, gamesCollection) = executeLogEntry("operations/aggregations/aggregation_uncorrelated_join.txt")
         // Get the results
         simpleLookupUncorrelatedJoinsAssertions(usersCollection.done(), gamesCollection.done())
+    }
+
+    /**
+     * More complex deep aggregation
+     */
+    fun complexLookupAssertions(usersResults: CollectionIndexResults, gamesResults: CollectionIndexResults) {
+        // Validate the indexes
+        assertEquals(2, usersResults.indexes.size)
+        assertEquals(IdIndex(
+            "_id_"
+        ), usersResults.indexes[0])
+        assertEquals(CompoundIndex(
+            "a.b.c_1_a.b.d_1", listOf(
+            Field("a.b.c", IndexDirection.UNKNOWN),
+            Field("a.b.d", IndexDirection.UNKNOWN)
+        )), usersResults.indexes[1])
+
+        assertEquals(2, gamesResults.indexes.size)
+        assertEquals(IdIndex(
+            "_id_"
+        ), gamesResults.indexes[0])
+        assertEquals(SingleFieldIndex(
+            "user_id_1",
+            Field("user_id", IndexDirection.UNKNOWN)
+        ), gamesResults.indexes[1])
+    }
+
+    @Test
+    fun complexLookup() {
+        val (usersCollection, gamesCollection) = executeOperation("operations/aggregations/aggregation_complex_join.json")
+        // Get the results
+        complexLookupAssertions(usersCollection.done(), gamesCollection.done())
     }
 
     private fun executeOperation(resource: String): Pair<Collection, Collection> {

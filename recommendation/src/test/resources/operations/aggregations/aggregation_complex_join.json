@@ -1,0 +1,63 @@
+{
+  "op" : "command",
+  "ns" : "mindex_recommendation_tests.games",
+  "command" : {
+    "aggregate" : "users",
+    "pipeline" : [
+      {
+        "$match" : {
+          "a" : {
+            "b" : {
+              "c": 1,
+              "d": "hello world"
+            }
+          }
+        }
+      },
+      {
+        "$lookup" : {
+          "from" : "games",
+          "localField" : "a",
+          "foreignField" : "user_id",
+          "as" : "games"
+        }
+      }
+    ],
+    "cursor" : {
+
+    },
+    "$db" : "mindex_recommendation_tests"
+  },
+  "keysExamined" : 0,
+  "docsExamined" : 1,
+  "cursorExhausted" : true,
+  "numYield" : 0,
+  "nreturned" : 1,
+  "queryHash" : "D6EECA37",
+  "locks" : {
+    "Global" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "5" }
+      }
+    },
+    "Database" : {
+      "acquireCount" : {
+        "r" :{ "$numberLong": "5" }
+      }
+    },
+    "Collection" : {
+      "acquireCount" : {
+        "r" : { "$numberLong": "4" }
+      }
+    }
+  },
+  "responseLength" : 268,
+  "protocol" : "op_msg",
+  "millis" : 14,
+  "planSummary" : "COLLSCAN",
+  "ts" : { "$date": { "$numberLong": "1540758839829" } },
+  "client" : "127.0.0.1",
+  "appName" : "MongoDB Shell",
+  "allUsers" : [ ],
+  "user" : ""
+}

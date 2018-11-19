@@ -61,8 +61,8 @@ class TextIndexSuggestionTest : IntegrationTestBase() {
             TextIndex("b.text_1", listOf(TextField(listOf("b.text"), 1))),
             results.getIndex(this.namespace, "b.text_1"))
         assertEquals(
-            SingleFieldIndex("a_1", Field("a", IndexDirection.UNKNOWN)),
-            results.getIndex(this.namespace, "a_1"))
+            SingleFieldIndex("a.b_1", Field("a.b", IndexDirection.UNKNOWN)),
+            results.getIndex(this.namespace, "a.b_1"))
     }
 
     @Test
@@ -105,7 +105,7 @@ class TextIndexSuggestionTest : IntegrationTestBase() {
         assertEquals(3, indexes.size)
         assertTrue(results.contains(this.namespace, "_id_"))
         assertTrue(results.contains(this.namespace, "b.text_1_b.text2_1"))
-        assertTrue(results.contains(this.namespace, "a_1"))
+        assertTrue(results.contains(this.namespace, "a.b_1"))
         assertEquals(
             IdIndex("_id_"),
             results.getIndex(this.namespace, "_id_"))
@@ -116,7 +116,7 @@ class TextIndexSuggestionTest : IntegrationTestBase() {
             )),
             results.getIndex(this.namespace, "b.text_1_b.text2_1"))
         assertEquals(
-            SingleFieldIndex("a_1", Field("a", IndexDirection.UNKNOWN)),
-            results.getIndex(this.namespace, "a_1"))
+            SingleFieldIndex("a.b_1", Field("a.b", IndexDirection.UNKNOWN)),
+            results.getIndex(this.namespace, "a.b_1"))
     }
 }
