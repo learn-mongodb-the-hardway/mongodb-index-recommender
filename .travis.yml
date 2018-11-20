@@ -35,7 +35,7 @@ install:
 #- sudo service mysql restart
 
 script:
-- ./gradlew test -PTRAVIS=true
+- ./gradlew test -i -PTRAVIS=true
 
 before_cache:
 - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
