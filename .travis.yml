@@ -11,9 +11,8 @@ jdk:
 #    packages:
 #    - mysql-server
 #    - mysql-client
-
-services:
-- mongodb
+#services:
+#- mongodb
 
 notifications:
   email:
@@ -28,6 +27,19 @@ branches:
 
 install:
 - ./gradlew --version
+
+before_script:
+  - wget http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-${MONGODB_VERSION}.tgz -O /tmp/mongodb.tgz
+  - tar -xvf /tmp/mongodb.tgz
+  - mkdir /tmp/data
+  - ${PWD}/mongodb-linux-x86_64-${MONGODB_VERSION}/bin/mongod --setParameter enableTestCommands=1 --dbpath /tmp/data --bind_ip 127.0.0.1 --auth &> /dev/null &
+  - export MONGODB_VERSION=${MONGODB_VERSION}
+
+env:
+  global:
+    - CI="travis"
+  matrix:
+    - MONGODB_VERSION=4.0.1
 
 #before_install:
 #- sudo mysql -e "use mysql; update user set authentication_string=PASSWORD('root') where User='root'; update user set plugin='mysql_native_password';FLUSH PRIVILEGES;"
