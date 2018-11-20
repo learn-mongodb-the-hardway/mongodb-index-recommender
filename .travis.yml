@@ -1,0 +1,46 @@
+dist: trusty
+sudo: true
+language: java
+jdk:
+- oraclejdk8
+
+#addons:
+#  apt:
+#    sources:
+#    - mysql-5.7-trusty
+#    packages:
+#    - mysql-server
+#    - mysql-client
+
+services:
+- mongodb
+
+notifications:
+  email:
+    recipients:
+    - christkv@gmail.com
+    on_success: change
+    on_failure: always
+
+branches:
+  only:
+  - master
+
+install:
+- ./gradlew --version
+
+#before_install:
+#- sudo mysql -e "use mysql; update user set authentication_string=PASSWORD('root') where User='root'; update user set plugin='mysql_native_password';FLUSH PRIVILEGES;"
+#- sudo mysql_upgrade -u root --password=root
+#- sudo service mysql restart
+
+script:
+- ./gradlew test -PTRAVIS=true
+
+before_cache:
+- rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
+- rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+cache:
+  directories:
+  - $HOME/.gradle/caches/
+  - $HOME/.gradle/wrapper/
