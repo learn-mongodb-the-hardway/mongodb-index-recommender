@@ -24,7 +24,7 @@ import org.bson.BsonInt32
 import org.bson.BsonRegularExpression
 import org.bson.BsonValue
 
-data class IndexRecommendationOptions(val executeQueries: Boolean = true)
+class IndexRecommendationOptions()
 
 fun BsonDocument.remove(path: List<String>) {
     var pointer: BsonValue? = this
@@ -95,7 +95,7 @@ class IndexRecommendationEngine(
         aggregationCommand
             .pipeline
             .filterIsInstance<BsonDocument>()
-            .forEachIndexed { index, bsonDocument ->
+            .forEachIndexed { _, bsonDocument ->
                 // Do we have a $match stage (only look at the first one that shows)
                 if (bsonDocument.containsKey("\$match")
                     && !firstLookupSeen && !firstMatchSeen && !firstGraphLookup) {
@@ -105,13 +105,13 @@ class IndexRecommendationEngine(
 
                 // Do we have a $lookup stage
                 if (bsonDocument.containsKey("\$lookup")) {
-                    addLookupIndex(indexes, aggregationCommand, bsonDocument)
+                    addLookupIndex(aggregationCommand, bsonDocument)
                     firstLookupSeen = true
                 }
 
                 // Do we have a $graphLookup stage
                 if (bsonDocument.containsKey("\$graphLookup")) {
-                    addGraphLookupIndex(indexes, aggregationCommand, bsonDocument)
+                    addGraphLookupIndex(aggregationCommand, bsonDocument)
                     firstGraphLookup = true
                 }
             }
@@ -132,14 +132,11 @@ class IndexRecommendationEngine(
         }
     }
 
-    private fun addGraphLookupIndex(indexes: MutableList<Index>, aggregationCommand: AggregationCommand, document: BsonDocument) {
+    private fun addGraphLookupIndex(aggregationCommand: AggregationCommand, document: BsonDocument) {
         // Get the $graphLookup
         val graphLookupDocument = document.getDocument("\$graphLookup")
         val from = graphLookupDocument.getString("from").value
-//        val startsWith = graphLookupDocument.getString("startWith").value
-//        val connectFromField = graphLookupDocument.getString("connectFromField").value
         val connectToField = graphLookupDocument.getString("connectToField").value
-//        val asField = graphLookupDocument.getString("as").value
 
         // Get the referenced collection
         val collection = collection!!.db.getCollection(Namespace(aggregationCommand.db, from))
@@ -162,11 +159,11 @@ class IndexRecommendationEngine(
         }
     }
 
-    private fun addLookupIndex(indexes: MutableList<Index>, aggregation: AggregationCommand, document: BsonDocument) {
+    private fun addLookupIndex(aggregation: AggregationCommand, document: BsonDocument) {
         val lookupDocument = document.getDocument("\$lookup")
 
         if (lookupDocument.containsKey("localField")) {
-            processBasicLookup(lookupDocument, aggregation, indexes)
+            processBasicLookup(lookupDocument, aggregation)
         } else if (lookupDocument.containsKey("pipeline")) {
             processAdvancedLookup(lookupDocument, aggregation)
         }
@@ -215,7 +212,7 @@ class IndexRecommendationEngine(
     private fun extractFieldNamesFromMatchExpression(matchExpression: BsonDocument): List<String> {
         val fieldNames = mutableListOf<String>()
 
-        traverse(matchExpression) { doc, path, entry ->
+        traverse(matchExpression) { _, _, entry ->
             // Do we have an $expr for the comparison
             val value = entry.value
             if (value is BsonArray) {
@@ -247,7 +244,7 @@ class IndexRecommendationEngine(
         }.getDocument("\$match")
     }
 
-    private fun processBasicLookup(document: BsonDocument, aggregation: AggregationCommand, indexes: MutableList<Index>) {
+    private fun processBasicLookup(document: BsonDocument, aggregation: AggregationCommand) {
         // Unpack the fields
         val from = document.getString("from").value
         val foreignField = document.getString("foreignField").value

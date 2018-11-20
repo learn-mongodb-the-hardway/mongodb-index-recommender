@@ -11,6 +11,22 @@ import ch.qos.logback.core.ConsoleAppender
 import ch.qos.logback.core.FileAppender
 import ch.qos.logback.core.encoder.Encoder
 import ch.qos.logback.core.spi.FilterReply
+import com.mconsulting.indexrecommender.CollectionOptions
+import com.mconsulting.indexrecommender.IndexResults
+import com.mconsulting.indexrecommender.Namespace
+import com.mconsulting.indexrecommender.Processor
+import com.mconsulting.indexrecommender.indexes.CompoundIndex
+import com.mconsulting.indexrecommender.indexes.HashedIndex
+import com.mconsulting.indexrecommender.indexes.IdIndex
+import com.mconsulting.indexrecommender.indexes.Index
+import com.mconsulting.indexrecommender.indexes.MultikeyIndex
+import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
+import com.mconsulting.indexrecommender.indexes.TTLIndex
+import com.mconsulting.indexrecommender.indexes.TextIndex
+import com.mconsulting.indexrecommender.indexes.TwoDIndex
+import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
+import com.mconsulting.indexrecommender.ingress.LogFileIngress
+import com.mconsulting.indexrecommender.ingress.ProfileCollectionIngress
 import com.mongodb.MongoClient
 import com.xenomachina.argparser.ArgParser
 import com.xenomachina.argparser.HelpFormatter
@@ -20,7 +36,9 @@ import mu.KLogging
 import org.bson.BsonDocument
 import org.slf4j.Marker
 import java.io.File
+import java.io.FileWriter
 import java.io.OutputStreamWriter
+import java.io.StringWriter
 import java.io.Writer
 import java.text.SimpleDateFormat
 import java.util.*
@@ -68,52 +86,131 @@ object App : KLogging() {
         // Connect to MongoDB
         val client = MongoClient(config.general.uri)
 
-        // Are we extracting a schema
-        if (config.general.extract) {
-            extractSchemas(client, config)
-        } else if (config.general.apply) {
-            applySchemas(client, config)
-        }
+        // Run recommendation engine
+        executeRecommendation(client, config)
 
         // Close MongoDB Connection
         client.close()
     }
 
-    private fun applySchemas(client: MongoClient, config: Config) {
-//        // For each namespace apply it
-//        config.apply.schemas.forEach {
-//            // Load and parse the json document into a BsonDocument
-//            val json = it.file.readText()
-//            val document = BsonDocument.parse(json)
-//            logger.info { "applying schema from [${it.file.absolutePath}] to [${it.db}.${it.collection}]" }
-//            try {
-//                // Execute the command
-//                SetJsonSchemaOnCollectionCommand(client)
-//                    .execute(it.db, it.collection, document, ValidationOptions(it.validationLevel))
-//            } catch (exception: Exception) {
-//                logger.info { "failed to apply schema from [${it.file.absolutePath}] to [${it.db}.${it.collection}]" }
-//                throw SystemExitException("${exception.message}", 1)
-//            }
-//
-//            logger.info { "successfully applied schema from [${it.file.absolutePath}] to [${it.db}.${it.collection}]" }
-//        }
+    private fun executeRecommendation(client: MongoClient, config: Config) {
+        // Create processor
+        val processor = Processor(client, config.extract.namespaces, CollectionOptions(
+            allowExplainExecution = !config.extract.skipQueryShapeExplainPlanExecution
+        ))
+
+        // Add profile collection ingress sources
+        if (!config.extract.skipReadProfileCollection) {
+            config.extract.databaseNames().forEach {
+                processor.addSource(ProfileCollectionIngress(client, Namespace(it, "")))
+            }
+        }
+
+        // Add any log files
+        config.extract.mongoLogs.forEach {
+            processor.addSource(LogFileIngress(it))
+        }
+
+        // Execute the processor
+        val indexResults = processor.process()
+
+        // Create the output
+        when (config.extract.outputFormat) {
+            OutputFormat.TXT -> outputTextFormat(indexResults, config)
+            OutputFormat.JSON -> outputJSONFormat(indexResults, config)
+        }
     }
 
-    private fun extractSchemas(client: MongoClient, config: Config) {
-//        // Create SchemaExtractorExecutor
-//        val schemas = SchemaExtractorExecutor(client, SchemaExtractorOptions(
-//            namespaces = config.extract.namespaces,
-//            mergeDocuments = config.extract.mergeDocuments
-//        )).execute()
-//
-//        // Write the schemas out
-//        schemas.forEach {
-//            val json = it.toJson(config.extract.outputFormat)
-//            val fileName = "${it.db}_${it.collection}_${dateFormat.format(Date())}.json"
-//            val file = File("${config.extract.outputDirectory}", fileName)
-//            logger.info { "writing collection [${it.namespace} schema to ${file.absolutePath}" }
-//            file.writeText(json)
-//        }
+    private fun outputJSONFormat(indexResults: IndexResults, config: Config) {
+    }
+
+    private fun outputTextFormat(indexResults: IndexResults, config: Config) {
+        indexResults.dbIndexResults.forEach { db ->
+            val stringWriter = StringWriter()
+            val writer = when(config.extract.outputDirectory.name) {
+                "-1" -> IndentationWriter(stringWriter)
+                else -> IndentationWriter(FileWriter(File(config.extract.outputDirectory, "${db.namespace.db}.txt")))
+            }
+
+            writer.writeln("db: ${db.namespace.db}")
+            writer.writeln()
+            writer.indent()
+
+            db.collectionIndexResults.forEach { collection ->
+                writer.writeln("collection: ${collection.namespace.collection}")
+                writer.writeln()
+                writer.indent()
+
+                collection.indexes.forEach { index ->
+                    writer.writeln("[${indexTypeName(index)}]:")
+                    writer.indent()
+
+                    writer.writeln("name: ${index.name}")
+                    writeIndexSpecific(writer, index)
+
+                    if (index.partialFilterExpression != null) {
+                        writer.writeln("partialExpression: ${index.partialFilterExpression!!.toJson()}")
+                    }
+
+                    writer.writeln("unique: ${index.unique}")
+                    writer.writeln("sparse: ${index.sparse}")
+
+                    writer.unIndent()
+                    writer.writeln()
+                }
+
+                writer.unIndent()
+            }
+
+            if (config.extract.outputDirectory.name == "-1") {
+                println(stringWriter.buffer.toString())
+            }
+        }
+    }
+
+    private fun writeIndexSpecific(writer: IndentationWriter, index: Index) {
+        when (index) {
+            is SingleFieldIndex -> {
+                writer.writeln("field:")
+                writer.indent()
+
+                writer.writeln("key: ${index.field.name}")
+                writer.writeln("direction: ${index.field.direction}")
+
+                writer.unIndent()
+            }
+            is CompoundIndex -> {
+                writer.writeln("fields:")
+                writer.indent()
+
+                index.fields.forEach {
+                    writer.writeln("field:")
+                    writer.indent()
+
+                    writer.writeln("key: ${it.name}")
+                    writer.writeln("direction: ${it.direction}")
+
+                    writer.unIndent()
+                }
+
+                writer.unIndent()
+            }
+        }
+    }
+
+    private fun indexTypeName(index: Index): String {
+        return when (index) {
+            is SingleFieldIndex -> "Single Key"
+            is CompoundIndex -> "Compound Key"
+            is HashedIndex -> "Hashed"
+            is MultikeyIndex -> "Multi Key"
+            is IdIndex -> "Id"
+            is TwoDSphereIndex -> "2d Sphere"
+            is TwoDIndex -> "2d"
+            is TextIndex -> "Text"
+            is TTLIndex -> "Time To Live"
+            else -> "Unknown"
+        }
     }
 
     private fun execute(body: () -> Unit) {

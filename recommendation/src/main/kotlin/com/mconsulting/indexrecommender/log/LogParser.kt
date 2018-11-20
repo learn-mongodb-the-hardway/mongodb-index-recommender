@@ -98,7 +98,7 @@ class LogParser(val reader: BufferedReader) {
 
     private fun parseInfo(dateTime: DateTime, severityLevel: SeverityLevels, tokenizer: StringTokenizer): LogEntry {
         // Read the connection information
-        val connection = tokenizer.nextToken()
+        tokenizer.nextToken()
         // Skip the next token
         tokenizer.nextToken()
         // Read the namespace

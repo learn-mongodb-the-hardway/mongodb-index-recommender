@@ -57,9 +57,7 @@ class Collection(
     ))
 
     // Recommendation engine
-    private var recommendationEngine: IndexRecommendationEngine = IndexRecommendationEngine(client, this, IndexRecommendationOptions(
-        executeQueries = options.executeQueries
-    ))
+    private var recommendationEngine: IndexRecommendationEngine = IndexRecommendationEngine(client, this)
 
     init {
         database = client.getDatabase(namespace.db)

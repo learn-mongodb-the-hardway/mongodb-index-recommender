@@ -179,9 +179,9 @@ fun commandToBsonDocument(json: String): BsonDocument {
     return BsonDocument.parse(finalJson)
 }
 
-private fun extractCustomShellSyntax(pattern: Pattern, finalJson: String, index: Counter, allMatches: MutableMap<String, Match>): String {
+private fun extractCustomShellSyntax(pattern: Pattern, json: String, index: Counter, allMatches: MutableMap<String, Match>): String {
     // Rewrite the json to allow us to parse it correctly
-    var finalJson = finalJson
+    var finalJson = json
     val matches = pattern.match.findAll(finalJson)
 
     for (match in matches) {

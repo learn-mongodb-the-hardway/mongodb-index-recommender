@@ -18,7 +18,7 @@ class CreateOperationTest {
 
         assertNotNull(operation)
         assertTrue(operation is Insert)
-        assertEquals(Namespace.parse("digitalvault_integration.users"), operation!!.namespace())
+        assertEquals(Namespace.parse("digitalvault_integration.users"), operation.namespace())
     }
 
     @Test
@@ -28,7 +28,7 @@ class CreateOperationTest {
 
         assertNotNull(operation)
         assertTrue(operation is Aggregation)
-        assertEquals(Namespace.parse("digitalvault_integration.users"), operation!!.namespace())
+        assertEquals(Namespace.parse("digitalvault_integration.users"), operation.namespace())
     }
 
     @Test
@@ -38,7 +38,7 @@ class CreateOperationTest {
 
         assertNotNull(operation)
         assertTrue(operation is Update)
-        assertEquals(Namespace.parse("digitalvault_integration.users"), operation!!.namespace())
+        assertEquals(Namespace.parse("digitalvault_integration.users"), operation.namespace())
     }
 
     @Test
@@ -48,7 +48,7 @@ class CreateOperationTest {
 
         assertNotNull(operation)
         assertTrue(operation is Query)
-        assertEquals(Namespace.parse("digitalvault_integration.users"), operation!!.namespace())
+        assertEquals(Namespace.parse("digitalvault_integration.users"), operation.namespace())
     }
 
     @Test
@@ -58,6 +58,6 @@ class CreateOperationTest {
 
         assertNotNull(operation)
         assertTrue(operation is Delete)
-        assertEquals(Namespace.parse("digitalvault_integration.users"), operation!!.namespace())
+        assertEquals(Namespace.parse("digitalvault_integration.users"), operation.namespace())
     }
 }
