@@ -21,19 +21,13 @@ class GraphLookupAggregationRecommendationTest {
 
     fun basicGraphLookupAssertions(usersResults: CollectionIndexResults, gamesResults: CollectionIndexResults) {
         // Validate the indexes
-        assertEquals(2, usersResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), usersResults.indexes[0])
+        assertEquals(1, usersResults.indexes.size)
         assertEquals(SingleFieldIndex(
             "name_1",
             Field("name", IndexDirection.UNKNOWN)
-        ), usersResults.indexes[1])
+        ), usersResults.indexes[0])
 
-        assertEquals(1, gamesResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), gamesResults.indexes[0])
+        assertEquals(0, gamesResults.indexes.size)
     }
 
     @Test
@@ -44,23 +38,17 @@ class GraphLookupAggregationRecommendationTest {
 
     fun basicGraphLookupWithMatchAssertions(usersResults: CollectionIndexResults, gamesResults: CollectionIndexResults) {
         // Validate the indexes
-        assertEquals(3, usersResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), usersResults.indexes[0])
+        assertEquals(2, usersResults.indexes.size)
         assertEquals(SingleFieldIndex(
             "name_1",
             Field("name", IndexDirection.UNKNOWN)
-        ), usersResults.indexes[1])
+        ), usersResults.indexes[0])
         assertEquals(SingleFieldIndex(
             "user_id_1",
             Field("user_id", IndexDirection.UNKNOWN)
-        ), usersResults.indexes[2])
+        ), usersResults.indexes[1])
 
-        assertEquals(1, gamesResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), gamesResults.indexes[0])
+        assertEquals(0, gamesResults.indexes.size)
     }
 
     @Test
@@ -85,17 +73,15 @@ class GraphLookupAggregationRecommendationTest {
     companion object {
         lateinit var client: MongoClient
         lateinit var db: MongoDatabase
-        lateinit var collection: MongoCollection<Document>
 
         @BeforeAll
         @JvmStatic
         internal fun beforeAll() {
             client = MongoClient(MongoClientURI("mongodb://localhost:27017"))
             db = client.getDatabase("mindex_recommendation_tests")
-            collection = db.getCollection("index_tests")
 
-            // Drop collection
-            collection.drop()
+            db.getCollection("users").drop()
+            db.getCollection("games").drop()
         }
 
         @AfterAll

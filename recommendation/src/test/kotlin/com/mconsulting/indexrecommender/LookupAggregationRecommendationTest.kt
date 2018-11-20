@@ -25,19 +25,12 @@ class LookupAggregationRecommendationTest {
 
     fun simpleLookupAssertions(usersResults: CollectionIndexResults, gamesResults: CollectionIndexResults) {
         // Validate the indexes
-        assertEquals(1, usersResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), usersResults.indexes[0])
-
-        assertEquals(2, gamesResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), gamesResults.indexes[0])
+        assertEquals(0, usersResults.indexes.size)
+        assertEquals(1, gamesResults.indexes.size)
         assertEquals(SingleFieldIndex(
             "user_id_1",
             Field("user_id", IndexDirection.UNKNOWN)
-        ), gamesResults.indexes[1])
+        ), gamesResults.indexes[0])
     }
 
     /**
@@ -62,19 +55,12 @@ class LookupAggregationRecommendationTest {
 
     fun simpleLookupMultipleJoinsAssertions(usersResults: CollectionIndexResults, gamesResults: CollectionIndexResults) {
         // Validate the indexes
-        assertEquals(1, usersResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), usersResults.indexes[0])
-
-        assertEquals(2, gamesResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), gamesResults.indexes[0])
+        assertEquals(0, usersResults.indexes.size)
+        assertEquals(1, gamesResults.indexes.size)
         assertEquals(SingleFieldIndex(
             "b_1",
             Field("b", IndexDirection.UNKNOWN)
-        ), gamesResults.indexes[1])
+        ), gamesResults.indexes[0])
     }
 
     /**
@@ -99,19 +85,12 @@ class LookupAggregationRecommendationTest {
 
     fun simpleLookupUncorrelatedJoinsAssertions(usersResults: CollectionIndexResults, gamesResults: CollectionIndexResults) {
         // Validate the indexes
-        assertEquals(1, usersResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), usersResults.indexes[0])
-
-        assertEquals(2, gamesResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), gamesResults.indexes[0])
+        assertEquals(0, usersResults.indexes.size)
+        assertEquals(1, gamesResults.indexes.size)
         assertEquals(SingleFieldIndex(
             "b_1",
             Field("b", IndexDirection.UNKNOWN)
-        ), gamesResults.indexes[1])
+        ), gamesResults.indexes[0])
     }
 
     /**
@@ -136,24 +115,18 @@ class LookupAggregationRecommendationTest {
      */
     fun complexLookupAssertions(usersResults: CollectionIndexResults, gamesResults: CollectionIndexResults) {
         // Validate the indexes
-        assertEquals(2, usersResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), usersResults.indexes[0])
+        assertEquals(1, usersResults.indexes.size)
         assertEquals(CompoundIndex(
             "a.b.c_1_a.b.d_1", listOf(
             Field("a.b.c", IndexDirection.UNKNOWN),
             Field("a.b.d", IndexDirection.UNKNOWN)
-        )), usersResults.indexes[1])
+        )), usersResults.indexes[0])
 
-        assertEquals(2, gamesResults.indexes.size)
-        assertEquals(IdIndex(
-            "_id_"
-        ), gamesResults.indexes[0])
+        assertEquals(1, gamesResults.indexes.size)
         assertEquals(SingleFieldIndex(
             "user_id_1",
             Field("user_id", IndexDirection.UNKNOWN)
-        ), gamesResults.indexes[1])
+        ), gamesResults.indexes[0])
     }
 
     @Test
@@ -194,17 +167,15 @@ class LookupAggregationRecommendationTest {
     companion object {
         lateinit var client: MongoClient
         lateinit var db: MongoDatabase
-        lateinit var collection: MongoCollection<Document>
 
         @BeforeAll
         @JvmStatic
         internal fun beforeAll() {
             client = MongoClient(MongoClientURI("mongodb://localhost:27017"))
             db = client.getDatabase("mindex_recommendation_tests")
-            collection = db.getCollection("index_tests")
 
-            // Drop collection
-            collection.drop()
+            db.getCollection("users").drop()
+            db.getCollection("games").drop()
         }
 
         @AfterAll

@@ -132,6 +132,16 @@ class IndexTests {
         assertEquals(false, index.unique)
     }
 
+    @Test
+    fun timeToLiveIndex() {
+        val index = createIndex(readJsonAsBsonDocument("indexes/ttl_index.json")) as TTLIndex
+        assertEquals("lastModifiedDate_1", index.name)
+        assertEquals(Field("lastModifiedDate", IndexDirection.ASCENDING), index.field)
+        assertEquals(3600, index.expireAfterSeconds)
+        assertEquals(false, index.sparse)
+        assertEquals(false, index.unique)
+    }
+
     companion object {
         lateinit var client: MongoClient
         lateinit var db: MongoDatabase

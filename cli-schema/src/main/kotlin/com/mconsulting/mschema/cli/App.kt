@@ -195,6 +195,44 @@ object App : KLogging() {
 
                 writer.unIndent()
             }
+            is HashedIndex -> writer.writeln("field: ${index.field}")
+            is TwoDSphereIndex -> writer.writeln("field: ${index.key}")
+            is TwoDIndex -> writer.writeln("field: ${index.key}")
+            is MultikeyIndex -> {
+                writer.writeln("fields:")
+                writer.indent()
+
+                index.fields.forEach {
+                    writer.writeln("field:")
+                    writer.indent()
+
+                    writer.writeln("key: ${it.name}")
+                    writer.writeln("direction: ${it.direction}")
+
+                    writer.unIndent()
+                }
+
+                writer.unIndent()
+            }
+            is TextIndex -> {
+                writer.writeln("fields:")
+                writer.indent()
+
+                index.fields.forEach {
+                    writer.writeln("field:")
+                    writer.indent()
+
+                    writer.writeln("key: ${it.path}")
+                    writer.writeln("weight: ${it.weight}")
+
+                    writer.unIndent()
+                }
+
+                writer.unIndent()
+            }
+            is TTLIndex -> {
+
+            }
         }
     }
 

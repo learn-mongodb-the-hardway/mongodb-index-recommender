@@ -124,7 +124,7 @@ class TextIndex(name: String, val fields: List<TextField>, partialFilterExpressi
 
 class HashedIndex(name: String, val field: String, partialFilterExpression: BsonDocument? = null) : Index(name, partialFilterExpression = partialFilterExpression)
 
-class TTLIndex(name: String, val expireAfterSeconds: Int, partialFilterExpression: BsonDocument? = null) : Index(name, partialFilterExpression = partialFilterExpression)
+class TTLIndex(name: String, val field: Field, val expireAfterSeconds: Int, partialFilterExpression: BsonDocument? = null) : Index(name, partialFilterExpression = partialFilterExpression)
 
 data class IndexParserOptions(val allowExplainExecution: Boolean = false)
 
@@ -190,7 +190,14 @@ class IndexParser(val client: MongoClient?, private val options: IndexParserOpti
     }
 
     private fun createTTLIndex(document: BsonDocument, partialFilterExpression: BsonDocument?): Index {
-        return TTLIndex(document.getString("name").value, document.getInt32("expireAfterSeconds").value, partialFilterExpression)
+        val keyDocument = document.getDocument("key")
+        val key = keyDocument.firstKey
+
+        return TTLIndex(
+            document.getString("name").value,
+            Field(key, IndexDirection.intValueOf(keyDocument.getInt32(key).value)),
+            document.getInt32("expireAfterSeconds").value,
+            partialFilterExpression)
     }
 
     private fun isTTLIndex(document: BsonDocument): Boolean {
