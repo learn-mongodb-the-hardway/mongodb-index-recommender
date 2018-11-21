@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 class LogParserTest {
 
     @Test
-    fun parseQueryAndAggregationLogEntriesTest() {
+    fun parseQueryAndAggregationLogEntriesFor4_0Test() {
         val reader = readResourceAsReader("logs/query_and_aggregation_log_4_0.txt")
         val logParser = LogParser(BufferedReader(reader))
         val logEntries = mutableListOf<LogEntry>()
@@ -37,13 +37,38 @@ class LogParserTest {
         """.trimIndent()), (findCommands.first() as CommandLogEntry).command)
     }
 
+    @Test
+    fun parseQueryAndAggregationLogEntriesFor3_4Test() {
+        val reader = readResourceAsReader("logs/query_and_aggregation_log_3_4.txt")
+        val logParser = LogParser(BufferedReader(reader))
+        val logEntries = mutableListOf<LogEntry>()
+
+        // Go over the log
+        logParser.forEach {
+            if (it is CommandLogEntry) {
+                logEntries += it
+            }
+        }
+
+        // Grab the commands
+        val aggregateCommands = getCommands(logEntries, "aggregate")
+        val findCommands = getCommands(logEntries, "find")
+
+        // Assertions
+        assertEquals(1, aggregateCommands.size)
+        assertEquals(BsonDocument.parse("""
+            { "aggregate" : "t", "pipeline" : [{ "${'$'}match" : { } }], "cursor" : { } }
+        """.trimIndent()), (aggregateCommands.first() as CommandLogEntry).command)
+
+        assertEquals(1, findCommands.size)
+        assertEquals(BsonDocument.parse("""
+            { "find" : "t", "filter" : { "${'$'}text" : { "${'$'}search" : "world" } } }
+        """.trimIndent()), (findCommands.first() as CommandLogEntry).command)
+    }
+
     private fun getCommands(logEntries: MutableList<LogEntry>, name: String): List<LogEntry> {
         return logEntries.filter {
-            if (it is CommandLogEntry && it.commandName == name) {
-                true
-            } else {
-                false
-            }
+            it is CommandLogEntry && it.commandName == name
         }
     }
 }

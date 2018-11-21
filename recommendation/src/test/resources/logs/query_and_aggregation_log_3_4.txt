@@ -1,0 +1,27 @@
+2018-11-21T03:44:32.628-0800 I CONTROL  [initandlisten] MongoDB starting : pid=12044 port=27017 dbpath=.\scratch 64-bit host=DESKTOP-B62D8H0
+2018-11-21T03:44:32.629-0800 I CONTROL  [initandlisten] targetMinOS: Windows 7/Windows Server 2008 R2
+2018-11-21T03:44:32.629-0800 I CONTROL  [initandlisten] db version v3.4.18
+2018-11-21T03:44:32.629-0800 I CONTROL  [initandlisten] git version: 4410706bef6463369ea2f42399e9843903b31923
+2018-11-21T03:44:32.629-0800 I CONTROL  [initandlisten] OpenSSL version: OpenSSL 1.0.2o-fips  27 Mar 2018
+2018-11-21T03:44:32.630-0800 I CONTROL  [initandlisten] allocator: tcmalloc
+2018-11-21T03:44:32.630-0800 I CONTROL  [initandlisten] modules: none
+2018-11-21T03:44:32.630-0800 I CONTROL  [initandlisten] build environment:
+2018-11-21T03:44:32.630-0800 I CONTROL  [initandlisten]     distmod: 2008plus-ssl
+2018-11-21T03:44:32.630-0800 I CONTROL  [initandlisten]     distarch: x86_64
+2018-11-21T03:44:32.631-0800 I CONTROL  [initandlisten]     target_arch: x86_64
+2018-11-21T03:44:32.631-0800 I CONTROL  [initandlisten] options: { storage: { dbPath: ".\scratch" } }
+2018-11-21T03:44:32.632-0800 I -        [initandlisten] Detected data files in .\scratch created by the 'wiredTiger' storage engine, so setting the active storage engine to 'wiredTiger'.
+2018-11-21T03:44:32.633-0800 I STORAGE  [initandlisten] wiredtiger_open config: create,cache_size=15819M,session_max=20000,eviction=(threads_min=4,threads_max=4),config_base=false,statistics=(fast),log=(enabled=true,archive=true,path=journal,compressor=snappy),file_manager=(close_idle_time=100000),checkpoint=(wait=60,log_size=2GB),statistics_log=(wait=0),verbose=(recovery_progress),
+2018-11-21T03:44:32.826-0800 I STORAGE  [initandlisten] WiredTiger message [1542800672:825796][12044:140706576219216], txn-recover: Main recovery loop: starting at 1/14050304
+2018-11-21T03:44:33.020-0800 I STORAGE  [initandlisten] WiredTiger message [1542800673:20784][12044:140706576219216], txn-recover: Recovering log 1 through 2
+2018-11-21T03:44:33.130-0800 I STORAGE  [initandlisten] WiredTiger message [1542800673:129781][12044:140706576219216], txn-recover: Recovering log 2 through 2
+2018-11-21T03:44:33.266-0800 I CONTROL  [initandlisten]
+2018-11-21T03:44:33.267-0800 I CONTROL  [initandlisten] ** WARNING: Access control is not enabled for the database.
+2018-11-21T03:44:33.267-0800 I CONTROL  [initandlisten] **          Read and write access to data and configuration is unrestricted.
+2018-11-21T03:44:33.267-0800 I CONTROL  [initandlisten]
+2018-11-21T12:44:33.662+0100 I FTDC     [initandlisten] Initializing full-time diagnostic data capture with directory './scratch/diagnostic.data'
+2018-11-21T12:44:33.663+0100 I NETWORK  [thread1] waiting for connections on port 27017
+2018-11-21T12:44:44.004+0100 I NETWORK  [thread1] connection accepted from 127.0.0.1:57895 #1 (1 connection now open)
+2018-11-21T12:44:44.005+0100 I NETWORK  [conn1] received client metadata from 127.0.0.1:57895 conn1: { application: { name: "MongoDB Shell" }, driver: { name: "MongoDB Internal Client", version: "3.6.1" }, os: { type: "Windows", name: "Microsoft Windows 10", architecture: "x86_64", version: "10.0 (build 17134)" } }
+2018-11-21T12:45:39.315+0100 I COMMAND  [conn1] command mindex_recommendation_tests.t appName: "MongoDB Shell" command: aggregate { aggregate: "t", pipeline: [ { $match: {} } ], cursor: {} } planSummary: EOF keysExamined:0 docsExamined:0 cursorExhausted:1 numYields:0 nreturned:0 reslen:102 locks:{ Global: { acquireCount: { r: 6 } }, Database: { acquireCount: { r: 3 } }, Collection: { acquireCount: { r: 2 } } } protocol:op_command 0ms
+2018-11-21T12:46:17.419+0100 I COMMAND  [conn1] command mindex_recommendation_tests.t appName: "MongoDB Shell" command: find { find: "t", filter: { $text: { $search: "world" } } } numYields:0 reslen:161 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 1 } }, Collection: { acquireCount: { r: 1 } } } protocol:op_command 0ms
