@@ -8,8 +8,17 @@ data class QueryCommand(val db: String, val collection: String, val filter: Bson
 class Query(doc: BsonDocument) : ReadOperation(doc) {
 
     fun command() : QueryCommand {
-        val command = doc.getDocument("command")
-        var sort: BsonDocument = BsonDocument()
+        var command: BsonDocument
+
+        if (doc.containsKey("command")) {
+            command = doc.getDocument("command")
+        } else if (doc.containsKey("query")) {
+            command = doc.getDocument("query")
+        } else {
+            throw Exception("unexpected query profile document format, could not find either the [\"command\", \"query\"] field")
+        }
+
+        var sort = BsonDocument()
 
         if (command.containsKey("sort")) {
             sort = command.getDocument("sort")

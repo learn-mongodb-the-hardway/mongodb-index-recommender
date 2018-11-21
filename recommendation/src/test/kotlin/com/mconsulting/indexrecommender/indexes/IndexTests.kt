@@ -6,9 +6,11 @@ import com.mongodb.MongoClientURI
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.IndexOptions
+import com.vdurmont.semver4j.Semver
 import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.Document
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -123,6 +125,8 @@ class IndexTests {
 
     @Test
     fun multiKeyIndex() {
+        assumeTrue(mongoDbVersion(">=3.6"), "MongoDB version is [$mongodbVersion] which does not match >=3.6")
+
         val index = createIndex(readJsonAsBsonDocument("indexes/multikey_index.json")) as MultikeyIndex
         assertEquals("a.b_-1", index.name)
         assertEquals(listOf(
@@ -130,6 +134,11 @@ class IndexTests {
         ), index.fields)
         assertEquals(false, index.sparse)
         assertEquals(false, index.unique)
+    }
+
+    private fun mongoDbVersion(version: String): Boolean {
+        val semVer = Semver(mongodbVersion, Semver.SemverType.NPM)
+        return semVer.satisfies(version)
     }
 
     @Test
@@ -146,6 +155,7 @@ class IndexTests {
         lateinit var client: MongoClient
         lateinit var db: MongoDatabase
         lateinit var collection: MongoCollection<Document>
+        lateinit var mongodbVersion: String
 
         @BeforeAll
         @JvmStatic
@@ -156,6 +166,10 @@ class IndexTests {
 
             // Drop collection
             collection.drop()
+
+            // Get the mongoodb version
+            val commandResult = db.runCommand(BsonDocument().append("buildInfo", BsonInt32(1)))
+            mongodbVersion = commandResult.getString("version")
 
             // Insert a test document
             collection.insertOne(Document(mapOf(
