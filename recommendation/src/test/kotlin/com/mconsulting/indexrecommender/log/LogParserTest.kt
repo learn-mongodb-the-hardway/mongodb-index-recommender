@@ -66,6 +66,73 @@ class LogParserTest {
         """.trimIndent()), (findCommands.first() as CommandLogEntry).command)
     }
 
+    @Test
+    fun parseUpdateLogEntriesFor4_0Test() {
+        val reader = readResourceAsReader("logs/update_log_4_0.txt")
+        val logParser = LogParser(BufferedReader(reader))
+        val logEntries = mutableListOf<LogEntry>()
+
+        // Go over the log
+        logParser.forEach {
+            if (it is CommandLogEntry) {
+                logEntries += it
+            } else if (it is WriteCommandLogEntry) {
+                // Do we have an update operation
+                when (it.commandName.toLowerCase()) {
+                    "update" -> {
+                        logEntries += it
+                    }
+                }
+            } else if (it is NoSupportedLogEntry) {
+            }
+        }
+
+        val updateCommands = getWrites(logEntries, "update")
+
+        assertEquals(2, updateCommands.size)
+        assertEquals(BsonDocument.parse("""
+            { "q" : { "a" : 1.0 }, "u" : { "${'$'}set" : { "b" : 1.0 } }, "multi" : false, "upsert" : false }
+        """.trimIndent()), (updateCommands[0] as WriteCommandLogEntry).command)
+        assertEquals(BsonDocument.parse("""
+            { "q" : { "a" : 1.0 }, "u" : { "${'$'}set" : { "b" : 1.0 } }, "multi" : false, "upsert" : false }
+        """.trimIndent()), (updateCommands[1] as WriteCommandLogEntry).command)
+    }
+
+    @Test
+    fun parseUpdateLogEntriesFor3_4Test() {
+        val reader = readResourceAsReader("logs/update_log_3_4.txt")
+        val logParser = LogParser(BufferedReader(reader))
+        val logEntries = mutableListOf<LogEntry>()
+
+        // Go over the log
+        logParser.forEach {
+            if (it is CommandLogEntry) {
+                logEntries += it
+            } else if (it is WriteCommandLogEntry) {
+                // Do we have an update operation
+                when (it.commandName.toLowerCase()) {
+                    "update" -> {
+                        logEntries += it
+                    }
+                }
+            } else if (it is NoSupportedLogEntry) {
+            }
+        }
+
+        val updateCommands = getWrites(logEntries, "update")
+
+        assertEquals(1, updateCommands.size)
+        assertEquals(BsonDocument.parse("""
+            { "q" : { "a" : 1.0 }, "u" : { "${'$'}set" : { "b" : 1.0 } } }
+        """.trimIndent()), (updateCommands[0] as WriteCommandLogEntry).command)
+    }
+
+    private fun getWrites(logEntries: MutableList<LogEntry>, name: String): List<LogEntry> {
+        return logEntries.filter {
+            it is WriteCommandLogEntry && it.commandName == name
+        }
+    }
+
     private fun getCommands(logEntries: MutableList<LogEntry>, name: String): List<LogEntry> {
         return logEntries.filter {
             it is CommandLogEntry && it.commandName == name
