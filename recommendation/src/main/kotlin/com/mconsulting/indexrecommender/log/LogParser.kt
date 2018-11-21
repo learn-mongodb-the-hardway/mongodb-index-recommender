@@ -35,6 +35,24 @@ class PlanSummary(val type: String = "", val document: BsonDocument = BsonDocume
 class CommandLogEntry(dateTime: DateTime, severityLevel: SeverityLevels, namespace: Namespace) : LogEntryBase(
     dateTime, severityLevel, namespace
 ) {
+    fun update(values: MutableMap<String, Any>): CommandLogEntry {
+        if (values.containsKey("appName")) appName = values.get("appName") as String
+        if (values.containsKey("command")) command = values.get("command") as BsonDocument
+        if (values.containsKey("planSummary")) planSummary = values.get("planSummary") as PlanSummary
+        if (values.containsKey("keysExamined")) keysExamined = values.get("keysExamined") as Int
+        if (values.containsKey("docsExamined")) docsExamined = values.get("docsExamined") as Int
+        if (values.containsKey("cursorExhausted")) cursorExhausted = values.get("cursorExhausted") as Int
+        if (values.containsKey("numYields")) numYields = values.get("numYields") as Int
+        if (values.containsKey("numberReturned")) numberReturned = values.get("numberReturned") as Int
+        if (values.containsKey("queryHash")) queryHash = values.get("queryHash") as String
+        if (values.containsKey("resultLength")) resultLength = values.get("resultLength") as Int
+        if (values.containsKey("locks")) locks = values.get("locks") as BsonDocument
+        if (values.containsKey("protocol")) protocol = values.get("protocol") as String
+        if (values.containsKey("commandName")) commandName = values.get("commandName") as String
+        if (values.containsKey("executionTimeMS")) executionTimeMS = values.get("executionTimeMS") as Int
+        return this
+    }
+
     var appName: String = ""
     var command: BsonDocument = BsonDocument()
     var planSummary: PlanSummary = PlanSummary()
@@ -51,9 +69,28 @@ class CommandLogEntry(dateTime: DateTime, severityLevel: SeverityLevels, namespa
     var executionTimeMS: Int = -1
 }
 
-class WriteCommandLogEntry(val commandName: String, dateTime: DateTime, severityLevel: SeverityLevels, namespace: Namespace) : LogEntryBase(
+class WriteCommandLogEntry(var commandName: String, dateTime: DateTime, severityLevel: SeverityLevels, namespace: Namespace) : LogEntryBase(
     dateTime, severityLevel, namespace
 ) {
+
+    fun update(values: MutableMap<String, Any>): WriteCommandLogEntry {
+        if (values.containsKey("appName")) appName = values.get("appName") as String
+        if (values.containsKey("command")) command = values.get("command") as BsonDocument
+        if (values.containsKey("planSummary")) planSummary = values.get("planSummary") as PlanSummary
+        if (values.containsKey("keysExamined")) keysExamined = values.get("keysExamined") as Int
+        if (values.containsKey("docsExamined")) docsExamined = values.get("docsExamined") as Int
+        if (values.containsKey("cursorExhausted")) cursorExhausted = values.get("cursorExhausted") as Int
+        if (values.containsKey("numYields")) numYields = values.get("numYields") as Int
+        if (values.containsKey("numberReturned")) numberReturned = values.get("numberReturned") as Int
+        if (values.containsKey("queryHash")) queryHash = values.get("queryHash") as String
+        if (values.containsKey("resultLength")) resultLength = values.get("resultLength") as Int
+        if (values.containsKey("locks")) locks = values.get("locks") as BsonDocument
+        if (values.containsKey("protocol")) protocol = values.get("protocol") as String
+        if (values.containsKey("commandName")) commandName = values.get("commandName") as String
+        if (values.containsKey("executionTimeMS")) executionTimeMS = values.get("executionTimeMS") as Int
+        return this
+    }
+
     var appName: String = ""
     var command: BsonDocument = BsonDocument()
     var planSummary: PlanSummary = PlanSummary()
@@ -146,91 +183,12 @@ class LogParser(val reader: BufferedReader) {
             restOfLine = restOfLine.replace(Regex("""(\d)+ms"""), "")
         }
 
-        val parts: List<String>
-
-        if (!restOfLine.contains(Regex("command: [\\s]+ "))) {
-            parts = splitLogLine(mutableListOf(restOfLine), listOf("query:", "update:"))
-        } else {
-            parts = splitLogLine(mutableListOf(restOfLine))
-        }
-
-        // Process all the entries
-        parts.forEach {
-            if (it.contains("appName:")) {
-                entry.appName = it
-                    .split("appName:")
-                    .last()
-                    .trim()
-                    .replace("\"", "")
-            } else if (it.contains("keysExamined:")) {
-                entry.keysExamined = it
-                    .split("keysExamined:").last().trim().toInt()
-            } else if (it.contains("docsExamined:")) {
-                entry.docsExamined = it
-                    .split("docsExamined:").last().trim().toInt()
-            } else if (it.contains("numYields:")) {
-                entry.numYields = it
-                    .split("numYields:").last().trim().toInt()
-            } else if (it.contains("nreturned:")) {
-                entry.numberReturned = it
-                    .split("nreturned:").last().trim().toInt()
-            } else if (it.contains("nModified:")) {
-                entry.nModified = it
-                    .split("nModified:").last().trim().toInt()
-            } else if (it.contains("nMatched:")) {
-                entry.nMatched = it
-                    .split("nMatched:").last().trim().toInt()
-            } else if (it.contains("ndeleted:")) {
-                entry.ndeleted = it
-                    .split("ndeleted:").last().trim().toInt()
-            } else if (it.contains("keysDeleted:")) {
-                entry.keysDeleted = it
-                    .split("keysDeleted:").last().trim().toInt()
-            } else if (it.contains("reslen:")) {
-                entry.resultLength = it
-                    .split("reslen:").last().trim().toInt()
-            } else if (it.contains("cursorExhausted:")) {
-                entry.cursorExhausted = it
-                    .split("cursorExhausted:").last().trim().toInt()
-            } else if (it.contains("queryHash:")) {
-                entry.queryHash = it
-                    .split("queryHash:").last().trim()
-            } else if (it.contains("protocol:")) {
-                entry.protocol = it
-                    .split("protocol:").last().trim()
-            } else if (it.contains("locks:")) {
-                entry.locks = commandToBsonDocument(it
-                    .split("locks:").last().trim())
-            } else if (it.contains("command:")) {
-                val token = StringTokenizer(it)
-                token.nextToken()
-                entry.command = commandToBsonDocument(token.toList().joinToString(" ").trim())
-            } else if (it.contains("query:")) {
-                val token = StringTokenizer(it)
-                token.nextToken()
-                val query = commandToBsonDocument(token.toList().joinToString(" ").trim())
-                entry.command.append("q", query)
-            } else if (it.contains("update:")) {
-                val token = StringTokenizer(it)
-                token.nextToken()
-                val update = commandToBsonDocument(token.toList().joinToString(" ").trim())
-                entry.command.append("u", update)
-            } else if (it.contains("planSummary:")) {
-                val token = StringTokenizer(it)
-                token.nextToken()
-                val scanType = token.nextToken().trim()
-                val restOfSummary = token.toList().joinToString(" ")
-                var scanDocument = BsonDocument()
-
-                if (restOfSummary.contains("{")) {
-                    scanDocument = commandToBsonDocument(restOfSummary)
-                }
-
-                entry.planSummary = PlanSummary(scanType, scanDocument)
-            }
-        }
-
-        return entry
+        // Create string tokenizer
+        val partsTokenizer = StringTokenizer(restOfLine)
+        // Keep parsing until end
+        val values = extractLogLineParts(partsTokenizer)
+        // Update the value
+        return entry.update(values)
     }
 
     private fun splitLogLine(parts: MutableList<String>, additionalSplits: List<String> = listOf()): MutableList<String> {
@@ -307,65 +265,142 @@ class LogParser(val reader: BufferedReader) {
             restOfLine = restOfLine.replace(Regex("""(\d)+ms"""), "")
         }
 
-        // Get the parts
-        val parts = splitLogLine(mutableListOf(restOfLine))
+        // Create string tokenizer
+        val partsTokenizer = StringTokenizer(restOfLine)
+        // Keep parsing until end
+        val values = extractLogLineParts(partsTokenizer)
+        // Update the value
+        return entry.update(values)
+    }
 
-        // Process all the entries
-        parts.forEach {
-            if (it.contains("appName:")) {
-                entry.appName = it
-                    .split("appName:")
-                    .last()
-                    .trim()
-                    .replace("\"", "")
-            } else if (it.contains("keysExamined:")) {
-               entry.keysExamined = it
-                   .split("keysExamined:").last().trim().toInt()
-            } else if (it.contains("docsExamined:")) {
-                entry.docsExamined = it
-                    .split("docsExamined:").last().trim().toInt()
-            } else if (it.contains("numYields:")) {
-                entry.numYields = it
-                    .split("numYields:").last().trim().toInt()
-            } else if (it.contains("nreturned:")) {
-                entry.numberReturned = it
-                    .split("nreturned:").last().trim().toInt()
-            } else if (it.contains("reslen:")) {
-                entry.resultLength = it
-                    .split("reslen:").last().trim().toInt()
-            } else if (it.contains("cursorExhausted:")) {
-                entry.cursorExhausted = it
-                    .split("cursorExhausted:").last().trim().toInt()
-            } else if (it.contains("queryHash:")) {
-                entry.queryHash = it
-                    .split("queryHash:").last().trim()
-            } else if (it.contains("protocol:")) {
-                entry.protocol = it
-                    .split("protocol:").last().trim()
-            } else if (it.contains("locks:")) {
-                entry.locks = commandToBsonDocument(it
-                    .split("locks:").last().trim())
-            } else if (it.contains("command:")) {
-                val token = StringTokenizer(it)
-                token.nextToken()
-                entry.commandName = token.nextToken().trim()
-                entry.command = commandToBsonDocument(token.toList().joinToString(" ").trim())
-            } else if (it.contains("planSummary:")) {
-                val token = StringTokenizer(it)
-                token.nextToken()
-                val scanType = token.nextToken().trim()
-                val restOfSummary = token.toList().joinToString(" ")
-                var scanDocument = BsonDocument()
+    private fun extractLogLineParts(partsTokenizer: StringTokenizer) : MutableMap<String, Any> {
+        val values = mutableMapOf<String, Any>(
+            "command" to BsonDocument()
+        )
 
-                if (restOfSummary.contains("{")) {
-                    scanDocument = commandToBsonDocument(restOfSummary)
+        while (partsTokenizer.hasMoreTokens()) {
+            val token = partsTokenizer.nextToken()
+
+            if (token.startsWith("command:")) {
+                val token = partsTokenizer.nextToken()
+                val json: String
+
+                if (token == "{") {
+                    json = readJson(partsTokenizer, token)
+                } else {
+                    values["commandName"] = token
+                    json = readJson(partsTokenizer)
                 }
 
-                entry.planSummary = PlanSummary(scanType, scanDocument)
+                values["command"] = commandToBsonDocument(json)
+            } else if (token.startsWith("appName:")) {
+                val tokens = mutableListOf<String>()
+
+                while (true) {
+                    val value = partsTokenizer.nextToken()
+
+                    if (value.last() == '"') {
+                        tokens += value.substring(0, value.length - 1)
+                        break
+                    }
+
+                    if (tokens.size == 0) {
+                        tokens += value.substring(1)
+                    } else {
+                        tokens += value
+                    }
+                }
+
+                values["appName"] = tokens.joinToString(" ")
+            } else if (token.startsWith("keysExamined:")) {
+                values["keysExamined"] = extractInt(token, partsTokenizer)
+            } else if (token.startsWith("docsExamined:")) {
+                values["docsExamined"] = extractInt(token, partsTokenizer)
+            } else if (token.startsWith("numYields:")) {
+                values["numYields"] = extractInt(token, partsTokenizer)
+            } else if (token.startsWith("nreturned:")) {
+                values["nreturned"] = extractInt(token, partsTokenizer)
+            } else if (token.startsWith("nMatched:")) {
+                values["nMatched"] = extractInt(token, partsTokenizer)
+            } else if (token.startsWith("nModified:")) {
+                values["nModified"] = extractInt(token, partsTokenizer)
+            } else if (token.startsWith("ndeleted:")) {
+                values["ndeleted"] = extractInt(token, partsTokenizer)
+            } else if (token.startsWith("keysDeleted:")) {
+                values["keysDeleted"] = extractInt(token, partsTokenizer)
+            } else if (token.startsWith("reslen:")) {
+                values["reslen"] = extractInt(token, partsTokenizer)
+            } else if (token.startsWith("cursorExhausted:")) {
+                values["cursorExhausted"] = extractInt(token, partsTokenizer)
+            } else if (token.startsWith("queryHash:")) {
+                values["queryHash"] = extractString(token, partsTokenizer)
+            } else if (token.startsWith("protocol:")) {
+                values["protocol"] = extractString(token, partsTokenizer)
+            } else if (token.startsWith("locks:")) {
+                if (token.contains("{") && token.contains("}")) {
+                    values["locks"] = BsonDocument()
+                } else if (token.contains("{")) {
+                    values["locks"] = commandToBsonDocument(readJson(partsTokenizer, "{"))
+                } else {
+                    values["locks"] = commandToBsonDocument(readJson(partsTokenizer))
+                }
+            } else if (token.startsWith("update:")) {
+                val update = commandToBsonDocument(readJson(partsTokenizer))
+
+                if (values.containsKey("command")) {
+                    (values.get("command") as BsonDocument).append("u", update)
+                }
+
+                println()
+            } else if (token.startsWith("query:")) {
+                val query = commandToBsonDocument(readJson(partsTokenizer))
+
+                if (values.containsKey("command")) {
+                    (values.get("command") as BsonDocument).append("q", query)
+                }
+                println()
+            } else if (token.startsWith("planSummary:")) {
+                val scanType = partsTokenizer.nextToken().trim()
+                var document = BsonDocument()
+
+                if (scanType.toUpperCase() == "IXSCAN") {
+                    document = commandToBsonDocument(readJson(partsTokenizer))
+                }
+
+                values["planSummary"] = PlanSummary(scanType, document)
             }
         }
 
-        return entry
+        return values
+    }
+
+    private fun readJson(partsTokenizer: StringTokenizer, token: String? = null): String {
+        var depth = 0
+        val tokens = mutableListOf<String>()
+
+        if (token != null) {
+            depth = 1
+            tokens += token
+        }
+
+        do {
+            val nextToken = partsTokenizer.nextToken()
+
+            if (nextToken.startsWith("{") && nextToken.contains("}")) {
+            } else if (nextToken.startsWith("{")) {
+                depth += 1
+            } else if (nextToken.startsWith("}")) {
+                depth -= 1
+            }
+
+            tokens += nextToken
+        } while (depth != 0 && partsTokenizer.hasMoreTokens())
+
+        if (depth != 0) {
+            throw Exception("illegal json string [${tokens.joinToString(" ")}]")
+        }
+
+        return tokens.joinToString(" ")
     }
 
     fun forEach(function: (entry: LogEntry) -> Unit) {
@@ -373,4 +408,17 @@ class LogParser(val reader: BufferedReader) {
             function(next())
         }
     }
+}
+
+fun extractInt(token: String, tokenizer: StringTokenizer) : Int = extractString(token, tokenizer).toInt()
+
+fun extractString(token: String, tokenizer: StringTokenizer) : String {
+    val parts = token.split(":")
+    var value = parts[1]
+
+    if (value == "") {
+        value = tokenizer.nextToken()
+    }
+
+    return value
 }

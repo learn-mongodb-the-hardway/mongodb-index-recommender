@@ -185,6 +185,33 @@ class LogParserTest {
         """.trimIndent()), (deleteCommands[0] as WriteCommandLogEntry).command)
     }
 
+    @Test
+    fun parseEdgeCasesCorrectly() {
+        val reader = readResourceAsReader("logs/edge_cases_log.txt")
+        val logParser = LogParser(BufferedReader(reader))
+        val logEntries = mutableListOf<LogEntry>()
+
+        // Go over the log
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(4, logEntries.size)
+        assertEquals(BsonDocument.parse("""
+            { "q" : { "a" : 1.0, "command": 2 }, "u" : { "${'$'}set" : { "b" : 1.0 } }, "multi" : false, "upsert" : false }
+        """.trimIndent()), (logEntries[0] as WriteCommandLogEntry).command)
+        assertEquals(BsonDocument.parse("""
+            { "q" : { "a" : 1.0, "update": 2 }, "u" : { "${'$'}set" : { "b" : 1.0 } }, "multi" : false, "upsert" : false }
+        """.trimIndent()), (logEntries[1] as WriteCommandLogEntry).command)
+        assertEquals(BsonDocument.parse("""
+            { "q" : { "a" : 1.0, "update" : 2.0 }, "u" : { "${'$'}set" : { "b" : 1.0, "update" : 2.0 } } }
+        """.trimIndent()), (logEntries[2] as WriteCommandLogEntry).command)
+        assertEquals(BsonDocument.parse("""
+            { "q" : { "a" : 1.0, "update" : 2.0 }, "u" : { "${'$'}set" : { "b" : 1.0, "update" : 2.0 } } }
+        """.trimIndent()), (logEntries[3] as WriteCommandLogEntry).command)
+        assertEquals(10, (logEntries[3] as WriteCommandLogEntry).keysExamined)
+    }
+
     private fun getWrites(logEntries: MutableList<LogEntry>, name: String): List<LogEntry> {
         return logEntries.filter {
             it is WriteCommandLogEntry && it.commandName == name
