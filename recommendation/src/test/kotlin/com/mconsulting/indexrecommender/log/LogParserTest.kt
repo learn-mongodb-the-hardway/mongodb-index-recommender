@@ -127,6 +127,64 @@ class LogParserTest {
         """.trimIndent()), (updateCommands[0] as WriteCommandLogEntry).command)
     }
 
+    @Test
+    fun parseRemoveLogEntriesFor4_0Test() {
+        val reader = readResourceAsReader("logs/remove_log_4_0.txt")
+        val logParser = LogParser(BufferedReader(reader))
+        val logEntries = mutableListOf<LogEntry>()
+
+        // Go over the log
+        logParser.forEach {
+            if (it is CommandLogEntry) {
+                logEntries += it
+            } else if (it is WriteCommandLogEntry) {
+                // Do we have an update operation
+                when (it.commandName.toLowerCase()) {
+                    "remove" -> {
+                        logEntries += it
+                    }
+                }
+            } else if (it is NoSupportedLogEntry) {
+            }
+        }
+
+        val deleteCommands = getWrites(logEntries, "remove")
+
+        assertEquals(1, deleteCommands.size)
+        assertEquals(BsonDocument.parse("""
+            { "q" : { "a" : 1.0 }, "limit" : 1 }
+        """.trimIndent()), (deleteCommands[0] as WriteCommandLogEntry).command)
+    }
+
+    @Test
+    fun parseRemoveLogEntriesFor3_4Test() {
+        val reader = readResourceAsReader("logs/remove_log_3_4.txt")
+        val logParser = LogParser(BufferedReader(reader))
+        val logEntries = mutableListOf<LogEntry>()
+
+        // Go over the log
+        logParser.forEach {
+            if (it is CommandLogEntry) {
+                logEntries += it
+            } else if (it is WriteCommandLogEntry) {
+                // Do we have an update operation
+                when (it.commandName.toLowerCase()) {
+                    "remove" -> {
+                        logEntries += it
+                    }
+                }
+            } else if (it is NoSupportedLogEntry) {
+            }
+        }
+
+        val deleteCommands = getWrites(logEntries, "remove")
+
+        assertEquals(1, deleteCommands.size)
+        assertEquals(BsonDocument.parse("""
+            { "q" : { "a" : 1.0 } }
+        """.trimIndent()), (deleteCommands[0] as WriteCommandLogEntry).command)
+    }
+
     private fun getWrites(logEntries: MutableList<LogEntry>, name: String): List<LogEntry> {
         return logEntries.filter {
             it is WriteCommandLogEntry && it.commandName == name

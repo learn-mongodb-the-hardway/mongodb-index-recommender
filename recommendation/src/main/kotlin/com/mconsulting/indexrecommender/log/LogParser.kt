@@ -64,6 +64,8 @@ class WriteCommandLogEntry(val commandName: String, dateTime: DateTime, severity
     var numberReturned: Int = -1
     var nModified: Int = -1
     var nMatched: Int = -1
+    var keysDeleted: Int = -1
+    var ndeleted: Int = -1
     var queryHash: String = ""
     var resultLength: Int = -1
     var locks: BsonDocument = BsonDocument()
@@ -178,6 +180,12 @@ class LogParser(val reader: BufferedReader) {
             } else if (it.contains("nMatched:")) {
                 entry.nMatched = it
                     .split("nMatched:").last().trim().toInt()
+            } else if (it.contains("ndeleted:")) {
+                entry.ndeleted = it
+                    .split("ndeleted:").last().trim().toInt()
+            } else if (it.contains("keysDeleted:")) {
+                entry.keysDeleted = it
+                    .split("keysDeleted:").last().trim().toInt()
             } else if (it.contains("reslen:")) {
                 entry.resultLength = it
                     .split("reslen:").last().trim().toInt()
@@ -233,7 +241,7 @@ class LogParser(val reader: BufferedReader) {
             "keysExamined:", "docsExamined:", "cursorExhausted:",
             "numYields:", "nreturned:", "queryHash:",
             "reslen:", "locks:", "protocol:", "nMatched:",
-            "nModified:") + additionalSplits
+            "nModified:", "ndeleted:", "keysDeleted:") + additionalSplits
 
         for (key in keys) {
             var currentParts = mutableListOf<String>()
