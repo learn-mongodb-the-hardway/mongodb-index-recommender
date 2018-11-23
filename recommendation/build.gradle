@@ -9,6 +9,8 @@ dependencies {
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
     // https://mvnrepository.com/artifact/joda-time/joda-time
     compile group: 'joda-time', name: 'joda-time', version: '2.10.1'
+    // https://mvnrepository.com/artifact/org.mozilla/rhino
+    compile group: 'org.mozilla', name: 'rhino', version: '1.7.10'
 
     testCompile 'com.vdurmont:semver4j:2.2.0'
 }

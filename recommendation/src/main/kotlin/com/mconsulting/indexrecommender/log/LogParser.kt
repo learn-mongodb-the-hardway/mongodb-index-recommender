@@ -112,28 +112,60 @@ class WriteCommandLogEntry(var commandName: String, dateTime: DateTime, severity
 
 class NoSupportedLogEntry(val line: String) : LogEntry
 
-class LogParser(val reader: BufferedReader) {
-    private var line: String? = null
+// 2018-11-22T17:00:20.456+0100
+val dateMatch = Regex("^[0-9]{4}\\-[0-9]{2}\\-[0-9]{2}T[0-9]{2}\\:[0-9]{2}\\:[0-9]{2}\\.[0-9]{3}\\+[0-9]{4}")
+
+class LogReader(private val reader: BufferedReader) {
+    private val lines = mutableListOf<String>()
+
+    fun readStatement() : String? {
+        while(true) {
+            val line = reader.readLine()
+
+            if (lines.isEmpty() && line == null) {
+                return null
+            } else if (lines.isEmpty() && line.contains(dateMatch)) {
+                line ?: return null
+                lines += line
+            } else if (lines.isNotEmpty() && line == null) {
+                val result = lines.joinToString("\n")
+                lines.clear()
+                return result
+            } else if(lines.isNotEmpty() && line.contains(dateMatch)) {
+                val result = lines.joinToString("\n")
+                lines.clear()
+                lines += line
+                return result
+            } else {
+                lines += line
+            }
+        }
+    }
+}
+
+class LogParser(private val reader: BufferedReader) {
+    private val logReader = LogReader(reader)
+    private var currentLine: String? = null
+
+    val line: String?
+        get() = currentLine
 
     fun hasNext() : Boolean {
-        line = reader.readLine()
-
-        if (line == null) {
-            return false
-        }
-
+        currentLine = logReader.readStatement()
+        currentLine ?: return false
         return true
     }
 
     fun next() : LogEntry {
-        if (line == null) {
-            throw Exception("no line read")
+        if (currentLine == null) {
+            throw Exception("no currentLine read")
         }
 
-        // Current line
-        val currentLine = line!!
+        // Current currentLine
+        val line = currentLine!!.trim()
+        println(line)
         // Start parsing itK
-        val tokenizer = StringTokenizer(currentLine, " ")
+        val tokenizer = StringTokenizer(line, " ")
         // Get the date timestamp
         val dateTimeString = tokenizer.nextToken()
         // 2018-11-12T09:57:00.792+0100
@@ -145,17 +177,20 @@ class LogParser(val reader: BufferedReader) {
         val logType = tokenizer.nextToken()
 
         try {
-            // Check that we have a valid line
+            // Check that we have a valid currentLine
             SeverityLevels.valueOf(severityLevel)
         } catch (ex: Exception) {
-            throw Exception("not a legal MongoDB log line entry [$currentLine]")
+            throw Exception("not a legal MongoDB log currentLine entry [$line]")
         }
+
+        // Set current line to null
+        currentLine = null
 
         // Process the types we know
         return when (logType.toUpperCase()) {
             LogTypeNames.COMMAND.name -> parseInfo(dateTime, SeverityLevels.valueOf(severityLevel), tokenizer)
             LogTypeNames.WRITE.name -> parseWrite(dateTime, SeverityLevels.valueOf(severityLevel), tokenizer)
-            else -> NoSupportedLogEntry(currentLine)
+            else -> NoSupportedLogEntry(line)
         }
     }
 
@@ -168,7 +203,7 @@ class LogParser(val reader: BufferedReader) {
         val namespaceString = tokenizer.nextToken()
         val namespace = Namespace.parse(namespaceString)
 
-        // Split the line into ever key we can
+        // Split the currentLine into ever key we can
         var restOfLine = tokenizer.toList().joinToString(" ")
 
         // Create command log entry
@@ -191,34 +226,6 @@ class LogParser(val reader: BufferedReader) {
         return entry.update(values)
     }
 
-    private fun splitLogLine(parts: MutableList<String>, additionalSplits: List<String> = listOf()): MutableList<String> {
-        // Keys to split by
-        var parts = parts
-        val keys = listOf(
-            "appName:", "command:", "planSummary:",
-            "keysExamined:", "docsExamined:", "cursorExhausted:",
-            "numYields:", "nreturned:", "queryHash:",
-            "reslen:", "locks:", "protocol:", "nMatched:",
-            "nModified:", "ndeleted:", "keysDeleted:") + additionalSplits
-
-        for (key in keys) {
-            var currentParts = mutableListOf<String>()
-
-            for (p in parts) {
-                if (p.contains(key)) {
-                    val leftSide = p.substringBefore(key)
-                    val rightSide = "$key${p.substringAfter(key)}"
-                    currentParts.addAll(listOf(leftSide, rightSide))
-                } else {
-                    currentParts.add(p)
-                }
-            }
-
-            parts = currentParts
-        }
-        return parts
-    }
-
     private fun parseInfo(dateTime: DateTime, severityLevel: SeverityLevels, tokenizer: StringTokenizer): LogEntry {
         // Read the connection information
         tokenizer.nextToken()
@@ -227,7 +234,7 @@ class LogParser(val reader: BufferedReader) {
         // Read the namespace
         val namespaceString = tokenizer.nextToken()
         val namespace = Namespace.parse(namespaceString)
-        // We have a valid line
+        // We have a valid currentLine
         return parseCommand(tokenizer, dateTime, severityLevel, namespace)
     }
 
@@ -250,7 +257,7 @@ class LogParser(val reader: BufferedReader) {
     // protocol:op_msg
     // 0ms
     private fun parseCommand(tokenizer: StringTokenizer, dateTime: DateTime, severityLevel: SeverityLevels, namespace: Namespace) : LogEntry {
-        // Split the line into ever key we can
+        // Split the currentLine into ever key we can
         var restOfLine = tokenizer.toList().joinToString(" ")
 
         // Create command log entry
@@ -390,6 +397,8 @@ class LogParser(val reader: BufferedReader) {
             } else if (nextToken.startsWith("{")) {
                 depth += 1
             } else if (nextToken.startsWith("}")) {
+                depth -= 1
+            } else if (nextToken.endsWith("}")) {
                 depth -= 1
             }
 

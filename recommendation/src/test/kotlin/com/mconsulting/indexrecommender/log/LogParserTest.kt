@@ -2,9 +2,15 @@ package com.mconsulting.indexrecommender.log
 
 import com.mconsulting.indexrecommender.readResourceAsReader
 import org.bson.BsonDocument
+import org.bson.BsonInt64
+import org.bson.BsonJavaScript
+import org.bson.BsonRegularExpression
+import org.bson.BsonString
 import org.junit.jupiter.api.Test
 import java.io.BufferedReader
+import java.io.StringReader
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class LogParserTest {
 
@@ -210,6 +216,81 @@ class LogParserTest {
             { "q" : { "a" : 1.0, "update" : 2.0 }, "u" : { "${'$'}set" : { "b" : 1.0, "update" : 2.0 } } }
         """.trimIndent()), (logEntries[3] as WriteCommandLogEntry).command)
         assertEquals(10, (logEntries[3] as WriteCommandLogEntry).keysExamined)
+    }
+
+    @Test
+    fun parseLogLineOverMultipleLines() {
+        val logEntriesText = """
+            |2018-11-22T17:00:20.456+0100 I COMMAND  [conn620] command test.max_time_ms appName: "MongoDB Shell" command: find { find: "max_time_ms", filter: { ${'$'}where: function () {
+        |sleep(100);
+        |return true;
+    |} }, maxTimeMS: 10000.0 } planSummary: COLLSCAN keysExamined:0 docsExamined:3 cursorExhausted:1 numYields:3 nreturned:3 reslen:164 locks:{ Global: { acquireCount: { r: 8 } }, Database: { acquireCount: { r: 4 } }, Collection: { acquireCount: { r: 4 } } } protocol:op_command 313ms
+            |2018-11-22T17:00:20.456+0100 I COMMAND  [conn620] CMD: drop test.max_time_ms
+        """.trimMargin("|")
+
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(2, logEntries.size)
+        assertTrue(logEntries.first() is CommandLogEntry)
+        assertEquals(BsonDocument()
+            .append("find", BsonString("max_time_ms"))
+            .append("filter", BsonDocument()
+                .append("${'$'}where", BsonJavaScript("function () { sleep(100); return true; }")))
+            .append("maxTimeMS", BsonInt64(10000)), (logEntries.first() as CommandLogEntry).command)
+    }
+
+    @Test
+    fun parseLogLineOverMultipleLinesEOF() {
+        val logEntriesText = """
+            2018-11-22T17:00:20.456+0100 I COMMAND  [conn620] command test.max_time_ms appName: "MongoDB Shell" command: find { find: "max_time_ms", filter: { ${'$'}where: function () {
+        sleep(100);
+        return true;
+    } }, maxTimeMS: 10000.0 } planSummary: COLLSCAN keysExamined:0 docsExamined:3 cursorExhausted:1 numYields:3 nreturned:3 reslen:164 locks:{ Global: { acquireCount: { r: 8 } }, Database: { acquireCount: { r: 4 } }, Collection: { acquireCount: { r: 4 } } } protocol:op_command 313ms""".trimIndent()
+
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertTrue(logEntries.first() is CommandLogEntry)
+        assertEquals(BsonDocument()
+            .append("find", BsonString("max_time_ms"))
+            .append("filter", BsonDocument()
+                .append("${'$'}where", BsonJavaScript("function () { sleep(100); return true; }")))
+            .append("maxTimeMS", BsonInt64(10000)), (logEntries.first() as CommandLogEntry).command)
+    }
+
+    @Test
+    fun parseLogLineWithFunctionAndRegularExpression() {
+        val logEntriesText = """
+            2018-11-22T17:00:20.456+0100 I COMMAND  [conn620] command test.max_time_ms appName: "MongoDB Shell" command: find { find: "max_time_ms", filter: { a: /ad/, ${'$'}where: function () {
+        sleep(100);
+        return true;
+    } }, maxTimeMS: 10000.0 } planSummary: COLLSCAN keysExamined:0 docsExamined:3 cursorExhausted:1 numYields:3 nreturned:3 reslen:164 locks:{ Global: { acquireCount: { r: 8 } }, Database: { acquireCount: { r: 4 } }, Collection: { acquireCount: { r: 4 } } } protocol:op_command 313ms""".trimIndent()
+
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertTrue(logEntries.first() is CommandLogEntry)
+        assertEquals(BsonDocument()
+            .append("find", BsonString("max_time_ms"))
+            .append("filter", BsonDocument()
+                .append("a", BsonRegularExpression("ad", ""))
+                .append("${'$'}where", BsonJavaScript("function () { sleep(100); return true; }")))
+            .append("maxTimeMS", BsonInt64(10000)), (logEntries.first() as CommandLogEntry).command)
     }
 
     private fun getWrites(logEntries: MutableList<LogEntry>, name: String): List<LogEntry> {

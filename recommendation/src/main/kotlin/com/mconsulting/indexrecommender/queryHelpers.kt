@@ -1,11 +1,21 @@
 package com.mconsulting.indexrecommender
 
+import jdk.nashorn.api.scripting.ScriptObjectMirror
 import org.bson.BsonArray
 import org.bson.BsonDocument
+import org.bson.BsonDouble
 import org.bson.BsonElement
 import org.bson.BsonInt32
+import org.bson.BsonInt64
+import org.bson.BsonJavaScript
+import org.bson.BsonRegularExpression
+import org.bson.BsonString
+import org.bson.BsonUndefined
 import org.bson.BsonValue
 import java.util.*
+import javax.script.ScriptEngineManager
+import kotlin.Exception
+import kotlin.math.roundToLong
 
 fun generateProjection(document: BsonDocument): BsonDocument {
     val paths = mutableListOf<String>()
@@ -128,27 +138,133 @@ private val MINKEY_REGEX = Pattern(Regex("""MinKey|MinKey\(\)"""), "{ \"\\${'$'}
 private val MAXKEY_REGEX = Pattern(Regex("""MaxKey|MaxKey\(\)"""), "{ \"\\${'$'}maxKey\": 1 }")
 private val UUID_REGEXP = Pattern(Regex("""UUID\(\"([\d|\w|\-]+)\"\)"""), "$1")
 
-//UUID("b8a51588-fc4d-4bfc-89e4-903ba7ffadc1")
+// Javascript Engine
+private val engine = ScriptEngineManager().getEngineByName("javascript")
 
+//UUID("b8a51588-fc4d-4bfc-89e4-903ba7ffadc1")
 fun commandToBsonDocument(json: String): BsonDocument {
-    var finalJson = json
+    // Check if we need to parse the slow path
+    if (!json.contains(Regex("\\:[ ]*function[ ]*\\("))) {
+        return fastPath(json)
+    } else {
+        return slowPath(json)
+    }
+
+    return BsonDocument()
+}
+
+fun slowPath(json: String): BsonDocument {
+    var finalJson = rewriteBsonTypes(json)
+    val obj = engine.eval("result = $finalJson")
+    obj ?: throw Exception("illegal json document: [$json]")
+
+    if (obj !is ScriptObjectMirror) {
+        throw Exception("illegal json document: [$json]")
+    }
+
+    // Rewrite script object to BsonDocument
+    val result = translateScriptObject(obj)
+    // Turn to JSON and then re-parse to correctly handle any extended JSON
+    val finalDocument = BsonDocument.parse(result.toJson())
+    return finalDocument
+}
+
+fun translateScriptObject(obj: ScriptObjectMirror) : BsonDocument {
+    var document = BsonDocument()
+
+    for (entry in obj.entries) {
+        val value = entry.value
+        val bsonValue:BsonValue = when(value) {
+            is ScriptObjectMirror -> {
+                if (value.isFunction) {
+                    BsonJavaScript(value.toString())
+                } else if (isRegularExpression(value)) {
+                    mapToRegularExpression(value)
+                } else {
+                    translateScriptObject(value)
+                }
+            }
+            is String -> BsonString(value)
+            is Double -> {
+                if ((value == Math.floor(value)) && !value.isInfinite()) {
+                    BsonInt64(value.roundToLong())
+                } else {
+                    BsonDouble(value)
+                }
+            }
+            is Int -> BsonInt32(value)
+            else -> BsonUndefined()
+        }
+
+        document.append(entry.key, bsonValue)
+    }
+
+    return document
+}
+
+fun mapToRegularExpression(value: ScriptObjectMirror): BsonRegularExpression {
+    var options = ""
+
+    if (value["ignoreCase"] as Boolean) {
+        options += "i"
+    }
+
+    if (value["multiline"] as Boolean) {
+        options += "m"
+    }
+
+    return BsonRegularExpression(value["source"] as String, options)
+}
+
+fun isRegularExpression(value: ScriptObjectMirror): Boolean {
+    return value.entries.isEmpty()
+        && value.containsKey("global")
+        && value.containsKey("ignoreCase")
+        && value.containsKey("multiline")
+        && value.containsKey("source")
+}
+
+fun fastPath(json: String): BsonDocument {
+    var finalJson = rewriteBsonTypes(json)
+    // Tokenize the json to rewrite some tokens
+    val tokenizer = StringTokenizer(finalJson, " ")
+    val tokens = mutableListOf<String>()
+
+    // Go over all the tokens
+    while (tokenizer.hasMoreTokens()) {
+        val token = tokenizer.nextToken()
+
+        if (token.startsWith('$')) {
+            tokens += "\"${token.substringBeforeLast(":")}\":"
+        } else {
+            tokens += token
+        }
+    }
+
+    val finalString = tokens.joinToString(" ")
+    // Returned the processed tokens
+    return BsonDocument.parse(finalString)
+}
+
+private fun rewriteBsonTypes(finalJson: String): String {
+    var finalJson1 = finalJson
     var index = Counter()
     val allMatches = mutableMapOf<String, Match>()
 
     // Replace all custom fields to ensure we can parse the JSON
-    finalJson = extractCustomShellSyntax(ISO_REGEX, finalJson, index, allMatches)
-    finalJson = extractCustomShellSyntax(OBJECTID_REGEX, finalJson, index, allMatches)
-    finalJson = extractCustomShellSyntax(NUMBERLONG_REGEX, finalJson, index, allMatches)
-    finalJson = extractCustomShellSyntax(NUMBERINT_REGEX, finalJson, index, allMatches)
-    finalJson = extractCustomShellSyntax(NUMBERDECIMAL_REGEX, finalJson, index, allMatches)
-    finalJson = extractCustomShellSyntax(BINDATA_REGEX, finalJson, index, allMatches)
-    finalJson = extractCustomShellSyntax(TIMESTAMP_REGEX, finalJson, index, allMatches)
-    finalJson = extractCustomShellSyntax(UNDEFINED_REGEX, finalJson, index, allMatches)
-    finalJson = extractCustomShellSyntax(BOOLEAN_REGEX, finalJson, index, allMatches)
-    finalJson = extractCustomShellSyntax(BOOLEAN2_REGEX, finalJson, index, allMatches)
-    finalJson = extractCustomShellSyntax(MINKEY_REGEX, finalJson, index, allMatches)
-    finalJson = extractCustomShellSyntax(MAXKEY_REGEX, finalJson, index, allMatches)
-    finalJson = extractCustomShellSyntax(UUID_REGEXP, finalJson, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(ISO_REGEX, finalJson1, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(OBJECTID_REGEX, finalJson1, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(NUMBERLONG_REGEX, finalJson1, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(NUMBERINT_REGEX, finalJson1, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(NUMBERDECIMAL_REGEX, finalJson1, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(BINDATA_REGEX, finalJson1, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(TIMESTAMP_REGEX, finalJson1, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(UNDEFINED_REGEX, finalJson1, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(BOOLEAN_REGEX, finalJson1, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(BOOLEAN2_REGEX, finalJson1, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(MINKEY_REGEX, finalJson1, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(MAXKEY_REGEX, finalJson1, index, allMatches)
+    finalJson1 = extractCustomShellSyntax(UUID_REGEXP, finalJson1, index, allMatches)
 
     // Get keys and sort in order of length
     val keys = allMatches.keys.sortedBy { -it.length }
@@ -161,22 +277,20 @@ fun commandToBsonDocument(json: String): BsonDocument {
                 val data = match.groupValues.last()
                 val encodedData = Base64.getEncoder().encodeToString(data.toByteArray())
 
-                finalJson = finalJson.replace("\"$key\"", allMatches[key]!!.value.replace(
+                finalJson1 = finalJson1.replace("\"$key\"", allMatches[key]!!.value.replace(
                     allMatches[key]!!.pattern.match,
                     "{ \"\\${'$'}binary\": \"$encodedData\", \"\\${'$'}type\": \"4\" }"
                 ))
             }
             //
         } else {
-            finalJson = finalJson.replace("\"$key\"", allMatches[key]!!.value.replace(
+            finalJson1 = finalJson1.replace("\"$key\"", allMatches[key]!!.value.replace(
                 allMatches[key]!!.pattern.match,
                 allMatches[key]!!.pattern.replace
             ))
         }
     }
-
-    // Returned the processed tokens
-    return BsonDocument.parse(finalJson)
+    return finalJson1
 }
 
 private fun extractCustomShellSyntax(pattern: Pattern, json: String, index: Counter, allMatches: MutableMap<String, Match>): String {
