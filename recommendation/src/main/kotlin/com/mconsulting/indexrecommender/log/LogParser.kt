@@ -2,6 +2,7 @@ package com.mconsulting.indexrecommender.log
 
 import com.mconsulting.indexrecommender.Namespace
 import com.mconsulting.indexrecommender.commandToBsonDocument
+import mu.KLogging
 import org.bson.BsonDocument
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -143,7 +144,9 @@ class LogReader(private val reader: BufferedReader) {
     }
 }
 
-class LogParser(private val reader: BufferedReader) {
+data class LogParserOptions(val skipParseErrors: Boolean = false)
+
+class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParserOptions()) {
     private val logReader = LogReader(reader)
     private var currentLine: String? = null
 
@@ -161,36 +164,51 @@ class LogParser(private val reader: BufferedReader) {
             throw Exception("no currentLine read")
         }
 
-        // Current currentLine
-        val line = currentLine!!.trim()
-        println(line)
-        // Start parsing itK
-        val tokenizer = StringTokenizer(line, " ")
-        // Get the date timestamp
-        val dateTimeString = tokenizer.nextToken()
-        // 2018-11-12T09:57:00.792+0100
-        val formatter = ISODateTimeFormat.dateTime()
-        val dateTime = formatter.parseDateTime(dateTimeString)
-        // Read the log entry severity level
-        val severityLevel = tokenizer.nextToken()
-        // Read the log entry type
-        val logType = tokenizer.nextToken()
-
         try {
-            // Check that we have a valid currentLine
-            SeverityLevels.valueOf(severityLevel)
-        } catch (ex: Exception) {
-            throw Exception("not a legal MongoDB log currentLine entry [$line]")
-        }
+            // Current currentLine
+            val line = currentLine!!.trim()
 
-        // Set current line to null
-        currentLine = null
+            // Are we in debug mode
+            if (logger.isDebugEnabled) {
+                logger.debug(line)
+            }
 
-        // Process the types we know
-        return when (logType.toUpperCase()) {
-            LogTypeNames.COMMAND.name -> parseInfo(dateTime, SeverityLevels.valueOf(severityLevel), tokenizer)
-            LogTypeNames.WRITE.name -> parseWrite(dateTime, SeverityLevels.valueOf(severityLevel), tokenizer)
-            else -> NoSupportedLogEntry(line)
+            // Start parsing itK
+            val tokenizer = StringTokenizer(line, " ")
+            // Get the date timestamp
+            val dateTimeString = tokenizer.nextToken()
+            // 2018-11-12T09:57:00.792+0100
+            val formatter = ISODateTimeFormat.dateTime()
+            val dateTime = formatter.parseDateTime(dateTimeString)
+            // Read the log entry severity level
+            val severityLevel = tokenizer.nextToken()
+            // Read the log entry type
+            val logType = tokenizer.nextToken()
+
+            try {
+                // Check that we have a valid currentLine
+                SeverityLevels.valueOf(severityLevel)
+            } catch (ex: Exception) {
+                throw Exception("not a legal MongoDB log currentLine entry [$line]")
+            }
+
+            // Process the types we know
+            return when (logType.toUpperCase()) {
+                LogTypeNames.COMMAND.name -> parseInfo(dateTime, SeverityLevels.valueOf(severityLevel), tokenizer)
+                LogTypeNames.WRITE.name -> parseWrite(dateTime, SeverityLevels.valueOf(severityLevel), tokenizer)
+                else -> NoSupportedLogEntry(line)
+            }
+        } catch (err: Exception) {
+            if (options.skipParseErrors) {
+                logger.info ("Failed to parse log statement: [$currentLine]", err)
+                if (hasNext()) {
+                    return next()
+                } else {
+                    throw Exception("no currentLine read")
+                }
+            } else {
+                throw err
+            }
         }
     }
 
@@ -280,6 +298,16 @@ class LogParser(private val reader: BufferedReader) {
         return entry.update(values)
     }
 
+    private fun correctForShortenedExpression(json: String): BsonDocument {
+        // Check if the json has been shortened
+        if (json.contains(Regex("[ ]+[\\.]{3}[ ]+"))) {
+            logger.info { "could not parse json as it's been shortend [$json]" }
+            return BsonDocument()
+        } else {
+            return commandToBsonDocument(json)
+        }
+    }
+
     private fun extractLogLineParts(partsTokenizer: StringTokenizer) : MutableMap<String, Any> {
         val values = mutableMapOf<String, Any>(
             "command" to BsonDocument()
@@ -289,17 +317,18 @@ class LogParser(private val reader: BufferedReader) {
             val token = partsTokenizer.nextToken()
 
             if (token.startsWith("command:")) {
-                val token = partsTokenizer.nextToken()
+                val jsToken = partsTokenizer.nextToken()
                 val json: String
 
-                if (token == "{") {
-                    json = readJson(partsTokenizer, token)
+                if (jsToken == "{") {
+                    json = readJson(partsTokenizer, jsToken)
                 } else {
-                    values["commandName"] = token
+                    values["commandName"] = jsToken
                     json = readJson(partsTokenizer)
                 }
 
-                values["command"] = commandToBsonDocument(json)
+                // Check if the json file has been redacted
+                values["command"] = correctForShortenedExpression(json)
             } else if (token.startsWith("appName:")) {
                 val tokens = mutableListOf<String>()
 
@@ -347,31 +376,28 @@ class LogParser(private val reader: BufferedReader) {
                 if (token.contains("{") && token.contains("}")) {
                     values["locks"] = BsonDocument()
                 } else if (token.contains("{")) {
-                    values["locks"] = commandToBsonDocument(readJson(partsTokenizer, "{"))
+                    values["locks"] = correctForShortenedExpression(readJson(partsTokenizer, "{"))
                 } else {
-                    values["locks"] = commandToBsonDocument(readJson(partsTokenizer))
+                    values["locks"] = correctForShortenedExpression(readJson(partsTokenizer))
                 }
             } else if (token.startsWith("update:")) {
-                val update = commandToBsonDocument(readJson(partsTokenizer))
+                val update = correctForShortenedExpression(readJson(partsTokenizer))
 
                 if (values.containsKey("command")) {
                     (values.get("command") as BsonDocument).append("u", update)
                 }
-
-                println()
             } else if (token.startsWith("query:")) {
-                val query = commandToBsonDocument(readJson(partsTokenizer))
+                val query = correctForShortenedExpression(readJson(partsTokenizer))
 
                 if (values.containsKey("command")) {
                     (values.get("command") as BsonDocument).append("q", query)
                 }
-                println()
             } else if (token.startsWith("planSummary:")) {
                 val scanType = partsTokenizer.nextToken().trim()
                 var document = BsonDocument()
 
                 if (scanType.toUpperCase() == "IXSCAN") {
-                    document = commandToBsonDocument(readJson(partsTokenizer))
+                    document = correctForShortenedExpression(readJson(partsTokenizer))
                 }
 
                 values["planSummary"] = PlanSummary(scanType, document)
@@ -417,6 +443,8 @@ class LogParser(private val reader: BufferedReader) {
             function(next())
         }
     }
+
+    companion object : KLogging()
 }
 
 fun extractInt(token: String, tokenizer: StringTokenizer) : Int = extractString(token, tokenizer).toInt()

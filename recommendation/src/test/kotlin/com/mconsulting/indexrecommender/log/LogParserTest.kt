@@ -4,8 +4,9 @@ import com.mconsulting.indexrecommender.readResourceAsReader
 import org.bson.BsonDocument
 import org.bson.BsonInt64
 import org.bson.BsonJavaScript
-import org.bson.BsonRegularExpression
+import org.bson.BsonNull
 import org.bson.BsonString
+import org.bson.BsonUndefined
 import org.junit.jupiter.api.Test
 import java.io.BufferedReader
 import java.io.StringReader
@@ -269,14 +270,13 @@ class LogParserTest {
     }
 
     @Test
-    fun parseLogLineWithFunctionAndRegularExpression() {
-        val logEntriesText = """
-            2018-11-22T17:00:20.456+0100 I COMMAND  [conn620] command test.max_time_ms appName: "MongoDB Shell" command: find { find: "max_time_ms", filter: { a: /ad/, ${'$'}where: function () {
-        sleep(100);
-        return true;
-    } }, maxTimeMS: 10000.0 } planSummary: COLLSCAN keysExamined:0 docsExamined:3 cursorExhausted:1 numYields:3 nreturned:3 reslen:164 locks:{ Global: { acquireCount: { r: 8 } }, Database: { acquireCount: { r: 4 } }, Collection: { acquireCount: { r: 4 } } } protocol:op_command 313ms""".trimIndent()
+    fun shouldCorrectlyRecoverDueToMallformedJSFunctionShorteningByMongoDB() {
+        val logEntriesText = """2018-11-22T17:00:20.484+0100 I COMMAND  [conn620] command test.max_time_ms appName: "MongoDB Shell" command: find { find: "max_time_ms", filter: { ${'$'}where: function () {
+                  if (this.slow) {
+                     ... }, batchSize: 3.0, sort: { _id: 1.0 }, maxTimeMS: 4000.0 } planSummary: IXSCAN { _id: 1 } cursorid:11501599070999 keysExamined:3 docsExamined:3 numYields:0 nreturned:3 reslen:152 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 1 } }, Collection: { acquireCount: { r: 1 } } } protocol:op_command 0ms
+2018-11-22T17:00:22.773+0100 I COMMAND  [conn171] command test.system.profile appName: "MongoDB Shell" command: collStats { collStats: "system.profile", scale: undefined } numYields:0 reslen:5737 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 1 } }, Collection: { acquireCount: { r: 1 } } } protocol:op_command 0ms"""
 
-        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)))
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
         val logEntries = mutableListOf<LogEntry>()
 
         logParser.forEach {
@@ -286,11 +286,26 @@ class LogParserTest {
         assertEquals(1, logEntries.size)
         assertTrue(logEntries.first() is CommandLogEntry)
         assertEquals(BsonDocument()
-            .append("find", BsonString("max_time_ms"))
+            .append("collStats", BsonString("system.profile"))
+            .append("scale", BsonUndefined()), (logEntries.first() as CommandLogEntry).command)
+    }
+
+    @Test
+    fun shouldCorrectlyParseIndexDefWithPath() {
+        val logEntriesText = """2018-11-22T17:01:28.322+0100 I COMMAND  [conn678] command test.null2 appName: "MongoDB Shell" command: find { find: "null2", filter: { a.b: null } } planSummary: IXSCAN { a.b: 1 } keysExamined:4 docsExamined:4 cursorExhausted:1 numYields:0 nreturned:2 reslen:176 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 1 } }, Collection: { acquireCount: { r: 1 } } } protocol:op_command 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertTrue(logEntries.first() is CommandLogEntry)
+        assertEquals(BsonDocument()
+            .append("find", BsonString("null2"))
             .append("filter", BsonDocument()
-                .append("a", BsonRegularExpression("ad", ""))
-                .append("${'$'}where", BsonJavaScript("function () { sleep(100); return true; }")))
-            .append("maxTimeMS", BsonInt64(10000)), (logEntries.first() as CommandLogEntry).command)
+                .append("a.b", BsonNull())), (logEntries.first() as CommandLogEntry).command)
     }
 
     private fun getWrites(logEntries: MutableList<LogEntry>, name: String): List<LogEntry> {

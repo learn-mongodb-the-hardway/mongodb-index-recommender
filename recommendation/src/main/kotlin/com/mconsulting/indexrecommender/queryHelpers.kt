@@ -149,8 +149,6 @@ fun commandToBsonDocument(json: String): BsonDocument {
     } else {
         return slowPath(json)
     }
-
-    return BsonDocument()
 }
 
 fun slowPath(json: String): BsonDocument {
@@ -226,24 +224,8 @@ fun isRegularExpression(value: ScriptObjectMirror): Boolean {
 
 fun fastPath(json: String): BsonDocument {
     var finalJson = rewriteBsonTypes(json)
-    // Tokenize the json to rewrite some tokens
-    val tokenizer = StringTokenizer(finalJson, " ")
-    val tokens = mutableListOf<String>()
-
-    // Go over all the tokens
-    while (tokenizer.hasMoreTokens()) {
-        val token = tokenizer.nextToken()
-
-        if (token.startsWith('$')) {
-            tokens += "\"${token.substringBeforeLast(":")}\":"
-        } else {
-            tokens += token
-        }
-    }
-
-    val finalString = tokens.joinToString(" ")
     // Returned the processed tokens
-    return BsonDocument.parse(finalString)
+    return BsonDocument.parse(finalJson)
 }
 
 private fun rewriteBsonTypes(finalJson: String): String {
@@ -268,6 +250,26 @@ private fun rewriteBsonTypes(finalJson: String): String {
 
     // Get keys and sort in order of length
     val keys = allMatches.keys.sortedBy { -it.length }
+
+    // Tokenize the json to rewrite some tokens
+    val tokenizer = StringTokenizer(finalJson1, " ")
+    val tokens = mutableListOf<String>()
+
+    // Go over all the tokens
+    while (tokenizer.hasMoreTokens()) {
+        val token = tokenizer.nextToken()
+        val match = Regex("([\\$|\\_|\\-|\\w+|0-9|\\.]+)\\:").find(token)
+
+        if (token.startsWith('$')) {
+            tokens += "\"${token.substringBeforeLast(":")}\":"
+        } else if (match != null) {
+            tokens += "\"${match.groups[1]!!.value}\":"
+        } else {
+            tokens += token
+        }
+    }
+
+    finalJson1 = tokens.joinToString(" ")
 
     // Put back the Shell extensions
     for (key in keys) {
