@@ -1,5 +1,9 @@
 package com.mconsulting.indexrecommender
 
+import com.beust.klaxon.JsonArray
+import com.beust.klaxon.JsonBase
+import com.beust.klaxon.JsonObject
+import com.beust.klaxon.JsonValue
 import com.mconsulting.indexrecommender.log.CommandLogEntry
 import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
@@ -82,7 +86,7 @@ private fun mapOperation(operation: String): MongoOperation {
 
 class ShapeStatistics(
     val operation: MongoOperation,
-    val shape: BsonValue,
+    val shape: JsonBase,
     val timestamp: Long,
     var count: Long = 1,
     var responseLength: Double,
@@ -113,7 +117,7 @@ class ShapeStatistics(
     override fun equals(other: Any?): Boolean {
         if (other == null) return false
         if (other !is ShapeStatistics) return false
-        return this.shape.equals(other.shape)
+        return this.shape == other.shape
     }
 
     fun merge(shapeStatistics: ShapeStatistics) {
@@ -184,7 +188,7 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
     private fun processCommandLogEntry(logEntry: CommandLogEntry) {
         when (logEntry.commandName) {
             "aggregate" -> {
-                processShape(normalizeFilter(logEntry.command.getArray("pipeline")), logEntry)
+                processShape(normalizeFilter(logEntry.command.array<JsonObject>("pipeline")!!), logEntry)
             }
         }
     }
@@ -193,11 +197,11 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
         // Create a statistics shape
         val shapeStatistics = ShapeStatistics(
             operation = MongoOperation.INSERT,
-            shape = BsonDocument(),
-            timestamp = operation.timestamp().value,
+            shape = JsonObject(),
+            timestamp = operation.timestamp().toLong(),
             responseLength = 0.0,
             resolution = options.bucketResolution,
-            millis = operation.milis().doubleValue()
+            millis = operation.milis().toDouble()
         )
 
         if (inserts == null) {
@@ -207,7 +211,7 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
         }
     }
 
-    private fun processShape(shape: BsonValue, logEntry: LogEntry) {
+    private fun processShape(shape: JsonBase, logEntry: LogEntry) {
         when (logEntry) {
             is CommandLogEntry -> {
                 val responseLength = logEntry.resultLength
@@ -232,9 +236,9 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
         }
     }
 
-    private fun processShape(shape: BsonValue, operation: Operation) {
+    private fun processShape(shape: JsonBase, operation: Operation) {
         val responseLength = when (operation) {
-            is ReadOperation -> operation.responseLength().value
+            is ReadOperation -> operation.responseLength()
             else -> 0
         }
 
@@ -242,10 +246,10 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
         val shapeStatistics = ShapeStatistics(
             operation = mapOperation(operation),
             shape = shape,
-            timestamp = operation.timestamp().value,
+            timestamp = operation.timestamp().toLong(),
             responseLength = responseLength.toDouble(),
             resolution = options.bucketResolution,
-            millis = operation.milis().doubleValue()
+            millis = operation.milis().toDouble()
         )
 
         // Check if the filter exists
@@ -263,32 +267,32 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
     }
 }
 
-private fun normalizeFilter(value: BsonValue) : BsonValue {
+private fun normalizeFilter(value: JsonBase) : JsonBase {
     return when (value) {
-        is BsonDocument -> normalizeDocument(value)
-        is BsonArray -> normalizeArray(value)
+        is JsonObject -> normalizeDocument(value)
+        is JsonArray<*> -> normalizeArray(value)
         else -> value
     }
 }
 
-private fun normalizeDocument(filter: BsonDocument): BsonDocument {
-    return BsonDocument(filter.entries.map {
+private fun normalizeDocument(filter: JsonObject): JsonObject {
+    return JsonObject(filter.entries.map {
         val value = it.value
 
-        BsonElement(it.key, when (value) {
-            is BsonDocument -> normalizeDocument(value)
-            is BsonArray -> normalizeArray(value)
-            else -> BsonBoolean(true)
-        })
-    })
+        it.key to when (value) {
+            is JsonObject -> normalizeDocument(value)
+            is JsonArray<*> -> normalizeArray(value)
+            else ->true
+        }
+    }.toMap())
 }
 
-private fun normalizeArray(value: BsonArray): BsonArray {
-    return BsonArray(value.values.map {
+private fun normalizeArray(value: JsonArray<*>): JsonArray<*> {
+    return JsonArray(value.map {
         when (it) {
-            is BsonDocument -> normalizeDocument(it)
-            is BsonArray -> normalizeArray(it)
-            else -> BsonInt32(1)
+            is JsonObject -> normalizeDocument(it)
+            is JsonArray<*> -> normalizeArray(it)
+            else -> 1
         }
     })
 }

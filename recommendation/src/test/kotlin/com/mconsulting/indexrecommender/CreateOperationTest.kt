@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 class CreateOperationTest {
     @Test
     fun parseInsert() {
-        val json = readJsonAsBsonDocument("operations/single_row_insert.json")
+        val json = readJsonAsJsonDocument("operations/single_row_insert.json")
         val operation = createOperation(json)
 
         assertNotNull(operation)
@@ -23,7 +23,7 @@ class CreateOperationTest {
 
     @Test
     fun parseAggregation() {
-        val json = readJsonAsBsonDocument("operations/single_match_aggregation.json")
+        val json = readJsonAsJsonDocument("operations/single_match_aggregation.json")
         val operation = createOperation(json)
 
         assertNotNull(operation)
@@ -33,7 +33,7 @@ class CreateOperationTest {
 
     @Test
     fun parseUpdate() {
-        val json = readJsonAsBsonDocument("operations/update.json")
+        val json = readJsonAsJsonDocument("operations/update.json")
         val operation = createOperation(json)
 
         assertNotNull(operation)
@@ -43,7 +43,7 @@ class CreateOperationTest {
 
     @Test
     fun parseQuery() {
-        val json = readJsonAsBsonDocument("operations/multi_key_query.json")
+        val json = readJsonAsJsonDocument("operations/multi_key_query.json")
         val operation = createOperation(json)
 
         assertNotNull(operation)
@@ -53,7 +53,7 @@ class CreateOperationTest {
 
     @Test
     fun parseDelete() {
-        val json = readJsonAsBsonDocument("operations/delete_one.json")
+        val json = readJsonAsJsonDocument("operations/delete_one.json")
         val operation = createOperation(json)
 
         assertNotNull(operation)

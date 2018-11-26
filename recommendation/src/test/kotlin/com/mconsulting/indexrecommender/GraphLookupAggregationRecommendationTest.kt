@@ -58,7 +58,7 @@ class GraphLookupAggregationRecommendationTest {
     }
 
     private fun executeOperation(resource: String): Pair<Collection, Collection> {
-        val operation = Aggregation(readJsonAsBsonDocument(resource))
+        val operation = Aggregation(readJsonAsJsonDocument(resource))
         val db = Db(client, usersNamespace)
 
         // Users collection

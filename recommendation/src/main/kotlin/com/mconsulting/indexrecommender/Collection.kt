@@ -1,5 +1,6 @@
 package com.mconsulting.indexrecommender
 
+import com.beust.klaxon.JsonObject
 import com.mconsulting.indexrecommender.indexes.Index
 import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.indexes.IndexParser
@@ -101,21 +102,21 @@ class Collection(
     }
 }
 
-fun createOperation(doc: BsonDocument): Operation? {
+fun createOperation(doc: JsonObject): Operation? {
     var operation: Operation? = null
 
-    if (doc.getString("op") == BsonString("query")) {
+    if (doc.string("op") == "query") {
         return Query(doc)
-    } else if (doc.getString("op") == BsonString("insert")) {
+    } else if (doc.string("op") == "insert") {
         return Insert(doc)
-    } else if (doc.getString("op") == BsonString("remove")) {
+    } else if (doc.string("op") == "remove") {
         return Delete(doc)
-    } else if (doc.getString("op") == BsonString("update")) {
+    } else if (doc.string("op") == "update") {
         return Update(doc)
-    } else if (doc.getString("op") == BsonString("command")) {
+    } else if (doc.string("op") == "command") {
         // Identify the operation
         // (we care only about operations that contain reads (query, agg, update, count etc.)
-        val command = doc.getDocument("command")
+        val command = doc.obj("command")!!
 
         // We have an agregation command
         if (command.containsKey("aggregate")) {

@@ -1,5 +1,6 @@
 package com.mconsulting.indexrecommender.integration.log
 
+import com.mconsulting.indexrecommender.Integration
 import com.mconsulting.indexrecommender.log.LogParser
 import com.mconsulting.indexrecommender.log.LogParserOptions
 import com.mconsulting.indexrecommender.readResourceAsStream
@@ -12,6 +13,7 @@ import java.util.zip.ZipInputStream
 
 class ParseLogFilesTest {
     @Test
+    @Integration
     fun parseLogsFromMongo_3_4() {
 //        executeParse()
     }

@@ -1,5 +1,8 @@
 package com.mconsulting.indexrecommender
 
+import com.beust.klaxon.JsonArray
+import com.beust.klaxon.JsonObject
+import com.beust.klaxon.JsonValue
 import com.mconsulting.indexrecommender.indexes.CompoundIndex
 import com.mconsulting.indexrecommender.indexes.Field
 import com.mconsulting.indexrecommender.indexes.Index
@@ -19,29 +22,27 @@ import com.mconsulting.indexrecommender.profiling.QueryCommand
 import com.mongodb.MongoClient
 import org.bson.BsonArray
 import org.bson.BsonDocument
-import org.bson.BsonElement
-import org.bson.BsonInt32
 import org.bson.BsonRegularExpression
 import org.bson.BsonValue
 
 class IndexRecommendationOptions()
 
-fun BsonDocument.remove(path: List<String>) {
-    var pointer: BsonValue? = this
-    var previousPointer: BsonValue? = this
+fun JsonObject.remove(path: List<String>) {
+    var pointer: Any? = this
+    var previousPointer: Any? = this
 
     for(entry in path) {
         previousPointer = pointer
         pointer = when (pointer) {
-            is BsonDocument -> pointer.get(entry)
-            is BsonArray -> pointer[entry.toInt()]
+            is JsonObject -> pointer[entry]
+            is JsonArray<*> -> pointer[entry.toInt()]
             else -> pointer
         }
     }
 
     when (previousPointer) {
-        is BsonDocument -> previousPointer.remove(path.last())
-        is BsonArray -> previousPointer.removeAt(path.last().toInt())
+        is JsonObject -> previousPointer.remove(path.last())
+        is JsonArray<*> -> previousPointer.removeAt(path.last().toInt())
     }
 }
 
@@ -71,7 +72,7 @@ class IndexRecommendationEngine(
                 processAggregationCommand(AggregationCommand(
                     logEntry.namespace.db,
                     logEntry.namespace.collection,
-                    logEntry.command.getArray("pipeline")))
+                    logEntry.command.array<JsonObject>("pipeline")!!))
             }
         }
     }
@@ -94,24 +95,24 @@ class IndexRecommendationEngine(
         // Identify any lookup fields
         aggregationCommand
             .pipeline
-            .filterIsInstance<BsonDocument>()
-            .forEachIndexed { _, bsonDocument ->
+            .filterIsInstance<JsonObject>()
+            .forEachIndexed { _, jsonObject ->
                 // Do we have a $match stage (only look at the first one that shows)
-                if (bsonDocument.containsKey("\$match")
+                if (jsonObject.containsKey("\$match")
                     && !firstLookupSeen && !firstMatchSeen && !firstGraphLookup) {
-                    addMatchIndex(indexes, aggregationCommand, bsonDocument)
+                    addMatchIndex(indexes, aggregationCommand, jsonObject)
                     firstMatchSeen = true
                 }
 
                 // Do we have a $lookup stage
-                if (bsonDocument.containsKey("\$lookup")) {
-                    addLookupIndex(aggregationCommand, bsonDocument)
+                if (jsonObject.containsKey("\$lookup")) {
+                    addLookupIndex(aggregationCommand, jsonObject)
                     firstLookupSeen = true
                 }
 
                 // Do we have a $graphLookup stage
-                if (bsonDocument.containsKey("\$graphLookup")) {
-                    addGraphLookupIndex(aggregationCommand, bsonDocument)
+                if (jsonObject.containsKey("\$graphLookup")) {
+                    addGraphLookupIndex(aggregationCommand, jsonObject)
                     firstGraphLookup = true
                 }
             }
@@ -120,10 +121,10 @@ class IndexRecommendationEngine(
         return indexes
     }
 
-    private fun addMatchIndex(indexes: MutableList<Index>, aggregationCommand: AggregationCommand, bsonDocument: BsonDocument) {
-        val matchDocument = bsonDocument.getDocument("\$match")
+    private fun addMatchIndex(indexes: MutableList<Index>, aggregationCommand: AggregationCommand, bsonDocument: JsonObject) {
+        val matchDocument = bsonDocument.obj("\$match")!!
         // Process the match as a query command
-        val candidateIndexes = processQueryCommand(QueryCommand(aggregationCommand.db, aggregationCommand.collection, matchDocument, BsonDocument()))
+        val candidateIndexes = processQueryCommand(QueryCommand(aggregationCommand.db, aggregationCommand.collection, matchDocument, JsonObject()))
         /// Add any missed indexes
         candidateIndexes.forEach {
             if (!indexes.contains(it)) {
@@ -132,11 +133,11 @@ class IndexRecommendationEngine(
         }
     }
 
-    private fun addGraphLookupIndex(aggregationCommand: AggregationCommand, document: BsonDocument) {
+    private fun addGraphLookupIndex(aggregationCommand: AggregationCommand, document: JsonObject) {
         // Get the $graphLookup
-        val graphLookupDocument = document.getDocument("\$graphLookup")
-        val from = graphLookupDocument.getString("from").value
-        val connectToField = graphLookupDocument.getString("connectToField").value
+        val graphLookupDocument = document.obj("\$graphLookup")!!
+        val from = graphLookupDocument.string("from")!!
+        val connectToField = graphLookupDocument.string("connectToField")!!
 
         // Get the referenced collection
         val collection = collection!!.db.getCollection(Namespace(aggregationCommand.db, from))
@@ -148,9 +149,9 @@ class IndexRecommendationEngine(
         // Do we have a filter on the graphlookup, this is a possible candidate
         // for an index
         if  (graphLookupDocument.containsKey("restrictSearchWithMatch")) {
-            val restrictSearchWithMatch = graphLookupDocument.getDocument("restrictSearchWithMatch")
+            val restrictSearchWithMatch = graphLookupDocument.obj("restrictSearchWithMatch")!!
             // Flatten the matches ( a: { b:1 } becomes a.b
-            candidateIndexes.addAll(processQueryCommand(QueryCommand(aggregationCommand.db, aggregationCommand.collection, restrictSearchWithMatch, BsonDocument())))
+            candidateIndexes.addAll(processQueryCommand(QueryCommand(aggregationCommand.db, aggregationCommand.collection, restrictSearchWithMatch, JsonObject())))
         }
 
         // Merge in all the possible indexes into the collection
@@ -159,8 +160,8 @@ class IndexRecommendationEngine(
         }
     }
 
-    private fun addLookupIndex(aggregation: AggregationCommand, document: BsonDocument) {
-        val lookupDocument = document.getDocument("\$lookup")
+    private fun addLookupIndex(aggregation: AggregationCommand, document: JsonObject) {
+        val lookupDocument = document.obj("\$lookup")!!
 
         if (lookupDocument.containsKey("localField")) {
             processBasicLookup(lookupDocument, aggregation)
@@ -169,10 +170,10 @@ class IndexRecommendationEngine(
         }
     }
 
-    private fun processAdvancedLookup(document: BsonDocument, aggregation: AggregationCommand) {
+    private fun processAdvancedLookup(document: JsonObject, aggregation: AggregationCommand) {
         // Unpack the fields
-        val from = document.getString("from").value
-        val pipeline = document.getArray("pipeline")
+        val from = document.string("from")!!
+        val pipeline = document.array<JsonObject>("pipeline")!!
 
         // Locate any $match expression
         val matchExpression = extractMatchStatement(pipeline)
@@ -183,7 +184,7 @@ class IndexRecommendationEngine(
 
         // Process the match expression using the same code path as a QUERY
         if (!matchExpression.containsKey("\$expr")) {
-            val indexes = processQueryCommand(QueryCommand(aggregation.db, from, matchExpression, BsonDocument()))
+            val indexes = processQueryCommand(QueryCommand(aggregation.db, from, matchExpression, JsonObject()))
 
             indexes.forEach {
                 collection.addIndex(it)
@@ -209,7 +210,7 @@ class IndexRecommendationEngine(
         collection.addIndex(index)
     }
 
-    private fun extractFieldNamesFromMatchExpression(matchExpression: BsonDocument): List<String> {
+    private fun extractFieldNamesFromMatchExpression(matchExpression: JsonObject): List<String> {
         val fieldNames = mutableListOf<String>()
 
         traverse(matchExpression) { _, _, entry ->
@@ -238,16 +239,16 @@ class IndexRecommendationEngine(
         return fieldNames
     }
 
-    private fun extractMatchStatement(pipeline: BsonArray): BsonDocument {
-        return pipeline.filterIsInstance<BsonDocument>().first {
+    private fun extractMatchStatement(pipeline: JsonArray<JsonObject>): JsonObject {
+        return pipeline.first {
             it.containsKey("\$match")
-        }.getDocument("\$match")
+        }.obj("\$match")!!
     }
 
-    private fun processBasicLookup(document: BsonDocument, aggregation: AggregationCommand) {
+    private fun processBasicLookup(document: JsonObject, aggregation: AggregationCommand) {
         // Unpack the fields
-        val from = document.getString("from").value
-        val foreignField = document.getString("foreignField").value
+        val from = document.string("from")!!
+        val foreignField = document.string("foreignField")!!
         val index = SingleFieldIndex("${foreignField}_1", Field(foreignField, IndexDirection.UNKNOWN))
 
         // We need to lookup the other collection and add the index on it
@@ -315,9 +316,9 @@ class IndexRecommendationEngine(
      */
     private fun processRegularExpression(query: QueryCommand, candidateIndexes: MutableList<Index>) {
         val regularExpressions = mutableListOf<List<String>>()
-        val filteredOutDoc = query.filter.clone()
-        val filteredSortDoc = query.sort.clone()
-        val queryFilterNames = BsonDocument()
+        val filteredOutDoc = JsonObject(query.filter.toMap())
+        val filteredSortDoc = JsonObject(query.sort.toMap())
+        val queryFilterNames = JsonObject()
 
         traverse(query.filter) { _, _path, entry ->
             if (entry.value is BsonRegularExpression) {
@@ -328,15 +329,15 @@ class IndexRecommendationEngine(
                 // Remove from the sort
                 filteredSortDoc.remove(_path + entry.key)
                 // Add to the BsonDocument that will be used for naming
-                queryFilterNames.append("${(_path + entry.key).joinToString(".")}", BsonInt32(1))
+                queryFilterNames.put("${(_path + entry.key).joinToString(".")}", 1)
             }
         }
 
         // Generate a text index recommendation
         candidateIndexes += TextIndex(
-            createIndexName(queryFilterNames, QueryCommand(query.db, query.collection, BsonDocument(regularExpressions.map {
-                BsonElement(it.joinToString("."), BsonInt32(1))
-            }), BsonDocument())), regularExpressions.map {
+            createIndexName(queryFilterNames, QueryCommand(query.db, query.collection, JsonObject(regularExpressions.map {
+                it.joinToString(".") to 1
+            }.toMap()), JsonObject())), regularExpressions.map {
                 TextField(it)
             })
 
@@ -404,8 +405,8 @@ class IndexRecommendationEngine(
         val doc = client
             .getDatabase(query.db)
             .getCollection(query.collection, BsonDocument::class.java)
-            .find(query.filter)
-            .projection(generateProjection(query.filter))
+            .find(BsonDocument.parse(query.filter.toJsonString()))
+            .projection(BsonDocument.parse(generateProjection(query.filter).toJsonString()))
             .firstOrNull()
 
         // Establish the types for each field to check if we are multikey or not
@@ -421,7 +422,7 @@ class IndexRecommendationEngine(
         return false
     }
 
-    private fun addMultiKeyIndex(query: BsonDocument, queryCommand: QueryCommand, candidateIndexes: MutableList<Index>) {
+    private fun addMultiKeyIndex(query: JsonObject, queryCommand: QueryCommand, candidateIndexes: MutableList<Index>) {
         // Create list of fields
         val fields = query.entries.map {
             Field(it.key, getIndexDirection(queryCommand, it.key, IndexDirection.UNKNOWN))
@@ -439,7 +440,7 @@ class IndexRecommendationEngine(
         }
     }
 
-    private fun addCompoundFieldIndex(query: BsonDocument, queryCommand: QueryCommand, candidateIndexes: MutableList<Index>) {
+    private fun addCompoundFieldIndex(query: JsonObject, queryCommand: QueryCommand, candidateIndexes: MutableList<Index>) {
         // Create list of fields
         val fields = query.entries.map {
             Field(it.key, getIndexDirection(queryCommand, it.key, IndexDirection.UNKNOWN))
@@ -457,7 +458,7 @@ class IndexRecommendationEngine(
         }
     }
 
-    private fun addSingleFieldIndex(query: BsonDocument, queryCommand: QueryCommand, candidateIndexes: MutableList<Index>) {
+    private fun addSingleFieldIndex(query: JsonObject, queryCommand: QueryCommand, candidateIndexes: MutableList<Index>) {
         // Get the first entry
         val entry = query.entries.first()
         val fieldName = createIndexName(query, queryCommand)
@@ -477,13 +478,13 @@ class IndexRecommendationEngine(
         var direction = defaultDirection
 
         if (query.sort.containsKey(fieldName)) {
-            direction = IndexDirection.intValueOf(query.sort.getInt32(fieldName).value)
+            direction = IndexDirection.intValueOf(query.sort.int(fieldName)!!)
         }
 
         return direction
     }
 
-    private fun createIndexName(query: BsonDocument, queryCommand: QueryCommand): String {
+    private fun createIndexName(query: JsonObject, queryCommand: QueryCommand): String {
         return query.entries.map {
             "${it.key}_${getIndexDirection(queryCommand, it.key).value()}"
         }.joinToString("_")

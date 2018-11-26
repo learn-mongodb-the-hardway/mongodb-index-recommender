@@ -11,6 +11,7 @@ dependencies {
     compile group: 'joda-time', name: 'joda-time', version: '2.10.1'
     // https://mvnrepository.com/artifact/org.mozilla/rhino
     compile group: 'org.mozilla', name: 'rhino', version: '1.7.10'
+    implementation 'com.beust:klaxon:3.0.1'
 
     testCompile 'com.vdurmont:semver4j:2.2.0'
 }

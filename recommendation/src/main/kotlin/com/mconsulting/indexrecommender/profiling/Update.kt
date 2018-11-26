@@ -1,18 +1,19 @@
 package com.mconsulting.indexrecommender.profiling
 
+import com.beust.klaxon.JsonObject
 import org.bson.BsonDocument
 
-data class UpdateCommand(val db: String, val collection: String, val query: BsonDocument)
+data class UpdateCommand(val db: String, val collection: String, val query: JsonObject)
 
-class Update(doc: BsonDocument) : WriteOperation(doc) {
+class Update(doc: JsonObject) : WriteOperation(doc) {
     fun command() : UpdateCommand {
-        val command = doc.getDocument("command")
+        val command = doc.obj("command")!!
 
         return UpdateCommand(
             namespace().db,
             namespace().collection,
-            command.getDocument("q"))
+            command.obj("q")!!)
     }
 
-    fun numberModified() = doc.getInt32("nModified")
+    fun numberModified() = doc.int("nModified")!!
 }

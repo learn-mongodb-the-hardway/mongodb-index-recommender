@@ -1,5 +1,6 @@
 package com.mconsulting.indexrecommender.log
 
+import com.beust.klaxon.JsonObject
 import com.mconsulting.indexrecommender.Namespace
 import com.mconsulting.indexrecommender.commandToBsonDocument
 import mu.KLogging
@@ -31,14 +32,14 @@ abstract class LogEntryBase(
     val severityLevel: SeverityLevels,
     val namespace: Namespace) : LogEntry
 
-class PlanSummary(val type: String = "", val document: BsonDocument = BsonDocument())
+class PlanSummary(val type: String = "", val document: JsonObject = JsonObject())
 
 class CommandLogEntry(dateTime: DateTime, severityLevel: SeverityLevels, namespace: Namespace) : LogEntryBase(
     dateTime, severityLevel, namespace
 ) {
     fun update(values: MutableMap<String, Any>): CommandLogEntry {
         if (values.containsKey("appName")) appName = values.get("appName") as String
-        if (values.containsKey("command")) command = values.get("command") as BsonDocument
+        if (values.containsKey("command")) command = values.get("command") as JsonObject
         if (values.containsKey("planSummary")) planSummary = values.get("planSummary") as PlanSummary
         if (values.containsKey("keysExamined")) keysExamined = values.get("keysExamined") as Int
         if (values.containsKey("docsExamined")) docsExamined = values.get("docsExamined") as Int
@@ -47,7 +48,7 @@ class CommandLogEntry(dateTime: DateTime, severityLevel: SeverityLevels, namespa
         if (values.containsKey("numberReturned")) numberReturned = values.get("numberReturned") as Int
         if (values.containsKey("queryHash")) queryHash = values.get("queryHash") as String
         if (values.containsKey("resultLength")) resultLength = values.get("resultLength") as Int
-        if (values.containsKey("locks")) locks = values.get("locks") as BsonDocument
+        if (values.containsKey("locks")) locks = values.get("locks") as JsonObject
         if (values.containsKey("protocol")) protocol = values.get("protocol") as String
         if (values.containsKey("commandName")) commandName = values.get("commandName") as String
         if (values.containsKey("executionTimeMS")) executionTimeMS = values.get("executionTimeMS") as Int
@@ -55,7 +56,7 @@ class CommandLogEntry(dateTime: DateTime, severityLevel: SeverityLevels, namespa
     }
 
     var appName: String = ""
-    var command: BsonDocument = BsonDocument()
+    var command: JsonObject = JsonObject()
     var planSummary: PlanSummary = PlanSummary()
     var keysExamined: Int = -1
     var docsExamined: Int = -1
@@ -64,7 +65,7 @@ class CommandLogEntry(dateTime: DateTime, severityLevel: SeverityLevels, namespa
     var numberReturned: Int = -1
     var queryHash: String = ""
     var resultLength: Int = -1
-    var locks: BsonDocument = BsonDocument()
+    var locks: JsonObject = JsonObject()
     var protocol: String = ""
     var commandName: String = ""
     var executionTimeMS: Int = -1
@@ -76,7 +77,7 @@ class WriteCommandLogEntry(var commandName: String, dateTime: DateTime, severity
 
     fun update(values: MutableMap<String, Any>): WriteCommandLogEntry {
         if (values.containsKey("appName")) appName = values.get("appName") as String
-        if (values.containsKey("command")) command = values.get("command") as BsonDocument
+        if (values.containsKey("command")) command = values.get("command") as JsonObject
         if (values.containsKey("planSummary")) planSummary = values.get("planSummary") as PlanSummary
         if (values.containsKey("keysExamined")) keysExamined = values.get("keysExamined") as Int
         if (values.containsKey("docsExamined")) docsExamined = values.get("docsExamined") as Int
@@ -85,7 +86,7 @@ class WriteCommandLogEntry(var commandName: String, dateTime: DateTime, severity
         if (values.containsKey("numberReturned")) numberReturned = values.get("numberReturned") as Int
         if (values.containsKey("queryHash")) queryHash = values.get("queryHash") as String
         if (values.containsKey("resultLength")) resultLength = values.get("resultLength") as Int
-        if (values.containsKey("locks")) locks = values.get("locks") as BsonDocument
+        if (values.containsKey("locks")) locks = values.get("locks") as JsonObject
         if (values.containsKey("protocol")) protocol = values.get("protocol") as String
         if (values.containsKey("commandName")) commandName = values.get("commandName") as String
         if (values.containsKey("executionTimeMS")) executionTimeMS = values.get("executionTimeMS") as Int
@@ -93,7 +94,7 @@ class WriteCommandLogEntry(var commandName: String, dateTime: DateTime, severity
     }
 
     var appName: String = ""
-    var command: BsonDocument = BsonDocument()
+    var command: JsonObject = JsonObject()
     var planSummary: PlanSummary = PlanSummary()
     var keysExamined: Int = -1
     var docsExamined: Int = -1
@@ -106,7 +107,7 @@ class WriteCommandLogEntry(var commandName: String, dateTime: DateTime, severity
     var ndeleted: Int = -1
     var queryHash: String = ""
     var resultLength: Int = -1
-    var locks: BsonDocument = BsonDocument()
+    var locks: JsonObject = JsonObject()
     var protocol: String = ""
     var executionTimeMS: Int = -1
 }
@@ -298,23 +299,36 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
         return entry.update(values)
     }
 
-    private fun correctForShortenedExpression(json: String): BsonDocument {
+    private fun correctForShortenedExpression(json: String): JsonObject {
+        var finalJson = json
+
         // Check if the json has been shortened
-        if (json.contains(Regex("[ ]+[\\.]{3}[ ]+"))) {
-            logger.info { "could not parse json as it's been shortend [$json]" }
-            return BsonDocument()
-        } else {
-            return commandToBsonDocument(json)
+        return when (finalJson.contains(Regex("[ ]+[\\.]{3}[ ]+"))) {
+            true -> {
+                logger.info { "could not parse json as it's been shortend [$finalJson]" }
+                JsonObject()
+            }
+            false -> {
+                commandToBsonDocument(finalJson)
+            }
         }
     }
 
     private fun extractLogLineParts(partsTokenizer: StringTokenizer) : MutableMap<String, Any> {
+        var previousToken: String? = null
         val values = mutableMapOf<String, Any>(
             "command" to BsonDocument()
         )
 
         while (partsTokenizer.hasMoreTokens()) {
-            val token = partsTokenizer.nextToken()
+            val token: String
+
+            if (previousToken != null) {
+                token = previousToken
+                previousToken = null
+            } else {
+                token = partsTokenizer.nextToken()
+            }
 
             if (token.startsWith("command:")) {
                 val jsToken = partsTokenizer.nextToken()
@@ -364,6 +378,10 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
                 values["ndeleted"] = extractInt(token, partsTokenizer)
             } else if (token.startsWith("keysDeleted:")) {
                 values["keysDeleted"] = extractInt(token, partsTokenizer)
+            } else if (token.startsWith("ninserted:")) {
+                values["ninserted"] = extractInt(token, partsTokenizer)
+            } else if (token.startsWith("keysInserted:")) {
+                values["keysInserted"] = extractInt(token, partsTokenizer)
             } else if (token.startsWith("reslen:")) {
                 values["reslen"] = extractInt(token, partsTokenizer)
             } else if (token.startsWith("cursorExhausted:")) {
@@ -384,23 +402,39 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
                 val update = correctForShortenedExpression(readJson(partsTokenizer))
 
                 if (values.containsKey("command")) {
-                    (values.get("command") as BsonDocument).append("u", update)
+                    (values.get("command") as JsonObject).put("u", update)
                 }
             } else if (token.startsWith("query:")) {
                 val query = correctForShortenedExpression(readJson(partsTokenizer))
 
                 if (values.containsKey("command")) {
-                    (values.get("command") as BsonDocument).append("q", query)
+                    (values.get("command") as JsonObject).put("q", query)
                 }
             } else if (token.startsWith("planSummary:")) {
                 val scanType = partsTokenizer.nextToken().trim()
-                var document = BsonDocument()
+                var document = JsonObject()
 
                 if (scanType.toUpperCase() == "IXSCAN") {
                     document = correctForShortenedExpression(readJson(partsTokenizer))
                 }
 
                 values["planSummary"] = PlanSummary(scanType, document)
+            } else if (token.startsWith("exception:")) {
+                // Read until next tag
+                val tokens = mutableListOf<String>()
+
+                while (true) {
+                    val nextToken = partsTokenizer.nextToken()
+
+                    if (nextToken.contains("^\\s+\\:")) {
+                        previousToken = nextToken
+                    }
+                }
+
+                println()
+                // exception: Unrecognized expression '${'$'}date' code:168
+            } else if (token.startsWith("code:")) {
+                values["code"] = extractInt(token, partsTokenizer)
             }
         }
 
