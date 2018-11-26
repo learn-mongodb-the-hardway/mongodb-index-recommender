@@ -2,16 +2,12 @@ package com.mconsulting.indexrecommender
 
 import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonObject
-import com.beust.klaxon.JsonReader
-import com.beust.klaxon.JsonValue
 import com.beust.klaxon.Parser
-import com.mongodb.util.JSON
 import jdk.nashorn.api.scripting.ScriptObjectMirror
-import jdk.nashorn.internal.parser.JSONParser
 import org.bson.BsonArray
+import org.bson.BsonBoolean
 import org.bson.BsonDocument
 import org.bson.BsonDouble
-import org.bson.BsonElement
 import org.bson.BsonInt32
 import org.bson.BsonInt64
 import org.bson.BsonJavaScript
@@ -133,7 +129,7 @@ private val NUMBERINT_REGEX = Pattern(Regex("""NumberInt\(\"([\d]+)\"\)"""), "$1
 private val NUMBERDECIMAL_REGEX = Pattern(Regex("""NumberDecimal\(\"([\d|\.]+)\"\)"""), "{ \"\\${'$'}numberDecimal\": \"$1\" }")
 private val BINDATA_REGEX = Pattern(Regex("""BinData\(([\d])+,[ ]*\"([\d|\w|\+|\/\=]+)\"\)"""), "{ \"\\${'$'}binary\": \"$2\", \"\\${'$'}type\": \"$1\" }")
 private val TIMESTAMP_REGEX = Pattern(Regex("""Timestamp\(([\d])+,[ ]*([\d])+\)"""), "{ \"\\${'$'}timestamp\": { \"t\": $1, \"i\": $2 } }")
-private val UNDEFINED_REGEX = Pattern(Regex("[[ ]+|\\:]undefined"), "{ \"\\${'$'}undefined\": true }")
+private val UNDEFINED_REGEX = Pattern(Regex("[[ ]+|\\:]undefined|^[ |,]*undefined[,| ]*$"), "{ \"\\${'$'}undefined\": true }")
 private val BOOLEAN_REGEX = Pattern(Regex("""Boolean\(\"(\w+)\"\)"""), "$1")
 private val BOOLEAN2_REGEX = Pattern(Regex("""Boolean\((\w+)\)"""), "$1")
 private val MINKEY_REGEX = Pattern(Regex("""MinKey|MinKey\(\)"""), "{ \"\\${'$'}minKey\": 1 }")
@@ -145,9 +141,15 @@ private val DATE_REGEXP = Pattern(Regex("Date\\((\\d+)\\)"), "{ \"\\${'$'}number
 // Javascript Engine
 private val engine = ScriptEngineManager().getEngineByName("javascript")
 
-fun commandToBsonDocument(json: String): JsonObject {
+fun commandToJsonObject(json: String): JsonObject {
     return when (!json.contains(Regex("\\:[ ]*function[ ]*\\("))) {
-        true -> fastPath(json)
+        true -> {
+            try {
+                fastPath(json)
+            } catch (ex: Exception) {
+                slowPath(json)
+            }
+        }
         else -> slowPath(json)
     }
 }
@@ -165,8 +167,6 @@ fun slowPath(json: String): JsonObject {
     val result = translateScriptObject(obj)
     // Turn to JSON and then re-parse to correctly handle any extended JSON
     return Parser().parse(StringReader(result.toJson())) as JsonObject
-//    val finalDocument = BsonDocument.parse(result.toJson())
-//    return finalDocument
 }
 
 fun translateScriptObject(obj: ScriptObjectMirror) : BsonDocument {
@@ -193,6 +193,7 @@ fun translateScriptObject(obj: ScriptObjectMirror) : BsonDocument {
                 }
             }
             is Int -> BsonInt32(value)
+            is Boolean -> BsonBoolean(value)
             else -> BsonUndefined()
         }
 
@@ -229,7 +230,22 @@ fun fastPath(json: String): JsonObject {
     return Parser().parse(StringReader(finalJson)) as JsonObject
 }
 
-private fun rewriteBsonTypes(finalJson: String): String {
+private fun rewriteBsonTypes(json: String): String {
+    var finalJson = json
+
+    // Replace some basics
+    finalJson = finalJson.replace(BINDATA_REGEX.match, BINDATA_REGEX.replace)
+    finalJson = finalJson.replace(TIMESTAMP_REGEX.match, TIMESTAMP_REGEX.replace)
+    finalJson = finalJson.replace(NUMBERLONG_REGEX.match, NUMBERLONG_REGEX.replace)
+    finalJson = finalJson.replace(NUMBERDECIMAL_REGEX.match, NUMBERDECIMAL_REGEX.replace)
+    finalJson = finalJson.replace(OBJECTID_REGEX.match, OBJECTID_REGEX.replace)
+    finalJson = finalJson.replace(ISO_REGEX.match, ISO_REGEX.replace)
+    finalJson = finalJson.replace(NUMBERINT_REGEX.match, NUMBERINT_REGEX.replace)
+    finalJson = finalJson.replace(BOOLEAN_REGEX.match, BOOLEAN_REGEX.replace)
+    finalJson = finalJson.replace(BOOLEAN2_REGEX.match, BOOLEAN2_REGEX.replace)
+    finalJson = finalJson.replace(MINKEY_REGEX.match, MINKEY_REGEX.replace)
+    finalJson = finalJson.replace(MAXKEY_REGEX.match, MAXKEY_REGEX.replace)
+
     // Tokenize the json to rewrite some tokens
     val tokenizer = StringTokenizer(finalJson, " ")
     val tokens = mutableListOf<String>()
@@ -246,30 +262,33 @@ private fun rewriteBsonTypes(finalJson: String): String {
             tokens += token.replace("inf.0", "\"inf.0\"")
         } else if (token.contains("nan.0")) {
             tokens += token.replace("nan.0", "\"nan.0\"")
-        } else if (token.contains(ISO_REGEX.match)) {
-            tokens +=  token.replace(ISO_REGEX.match, ISO_REGEX.replace)
-        } else if (token.contains(OBJECTID_REGEX.match)) {
-            tokens +=  token.replace(OBJECTID_REGEX.match, OBJECTID_REGEX.replace)
-        } else if (token.contains(NUMBERLONG_REGEX.match)) {
-            tokens +=  token.replace(NUMBERLONG_REGEX.match, NUMBERLONG_REGEX.replace)
-        } else if (token.contains(NUMBERINT_REGEX.match)) {
-            tokens +=  token.replace(NUMBERINT_REGEX.match, NUMBERINT_REGEX.replace)
-        } else if (token.contains(NUMBERDECIMAL_REGEX.match)) {
-            tokens +=  token.replace(NUMBERDECIMAL_REGEX.match, NUMBERDECIMAL_REGEX.replace)
-        } else if (token.contains(BINDATA_REGEX.match)) {
-            tokens +=  token.replace(BINDATA_REGEX.match, BINDATA_REGEX.replace)
-        } else if (token.contains(TIMESTAMP_REGEX.match)) {
-            tokens +=  token.replace(TIMESTAMP_REGEX.match, TIMESTAMP_REGEX.replace)
+//        } else if (token.contains(ISO_REGEX.match)) {
+//            tokens +=  token.replace(ISO_REGEX.match, ISO_REGEX.replace)
+//        } else if (token.contains(OBJECTID_REGEX.match)) {
+//            tokens +=  token.replace(OBJECTID_REGEX.match, OBJECTID_REGEX.replace)
+//        } else if (token.contains(NUMBERLONG_REGEX.match)) {
+//            tokens +=  token.replace(NUMBERLONG_REGEX.match, NUMBERLONG_REGEX.replace)
+//        } else if (token.contains(NUMBERINT_REGEX.match)) {
+//            tokens +=  token.replace(NUMBERINT_REGEX.match, NUMBERINT_REGEX.replace)
+//        } else if (token.contains(NUMBERDECIMAL_REGEX.match)) {
+//            tokens +=  token.replace(NUMBERDECIMAL_REGEX.match, NUMBERDECIMAL_REGEX.replace)
+//        } else if (token.contains(BINDATA_REGEX.match)) {
+//            tokens +=  token.replace(BINDATA_REGEX.match, BINDATA_REGEX.replace)
+//        } else if (token.contains(TIMESTAMP_REGEX.match)) {
+//            tokens +=  token.replace(TIMESTAMP_REGEX.match, TIMESTAMP_REGEX.replace)
         } else if (token.contains(UNDEFINED_REGEX.match)) {
-            tokens +=  token.replace(UNDEFINED_REGEX.match, UNDEFINED_REGEX.replace)
-        } else if (token.contains(BOOLEAN_REGEX.match)) {
-            tokens +=  token.replace(BOOLEAN_REGEX.match, BOOLEAN_REGEX.replace)
-        } else if (token.contains(BOOLEAN2_REGEX.match)) {
-            tokens +=  token.replace(BOOLEAN2_REGEX.match, BOOLEAN2_REGEX.replace)
-        } else if (token.contains(MINKEY_REGEX.match)) {
-            tokens +=  token.replace(MINKEY_REGEX.match, MINKEY_REGEX.replace)
-        } else if (token.contains(MAXKEY_REGEX.match)) {
-            tokens +=  token.replace(MAXKEY_REGEX.match, MAXKEY_REGEX.replace)
+            tokens += token.replace("undefined", "{ \"\$undefined\": true }")
+//        } else if (token.contains(Regex("\/"))) {
+//            println()
+//            tokens +=  token.replace(UNDEFINED_REGEX.match, UNDEFINED_REGEX.replace)
+//        } else if (token.contains(BOOLEAN_REGEX.match)) {
+//            tokens +=  token.replace(BOOLEAN_REGEX.match, BOOLEAN_REGEX.replace)
+//        } else if (token.contains(BOOLEAN2_REGEX.match)) {
+//            tokens +=  token.replace(BOOLEAN2_REGEX.match, BOOLEAN2_REGEX.replace)
+//        } else if (token.contains(MINKEY_REGEX.match)) {
+//            tokens +=  token.replace(MINKEY_REGEX.match, MINKEY_REGEX.replace)
+//        } else if (token.contains(MAXKEY_REGEX.match)) {
+//            tokens +=  token.replace(MAXKEY_REGEX.match, MAXKEY_REGEX.replace)
         } else if (token.contains(UUID_REGEXP.match)) {
             // Grab group so we can base encode it
             val match = UUID_REGEXP.match.find(token)

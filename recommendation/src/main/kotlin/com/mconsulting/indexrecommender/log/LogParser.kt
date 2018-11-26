@@ -2,9 +2,8 @@ package com.mconsulting.indexrecommender.log
 
 import com.beust.klaxon.JsonObject
 import com.mconsulting.indexrecommender.Namespace
-import com.mconsulting.indexrecommender.commandToBsonDocument
+import com.mconsulting.indexrecommender.commandToJsonObject
 import mu.KLogging
-import org.bson.BsonDocument
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import java.io.BufferedReader
@@ -309,7 +308,7 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
                 JsonObject()
             }
             false -> {
-                commandToBsonDocument(finalJson)
+                commandToJsonObject(finalJson)
             }
         }
     }
@@ -317,7 +316,7 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
     private fun extractLogLineParts(partsTokenizer: StringTokenizer) : MutableMap<String, Any> {
         var previousToken: String? = null
         val values = mutableMapOf<String, Any>(
-            "command" to BsonDocument()
+            "command" to JsonObject()
         )
 
         while (partsTokenizer.hasMoreTokens()) {
@@ -392,7 +391,7 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
                 values["protocol"] = extractString(token, partsTokenizer)
             } else if (token.startsWith("locks:")) {
                 if (token.contains("{") && token.contains("}")) {
-                    values["locks"] = BsonDocument()
+                    values["locks"] = JsonObject()
                 } else if (token.contains("{")) {
                     values["locks"] = correctForShortenedExpression(readJson(partsTokenizer, "{"))
                 } else {

@@ -20,10 +20,7 @@ import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
 import com.mconsulting.indexrecommender.profiling.QueryCommand
 import com.mongodb.MongoClient
-import org.bson.BsonArray
 import org.bson.BsonDocument
-import org.bson.BsonRegularExpression
-import org.bson.BsonValue
 
 class IndexRecommendationOptions()
 
@@ -216,7 +213,7 @@ class IndexRecommendationEngine(
         traverse(matchExpression) { _, _, entry ->
             // Do we have an $expr for the comparison
             val value = entry.value
-            if (value is BsonArray) {
+            if (value is JsonArray<*>) {
                 when (entry.key) {
                     "\$eq",
                     "\$gt",
@@ -225,7 +222,7 @@ class IndexRecommendationEngine(
                     "\$lte",
                     "\$cmp",
                     "\$ne" -> {
-                        var fieldName = (entry.value as BsonArray).get(0).asString().value
+                        var fieldName = (entry.value as JsonArray<*>)[0] as String
                         if (fieldName.startsWith("\$")) {
                             fieldName = fieldName.substring(1)
                         }
@@ -321,7 +318,7 @@ class IndexRecommendationEngine(
         val queryFilterNames = JsonObject()
 
         traverse(query.filter) { _, _path, entry ->
-            if (entry.value is BsonRegularExpression) {
+            if (entry.value is JsonObject && isBsonRegularExpression(entry.value as JsonObject)) {
                 // Add to the list of regular expressions
                 regularExpressions.add(_path.toList() + entry.key)
                 // Remove from the filtered out Doc
@@ -357,10 +354,19 @@ class IndexRecommendationEngine(
         var contains = false
 
         traverse(query.filter) { _, _, entry ->
-            if (entry.value is BsonRegularExpression) contains = true
+            if (entry.value is JsonObject && isBsonRegularExpression(entry.value as JsonObject)) contains = true
         }
 
         return contains
+    }
+
+    private fun isBsonRegularExpression(value: JsonObject): Boolean {
+        if ((value.containsKey("\$regex") && value.size == 1)
+            || (value.containsKey("\$regex") && value.containsKey("\$options") && value.size == 2)) {
+            return true
+        }
+
+        return false
     }
 
     private fun addGeoQueryIndex(query: QueryCommand, candidateIndexes: MutableList<Index>) {
