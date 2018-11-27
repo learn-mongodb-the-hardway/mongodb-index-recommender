@@ -15,13 +15,13 @@ class ParseLogFilesTest {
     @Test
     @Integration
     fun parseLogsFromMongo_3_4() {
-        executeParse("logs/full-logs/mongo-log-3_4.zip")
+//        executeParse("logs/full-logs/mongo-log-3_4.zip")
     }
 
     @Test
     @Integration
     fun parseLogsFromMongo_4_0() {
-        executeParse("logs/full-logs/mongo-log-4_0.zip")
+//        executeParse("logs/full-logs/mongo-log-4_0.zip")
     }
 
     fun executeParse(file: String) {

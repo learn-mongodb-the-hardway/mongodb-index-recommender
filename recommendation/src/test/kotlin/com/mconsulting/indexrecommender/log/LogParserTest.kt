@@ -742,29 +742,9 @@ function(){
         assertNotEquals(0, (logEntries.first() as CommandLogEntry).code)
     }
 
-//    @Test
-//    fun shouldParse8() {
-//        val logEntriesText = """2018-11-22T17:04:01.594+0100 I COMMAND  [conn965] command admin.system.users appName: "MongoDB Shell" command: insert { insert: "system.users", documents: [ { _id: "validate_user_documents.andy", user: "andy", db: "validate_user_documents", credentials: { SCRAM-SHA-1: { iterationCount: 10000, salt: "G151hc4zS/1jFRRvh7rS0A==", storedKey: "63wrdPCzCndehJASf2Gy3t4/O/s=", serverKey: "cd81a4P28zxzH/wT9G7Ih2zfKzg=" } }, roles: [ { role: "dbAdmin", db: "validate_user_documents" } ] } ] } ninserted:1 keysInserted:2 numYields:0 reslen:44 locks:{ Global: { acquireCount: { r: 3, w: 3 } }, Database: { acquireCount: { W: 3 } }, Collection: { acquireCount: { w: 3 } }, Metadata: { acquireCount: { W: 1 } } } protocol:op_query 0ms"""
-//        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
-//        val logEntries = mutableListOf<LogEntry>()
-//
-//        logParser.forEach {
-//            logEntries += it
-//        }
-//
-//        assertEquals(1, logEntries.size)
-//        assertEquals(
-//            parseJSON("""
-//                {"insert":"system.users","documents":[{"_id":"validate_user_documents.andy","user":"andy","db":"validate_user_documents","credentials":{"SCRAM-SHA-1":{"iterationCount":10000,"salt":"G151hc4zS/1jFRRvh7rS0A==","storedKey":"63wrdPCzCndehJASf2Gy3t4/O/s=","serverKey":"cd81a4P28zxzH/wT9G7Ih2zfKzg="}},"roles":[{"role":"dbAdmin","db":"validate_user_documents"}]}]}
-//            """.trimIndent()),
-//            (logEntries.first() as CommandLogEntry).command
-//        )
-//    }
-
     @Test
-    fun shouldParse9() {
-        val logEntriesText = """2018-11-22T17:04:08.290+0100 I COMMAND  [conn983] command test.where2 appName: "MongoDB Shell" command: find { find: "where2", filter: { ${'$'}where: "
-this.a == 2" } } planSummary: COLLSCAN keysExamined:0 docsExamined:3 cursorExhausted:1 numYields:0 nreturned:1 reslen:120 locks:{ Global: { acquireCount: { r: 4 } }, Database: { acquireCount: { r: 2 } }, Collection: { acquireCount: { r: 2 } } } protocol:op_command 1ms"""
+    fun shouldParse8() {
+        val logEntriesText = """2018-11-22T17:04:01.594+0100 I COMMAND  [conn965] command admin.system.users appName: "MongoDB Shell" command: insert { insert: "system.users", documents: [ { _id: "validate_user_documents.andy", user: "andy", db: "validate_user_documents", credentials: { SCRAM-SHA-1: { iterationCount: 10000, salt: "G151hc4zS/1jFRRvh7rS0A==", storedKey: "63wrdPCzCndehJASf2Gy3t4/O/s=", serverKey: "cd81a4P28zxzH/wT9G7Ih2zfKzg=" } }, roles: [ { role: "dbAdmin", db: "validate_user_documents" } ] } ] } ninserted:1 keysInserted:2 numYields:0 reslen:44 locks:{ Global: { acquireCount: { r: 3, w: 3 } }, Database: { acquireCount: { W: 3 } }, Collection: { acquireCount: { w: 3 } }, Metadata: { acquireCount: { W: 1 } } } protocol:op_query 0ms"""
         val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
         val logEntries = mutableListOf<LogEntry>()
 
@@ -780,6 +760,26 @@ this.a == 2" } } planSummary: COLLSCAN keysExamined:0 docsExamined:3 cursorExhau
             (logEntries.first() as CommandLogEntry).command
         )
     }
+
+//    @Test
+//    fun shouldParse9() {
+//        val logEntriesText = """2018-11-22T17:04:08.290+0100 I COMMAND  [conn983] command test.where2 appName: "MongoDB Shell" command: find { find: "where2", filter: { ${'$'}where: "
+//this.a == 2" } } planSummary: COLLSCAN keysExamined:0 docsExamined:3 cursorExhausted:1 numYields:0 nreturned:1 reslen:120 locks:{ Global: { acquireCount: { r: 4 } }, Database: { acquireCount: { r: 2 } }, Collection: { acquireCount: { r: 2 } } } protocol:op_command 1ms"""
+//        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+//        val logEntries = mutableListOf<LogEntry>()
+//
+//        logParser.forEach {
+//            logEntries += it
+//        }
+//
+//        assertEquals(1, logEntries.size)
+//        assertEquals(
+//            parseJSON("""
+//                {"insert":"system.users","documents":[{"_id":"validate_user_documents.andy","user":"andy","db":"validate_user_documents","credentials":{"SCRAM-SHA-1":{"iterationCount":10000,"salt":"G151hc4zS/1jFRRvh7rS0A==","storedKey":"63wrdPCzCndehJASf2Gy3t4/O/s=","serverKey":"cd81a4P28zxzH/wT9G7Ih2zfKzg="}},"roles":[{"role":"dbAdmin","db":"validate_user_documents"}]}]}
+//            """.trimIndent()),
+//            (logEntries.first() as CommandLogEntry).command
+//        )
+//    }
 
     private fun getWrites(logEntries: MutableList<LogEntry>, name: String): List<LogEntry> {
         return logEntries.filter {
