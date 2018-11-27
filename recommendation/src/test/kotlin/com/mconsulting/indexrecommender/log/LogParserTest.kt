@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test
 import java.io.BufferedReader
 import java.io.StringReader
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 fun parseJSON(json: String) : JsonObject {
@@ -245,13 +247,8 @@ class LogParserTest {
         assertEquals(2, logEntries.size)
         assertTrue(logEntries.first() is CommandLogEntry)
         assertEquals(parseJSON("""
-            {
-                "find": "max_time_ms",
-                "filter": {
-                    "${'$'}where": { "${'$'}code": "function () { sleep(100); return true; }" }
-                },
-                "maxTimeMS": { "${'$'}numberLong": "10000" }
-            }""".trimMargin()),
+            {"find":"max_time_ms","filter":{"${'$'}where":{"${'$'}code":"function () {\nsleep(100);\nreturn true;\n}"}},"maxTimeMS":{"${'$'}numberLong":"10000"}}
+        """.trimMargin()),
             (logEntries.first() as CommandLogEntry).command)
     }
 
@@ -273,13 +270,8 @@ class LogParserTest {
         assertEquals(1, logEntries.size)
         assertTrue(logEntries.first() is CommandLogEntry)
         assertEquals(parseJSON("""
-            {
-                "find": "max_time_ms",
-                "filter": {
-                    "${'$'}where": { "${'$'}code": "function () { sleep(100); return true; }" }
-                },
-                "maxTimeMS": { "${'$'}numberLong": "10000" }
-            }""".trimMargin()),
+            {"find":"max_time_ms","filter":{"${'$'}where":{"${'$'}code":"function () {\n sleep(100);\n return true;\n}"}},"maxTimeMS":{"${'$'}numberLong":"10000"}}
+        """.trimMargin()),
             (logEntries.first() as CommandLogEntry).command)
     }
 
@@ -297,14 +289,15 @@ class LogParserTest {
             logEntries += it
         }
 
-        assertEquals(1, logEntries.size)
-        assertTrue(logEntries.first() is CommandLogEntry)
+        assertEquals(2, logEntries.size)
+        assertTrue(logEntries[0] is NoSupportedLogEntry)
+        assertTrue(logEntries[1] is CommandLogEntry)
         assertEquals(parseJSON("""
             {
                 "collStats": "system.profile",
                 "scale": { "${'$'}undefined": true }
             }""".trimMargin()),
-            (logEntries.first() as CommandLogEntry).command)
+            (logEntries[1] as CommandLogEntry).command)
     }
 
     @Test
@@ -395,17 +388,242 @@ class LogParserTest {
     }
 
     @Test
+    fun shouldCorrectlyParseObjectId() {
+        val logEntriesText = """2018-11-22T17:00:18.957+0100 I COMMAND  [conn617] command test.long_index_rename appName: "MongoDB Shell" command: insert { insert: "long_index_rename", documents: [ { a: 1.0, _id: ObjectId('5bf6d29201fd9c2e3958e4ec') } ], ordered: true } ninserted:1 keysInserted:1 numYields:0 reslen:29 locks:{ Global: { acquireCount: { r: 3, w: 3 } }, Database: { acquireCount: { w: 2, W: 1 } }, Collection: { acquireCount: { w: 2 } } } protocol:op_command 19ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""{"insert":"long_index_rename","documents":[{"a":1.0,"_id":{"${'$'}oid":"5bf6d29201fd9c2e3958e4ec"}}],"ordered":true}"""),
+            (logEntries.first() as CommandLogEntry).command
+        )
+    }
+
+    @Test
     fun shouldCorrectlyParseExceptionInLogStatement() {
-        // TODO Fix Test
         val logEntriesText = """2018-11-22T17:05:15.052+0100 I COMMAND  [conn1067] command test.jstests_aggregation_server6290 appName: "MongoDB Shell" command: aggregate { aggregate: "jstests_aggregation_server6290", pipeline: [ { ${'$'}group: { _id: 0.0, a: { ${'$'}first: { ${'$'}date: [ { year: 1.0 } ] } } } } ], cursor: { batchSize: 0.0 } } exception: Unrecognized expression '${'$'}date' code:168 numYields:0 reslen:114 locks:{ Global: { acquireCount: { r: 4 } }, Database: { acquireCount: { r: 2 } }, Collection: { acquireCount: { r: 1 } } } protocol:op_command 0ms"""
         val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
         val logEntries = mutableListOf<LogEntry>()
 
-//        logParser.forEach {
-//            logEntries += it
-//        }
+        logParser.forEach {
+            logEntries += it
+        }
 
-//        assertEquals(1, logEntries.size)
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""{"aggregate":"jstests_aggregation_server6290","pipeline":[{"${'$'}group":{"_id":0.0,"a":{"${'$'}first":{"${'$'}date":[{"year":1.0}]}}}}],"cursor":{"batchSize":0.0}}"""),
+            (logEntries.first() as CommandLogEntry).command
+        )
+        assertNotNull((logEntries.first() as CommandLogEntry).exception)
+        assertTrue((logEntries.first() as CommandLogEntry).code != 0)
+    }
+
+    @Test
+    fun shouldSkipStatementDueToJsonShortening() {
+        val logEntriesText = """2018-11-22T17:00:20.484+0100 I COMMAND  [conn620] command test.max_time_ms appName: "MongoDB Shell" command: find { find: "max_time_ms", filter: { ${'$'}where: function () {
+if (this.slow) {
+... }, batchSize: 3.0, sort: { _id: 1.0 }, maxTimeMS: 4000.0 } planSummary: IXSCAN { _id: 1 } cursorid:11501599070999 keysExamined:3 docsExamined:3 numYields:0 nreturned:3 reslen:152 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 1 } }, Collection: { acquireCount: { r: 1 } } } protocol:op_command 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertTrue(logEntries.first() is NoSupportedLogEntry)
+    }
+
+    @Test
+    fun shoulCorreclyParseMissingCloseQuote() {
+        val logEntriesText = """2018-11-22T17:01:04.118+0100 I COMMAND  [conn633] command test.mr_comments appName: "MongoDB Shell" command: mapReduce { mapreduce: "mr_comments", map: "// This will fail
+function(){
+    // Emit some stuff
+    emit(this.foo, 1)
+}
+", reduce: function (key, values) {
+        return Array.sum(values);
+    }, out: "mr_comments_out" } planSummary: COUNT keysExamined:0 docsExamined:0 numYields:0 reslen:124 locks:{ Global: { acquireCount: { r: 42, w: 18, W: 2 } }, Database: { acquireCount: { r: 9, w: 9, R: 2, W: 11 } }, Collection: { acquireCount: { r: 9, w: 11 } }, Metadata: { acquireCount: { W: 1 } } } protocol:op_command 74ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(0, logEntries.size)
+    }
+
+    @Test
+    fun shouldParseMapreduce() {
+        val logEntriesText = """2018-11-22T17:01:00.349+0100 I COMMAND  [conn631] command test.mr_bigobject appName: "MongoDB Shell" command: mapReduce { mapreduce: "mr_bigobject", map: function () {
+    emit(1, this.s);
+}, reduce: function (k, v) {
+    return 1;
+}, out: "mr_bigobject_out" } planSummary: COUNT keysExamined:0 docsExamined:0 numYields:5 reslen:125 locks:{ Global: { acquireCount: { r: 48, w: 16, W: 2 } }, Database: { acquireCount: { r: 8, w: 7, R: 7, W: 12 } }, Collection: { acquireCount: { r: 8, w: 10 } }, Metadata: { acquireCount: { W: 1 } } } protocol:op_command 335ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"mapreduce":"mr_bigobject","map":{"${'$'}code":"function () {\n emit(1, this.s);\n}"},"reduce":{"${'$'}code":"function (k, v) {\n return 1;\n}"},"out":"mr_bigobject_out"}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldManageComma() {
+        val logEntriesText = """2018-11-22T17:01:30.999+0100 I WRITE    [conn700] remove test.jstests_or4 appName: "MongoDB Shell" query: { ${'$'}or: [ { a: 2.0 }, { b: 3.0 } ] } planSummary: IXSCAN { a: 1 }, IXSCAN { b: 1 } keysExamined:4 docsExamined:4 ndeleted:4 keysDeleted:12 numYields:0 locks:{ Global: { acquireCount: { r: 1, w: 1 } }, Database: { acquireCount: { w: 1 } }, Collection: { acquireCount: { w: 1 } } } 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        val entry = (logEntries.first() as WriteCommandLogEntry)
+        assertEquals(
+            parseJSON("""
+                {"q":{"${'$'}or":[{"a":2.0},{"b":3.0}]}}
+            """.trimIndent()),
+            entry.command
+        )
+        assertEquals("IXSCAN", entry.planSummary.entries[0].type)
+        assertEquals(JsonObject(mapOf(
+            "a" to 1
+        )), entry.planSummary.entries[0].document)
+        assertEquals("IXSCAN", entry.planSummary.entries[1].type)
+        assertEquals(JsonObject(mapOf(
+            "b" to 1
+        )), entry.planSummary.entries[1].document)
+    }
+
+    @Test
+    fun shouldParseCorrectlyWithUnexpecteCharacter() {
+        val logEntriesText = """2018-11-22T17:06:02.691+0100 I COMMAND  [conn1153] command test.roundtrip_basic appName: "MongoDB Shell" command: find { find: "roundtrip_basic", filter: { decimal: -Infinity }, sort: { decimal: 1.0, _id: 1.0 }, projection: { _id: 0.0 } } planSummary: COLLSCAN keysExamined:0 docsExamined:13 hasSortStage:1 cursorExhausted:1 numYields:0 nreturned:1 reslen:126 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 1 } }, Collection: { acquireCount: { r: 1 } } } protocol:op_command 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"find":"roundtrip_basic","filter":{"decimal":"-Infinity"},"sort":{"decimal":1.0,"_id":1.0},"projection":{"_id":0.0}}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldManageToParseBinData() {
+        val logEntriesText = """2018-11-22T17:05:14.227+0100 I COMMAND  [conn1059] command test.s6570 appName: "MongoDB Shell" command: aggregate { aggregate: "s6570", pipeline: [ { ${'$'}project: { str: { ${'$'}concat: [ BinData(0, ) ] } } } ], cursor: { batchSize: 0.0 } } exception: ${'$'}concat only supports strings, not binData code:16702 numYields:0 reslen:115 locks:{ Global: { acquireCount: { r: 4 } }, Database: { acquireCount: { r: 2 } }, Collection: { acquireCount: { r: 1 } } } protocol:op_command 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"aggregate":"s6570","pipeline":[{"${'$'}project":{"str":{"${'$'}concat":[{"${'$'}binary":"","${'$'}type":"0"}]}}}],"cursor":{"batchSize":0.0}}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldParseWeirdTimestamp() {
+        val logEntriesText = """2018-11-22T17:05:13.916+0100 I COMMAND  [conn1056] command test.jstests_aggregation_server6190 appName: "MongoDB Shell" command: aggregate { aggregate: "jstests_aggregation_server6190", pipeline: [ { ${'$'}project: { a: { ${'$'}week: Timestamp 441763200000|1000000000 } } }, { ${'$'}match: { a: { ${'$'}type: 16.0 } } } ], cursor: {} } planSummary: COLLSCAN keysExamined:0 docsExamined:1 cursorExhausted:1 numYields:0 nreturned:1 reslen:140 locks:{ Global: { acquireCount: { r: 8 } }, Database: { acquireCount: { r: 4 } }, Collection: { acquireCount: { r: 3 } } } protocol:op_command 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"aggregate":"jstests_aggregation_server6190","pipeline":[{"${'$'}project":{"a":{"${'$'}week":{"${'$'}timestamp":{"t":441763200000,"i":1000000000}}}}},{"${'$'}match":{"a":{"${'$'}type":16.0}}}],"cursor":{}}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldParseComplex() {
+        val logEntriesText = """2018-11-22T17:05:13.745+0100 I COMMAND  [conn1055] command test.c appName: "MongoDB Shell" command: aggregate { aggregate: "c", pipeline: [ { ${'$'}project: { _id: 0.0, year: { ${'$'}year: "${'$'}date" }, month: { ${'$'}month: "${'$'}date" }, dayOfMonth: { ${'$'}dayOfMonth: "${'$'}date" }, hour: { ${'$'}hour: "${'$'}date" }, minute: { ${'$'}minute: "${'$'}date" }, second: { ${'$'}second: "${'$'}date" }, millisecond: { ${'$'}millisecond: "${'$'}date" }, millisecondPlusTen: { ${'$'}millisecond: { ${'$'}add: [ "${'$'}date", 10.0 ] } }, string: { ${'$'}substr: [ "${'$'}date", 0.0, 1000.0 ] }, format: { ${'$'}dateToString: { format: "ISODate("%Y-%m-%dT%H:%M:%S.%LZ")", date: "${'$'}date" } } } } ] } planSummary: COLLSCAN keysExamined:0 docsExamined:1 numYields:0 nreturned:0 reslen:235 locks:{ Global: { acquireCount: { r: 8 } }, Database: { acquireCount: { r: 4 } }, Collection: { acquireCount: { r: 3 } } } protocol:op_command 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"aggregate":"c","pipeline":[{"${'$'}project":{"_id":0.0,"year":{"${'$'}year":"${'$'}date"},"month":{"${'$'}month":"${'$'}date"},"dayOfMonth":{"${'$'}dayOfMonth":"${'$'}date"},"hour":{"${'$'}hour":"${'$'}date"},"minute":{"${'$'}minute":"${'$'}date"},"second":{"${'$'}second":"${'$'}date"},"millisecond":{"${'$'}millisecond":"${'$'}date"},"millisecondPlusTen":{"${'$'}millisecond":{"${'$'}add":["${'$'}date",10.0]}},"string":{"${'$'}substr":["${'$'}date",0.0,1000.0]},"format":{"${'$'}dateToString":{"format":"ISODate(\"%Y-%m-%dT%H:%M:%S.%LZ\")","date":"${'$'}date"}}}}]}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldParse1() {
+        val logEntriesText = """2018-11-22T17:04:08.720+0100 I COMMAND  [conn987] command test.${'$'}cmd appName: "MongoDB Shell" command: update { update: "write_commands_reject_unknown_fields", updates: [ { q: {}, u: { ${'$'}inc: { a: 1.0 } } } ], asdf: true } exception: Unknown option to update command: asdf code:9 numYields:0 reslen:111 locks:{} protocol:op_command 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"update":"write_commands_reject_unknown_fields","updates":[{"q":{},"u":{"${'$'}inc":{"a":1.0}}}],"asdf":true}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
+        assertNotNull((logEntries.first() as CommandLogEntry).exception)
+        assertNotEquals(0, (logEntries.first() as CommandLogEntry).code)
+    }
+
+    @Test
+    fun shouldParse2() {
+        val logEntriesText = """2018-11-22T17:03:47.825+0100 I WRITE    [conn933] update test.update_min_max appName: "MongoDB Shell" query: { _id: 6.0 } planSummary: IDHACK update: { ${'$'}min: { a: 1e-15.0 } } keysExamined:1 docsExamined:1 nMatched:1 nModified:1 numYields:0 locks:{ Global: { acquireCount: { r: 1, w: 1 } }, Database: { acquireCount: { w: 1 } }, Collection: { acquireCount: { w: 1 } } } 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"q":{"_id":6.0},"u":{"${'$'}min":{"a":"1e-15.0"}}}
+            """.trimIndent()),
+            (logEntries.first() as WriteCommandLogEntry).command
+        )
     }
 
     private fun getWrites(logEntries: MutableList<LogEntry>, name: String): List<LogEntry> {

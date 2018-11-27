@@ -4,6 +4,7 @@ import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonObject
 import com.beust.klaxon.Parser
 import jdk.nashorn.api.scripting.ScriptObjectMirror
+import mu.KotlinLogging
 import org.bson.BsonArray
 import org.bson.BsonBoolean
 import org.bson.BsonDocument
@@ -122,24 +123,28 @@ $db: "mindex_recommendation_tests"
 
 class Pattern(val match: Regex, val replace: String)
 
-private val ISO_REGEX = Pattern(Regex("""ISODate\(\"([\d|\w|\-|\:|\.]+)\"\)"""), "{ \"\\${'$'}date\": \"$1\" }")
-private val OBJECTID_REGEX = Pattern(Regex("""ObjectId\(\"([\d|\w]+)\"\)"""), "{ \"\\${'$'}oid\": \"$1\" }")
-private val NUMBERLONG_REGEX = Pattern(Regex("""NumberLong\(\"([\d]+)\"\)"""), "{ \"\\${'$'}numberLong\": \"$1\" }")
-private val NUMBERINT_REGEX = Pattern(Regex("""NumberInt\(\"([\d]+)\"\)"""), "$1")
-private val NUMBERDECIMAL_REGEX = Pattern(Regex("""NumberDecimal\(\"([\d|\.]+)\"\)"""), "{ \"\\${'$'}numberDecimal\": \"$1\" }")
-private val BINDATA_REGEX = Pattern(Regex("""BinData\(([\d])+,[ ]*\"([\d|\w|\+|\/\=]+)\"\)"""), "{ \"\\${'$'}binary\": \"$2\", \"\\${'$'}type\": \"$1\" }")
+private val ISO_REGEX = Pattern(Regex("""ISODate\([\"|']([\d|\w|\-|\:|\.]+)[\"|']\)"""), "{ \"\\${'$'}date\": \"$1\" }")
+private val OBJECTID_REGEX = Pattern(Regex("""ObjectId\([\"|']([\d|\w]+)[\"|']\)"""), "{ \"\\${'$'}oid\": \"$1\" }")
+private val NUMBERLONG_REGEX = Pattern(Regex("""NumberLong\([\"|']([\d]+)[\"|']\)"""), "{ \"\\${'$'}numberLong\": \"$1\" }")
+private val NUMBERINT_REGEX = Pattern(Regex("""NumberInt\([\"|']([\d]+)[\"|']\)"""), "$1")
+private val NUMBERDECIMAL_REGEX = Pattern(Regex("""NumberDecimal\([\"|']([\d|\.]+)[\"|']\)"""), "{ \"\\${'$'}numberDecimal\": \"$1\" }")
+private val BINDATA_REGEX = Pattern(Regex("""BinData\(([\d])+,[ ]*[\"|']([\d|\w|\+|\/\=]+)[\"|']\)"""), "{ \"\\${'$'}binary\": \"$2\", \"\\${'$'}type\": \"$1\" }")
+private val BINDATA2_REGEX = Pattern(Regex("""BinData\(([\d])+,[ ]*\)"""), "{ \"\\${'$'}binary\": \"\", \"\\${'$'}type\": \"$1\" }")
 private val TIMESTAMP_REGEX = Pattern(Regex("""Timestamp\(([\d])+,[ ]*([\d])+\)"""), "{ \"\\${'$'}timestamp\": { \"t\": $1, \"i\": $2 } }")
+private val TIMESTAMP2_REGEX = Pattern(Regex("""Timestamp[ ]*(\d+)\|(\d+)"""), "{ \"\\${'$'}timestamp\": { \"t\": $1, \"i\": $2 } }")
 private val UNDEFINED_REGEX = Pattern(Regex("[[ ]+|\\:]undefined|^[ |,]*undefined[,| ]*$"), "{ \"\\${'$'}undefined\": true }")
-private val BOOLEAN_REGEX = Pattern(Regex("""Boolean\(\"(\w+)\"\)"""), "$1")
+private val BOOLEAN_REGEX = Pattern(Regex("""Boolean\([\"|'](\w+)[\"|']\)"""), "$1")
 private val BOOLEAN2_REGEX = Pattern(Regex("""Boolean\((\w+)\)"""), "$1")
 private val MINKEY_REGEX = Pattern(Regex("""MinKey|MinKey\(\)"""), "{ \"\\${'$'}minKey\": 1 }")
 private val MAXKEY_REGEX = Pattern(Regex("""MaxKey|MaxKey\(\)"""), "{ \"\\${'$'}maxKey\": 1 }")
-private val UUID_REGEXP = Pattern(Regex("""UUID\(\"([\d|\w|\-]+)\"\)"""), "$1")
+private val UUID_REGEXP = Pattern(Regex("""UUID\([\"|']([\d|\w|\-]+)[\"|']\)"""), "$1")
 //token.contains(Regex("Date\\([\\d]+\\)"))
 private val DATE_REGEXP = Pattern(Regex("Date\\((\\d+)\\)"), "{ \"\\${'$'}numberLong\": \"$1\" }")
 
 // Javascript Engine
 private val engine = ScriptEngineManager().getEngineByName("javascript")
+
+private val logger = KotlinLogging.logger { }
 
 fun commandToJsonObject(json: String): JsonObject {
     return when (!json.contains(Regex("\\:[ ]*function[ ]*\\("))) {
@@ -235,7 +240,9 @@ private fun rewriteBsonTypes(json: String): String {
 
     // Replace some basics
     finalJson = finalJson.replace(BINDATA_REGEX.match, BINDATA_REGEX.replace)
+    finalJson = finalJson.replace(BINDATA2_REGEX.match, BINDATA2_REGEX.replace)
     finalJson = finalJson.replace(TIMESTAMP_REGEX.match, TIMESTAMP_REGEX.replace)
+    finalJson = finalJson.replace(TIMESTAMP2_REGEX.match, TIMESTAMP2_REGEX.replace)
     finalJson = finalJson.replace(NUMBERLONG_REGEX.match, NUMBERLONG_REGEX.replace)
     finalJson = finalJson.replace(NUMBERDECIMAL_REGEX.match, NUMBERDECIMAL_REGEX.replace)
     finalJson = finalJson.replace(OBJECTID_REGEX.match, OBJECTID_REGEX.replace)
@@ -262,33 +269,14 @@ private fun rewriteBsonTypes(json: String): String {
             tokens += token.replace("inf.0", "\"inf.0\"")
         } else if (token.contains("nan.0")) {
             tokens += token.replace("nan.0", "\"nan.0\"")
-//        } else if (token.contains(ISO_REGEX.match)) {
-//            tokens +=  token.replace(ISO_REGEX.match, ISO_REGEX.replace)
-//        } else if (token.contains(OBJECTID_REGEX.match)) {
-//            tokens +=  token.replace(OBJECTID_REGEX.match, OBJECTID_REGEX.replace)
-//        } else if (token.contains(NUMBERLONG_REGEX.match)) {
-//            tokens +=  token.replace(NUMBERLONG_REGEX.match, NUMBERLONG_REGEX.replace)
-//        } else if (token.contains(NUMBERINT_REGEX.match)) {
-//            tokens +=  token.replace(NUMBERINT_REGEX.match, NUMBERINT_REGEX.replace)
-//        } else if (token.contains(NUMBERDECIMAL_REGEX.match)) {
-//            tokens +=  token.replace(NUMBERDECIMAL_REGEX.match, NUMBERDECIMAL_REGEX.replace)
-//        } else if (token.contains(BINDATA_REGEX.match)) {
-//            tokens +=  token.replace(BINDATA_REGEX.match, BINDATA_REGEX.replace)
-//        } else if (token.contains(TIMESTAMP_REGEX.match)) {
-//            tokens +=  token.replace(TIMESTAMP_REGEX.match, TIMESTAMP_REGEX.replace)
+        } else if (token.contains("-Infinity")) {
+            tokens += token.replace("-Infinity", "\"-Infinity\"")
+        } else if (token.contains("Infinity")) {
+            tokens += token.replace("Infinity", "\"Infinity\"")
+        } else if (token.contains("NaN")) {
+            tokens += token.replace("NaN", "\"NaN\"")
         } else if (token.contains(UNDEFINED_REGEX.match)) {
             tokens += token.replace("undefined", "{ \"\$undefined\": true }")
-//        } else if (token.contains(Regex("\/"))) {
-//            println()
-//            tokens +=  token.replace(UNDEFINED_REGEX.match, UNDEFINED_REGEX.replace)
-//        } else if (token.contains(BOOLEAN_REGEX.match)) {
-//            tokens +=  token.replace(BOOLEAN_REGEX.match, BOOLEAN_REGEX.replace)
-//        } else if (token.contains(BOOLEAN2_REGEX.match)) {
-//            tokens +=  token.replace(BOOLEAN2_REGEX.match, BOOLEAN2_REGEX.replace)
-//        } else if (token.contains(MINKEY_REGEX.match)) {
-//            tokens +=  token.replace(MINKEY_REGEX.match, MINKEY_REGEX.replace)
-//        } else if (token.contains(MAXKEY_REGEX.match)) {
-//            tokens +=  token.replace(MAXKEY_REGEX.match, MAXKEY_REGEX.replace)
         } else if (token.contains(UUID_REGEXP.match)) {
             // Grab group so we can base encode it
             val match = UUID_REGEXP.match.find(token)
@@ -307,6 +295,31 @@ private fun rewriteBsonTypes(json: String): String {
             tokens += "\"${token.substringBeforeLast(":")}\":"
         } else if (match != null) {
             tokens += "\"${match.groups[1]!!.value}\":"
+        } else if (token.contains(Regex("""^\d+e\-\d+"""))) {
+            tokens += "\"$token\""
+        } else if (token.contains("\"")) {
+            // Previous character
+            var previousChar: Char = ' '
+            // Count the number of unescaped quotes
+            val numberOfDoubleQuotes = token.count {
+                if (it == '"' && previousChar != '\\') {
+                    true
+                } else {
+                    previousChar = it
+                    false
+                }
+            }
+
+            // If it's more tan
+            if (numberOfDoubleQuotes > 2) {
+                val tok = token
+                    .substringAfter("\"")
+                    .substringBeforeLast("\"")
+                    .replace("\"", "\\\"")
+                tokens += "\"$tok\""
+            } else {
+                tokens += token
+            }
         } else {
             tokens += token
         }

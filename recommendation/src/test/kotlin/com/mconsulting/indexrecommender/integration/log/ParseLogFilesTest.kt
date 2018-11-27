@@ -43,14 +43,18 @@ class ParseLogFilesTest {
         var failedIndex = 0
 
         while (parser.hasNext()) {
-            try {
+//            try {
                 val entry = parser.next()
-            } catch (err: Exception) {
-                failedIndex += 1
-                println(err.stackTrace.toString())
-                println("[$index] - ${parser.line}")
-                throw err
-            }
+//            } catch (err: Exception) {
+//                failedIndex += 1
+//                println(err.stackTrace.toString())
+//                println("[$index] - ${parser.line}")
+//                throw err
+//            }
+
+//            if (index == 10000) {
+//                break
+//            }
 
             index += 1
         }

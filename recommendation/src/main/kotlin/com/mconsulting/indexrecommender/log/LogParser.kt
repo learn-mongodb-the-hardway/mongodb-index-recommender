@@ -17,6 +17,13 @@ enum class LogTypeNames {
     COMMAND, CONTROL, STORAGE, FTDC, NETWORK, RECOVERY, WRITE
 }
 
+val tags = listOf(
+    "code", "command", "appName", "keysExamined", "docsExamined",
+    "numYields", "nreturned", "nMatched", "nModified", "ndeleted",
+    "keysDeleted", "ninserted", "keysInserted", "reslen", "cursorExhausted",
+    "queryHash", "protocol", "locks", "update", "query", "planSummary", "exception"
+)
+
 //2018-11-12T09:58:08.162+0100 I COMMAND  [conn1] command mindex_recommendation_tests.$cmd appName: "MongoDB Shell" command: profile { profile: 2.0, slowms: 0.0, lsid: { id: UUID("b8a51588-fc4d-4bfc-89e4-903ba7ffadc1") }, $db: "mindex_recommendation_tests" } numYields:0 reslen:79 locks:{ Global: { acquireCount: { r: 1, w: 1 } }, Database: { acquireCount: { W: 1 } } } protocol:op_msg 0ms
 //2018-11-12T09:58:08.164+0100 I COMMAND  [conn1] command mindex_recommendation_tests.$cmd appName: "MongoDB Shell" command: isMaster { isMaster: 1.0, forShell: 1.0, $db: "mindex_recommendation_tests" } numYields:0 reslen:242 locks:{} protocol:op_msg 0ms
 //2018-11-12T09:58:10.450+0100 I COMMAND  [conn1] command mindex_recommendation_tests.t appName: "MongoDB Shell" command: aggregate { aggregate: "t", pipeline: [ { $match: {} } ], cursor: {}, lsid: { id: UUID("b8a51588-fc4d-4bfc-89e4-903ba7ffadc1") }, $db: "mindex_recommendation_tests" } planSummary: COLLSCAN keysExamined:0 docsExamined:4 cursorExhausted:1 numYields:0 nreturned:4 reslen:403 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 2 } }, Collection: { acquireCount: { r: 2 } } } protocol:op_msg 0ms
@@ -29,9 +36,13 @@ interface LogEntry
 abstract class LogEntryBase(
     val timestamp: DateTime,
     val severityLevel: SeverityLevels,
-    val namespace: Namespace) : LogEntry
+    val namespace: Namespace, var exception: String? = null, var code: Int = 0) : LogEntry
 
-class PlanSummary(val type: String = "", val document: JsonObject = JsonObject())
+class PlanSummaryEntry(val type: String = "", val document: JsonObject = JsonObject())
+
+class PlanSummary(val entries: List<PlanSummaryEntry> = listOf())
+
+val VALIDATE_SHORTENED = Regex("[ ]*[\\.]{3}[ |,]*")
 
 class CommandLogEntry(dateTime: DateTime, severityLevel: SeverityLevels, namespace: Namespace) : LogEntryBase(
     dateTime, severityLevel, namespace
@@ -51,6 +62,8 @@ class CommandLogEntry(dateTime: DateTime, severityLevel: SeverityLevels, namespa
         if (values.containsKey("protocol")) protocol = values.get("protocol") as String
         if (values.containsKey("commandName")) commandName = values.get("commandName") as String
         if (values.containsKey("executionTimeMS")) executionTimeMS = values.get("executionTimeMS") as Int
+        if (values.containsKey("exception")) exception = values["exception"] as String
+        if (values.containsKey("code")) code = values["code"] as Int
         return this
     }
 
@@ -75,20 +88,22 @@ class WriteCommandLogEntry(var commandName: String, dateTime: DateTime, severity
 ) {
 
     fun update(values: MutableMap<String, Any>): WriteCommandLogEntry {
-        if (values.containsKey("appName")) appName = values.get("appName") as String
-        if (values.containsKey("command")) command = values.get("command") as JsonObject
-        if (values.containsKey("planSummary")) planSummary = values.get("planSummary") as PlanSummary
-        if (values.containsKey("keysExamined")) keysExamined = values.get("keysExamined") as Int
-        if (values.containsKey("docsExamined")) docsExamined = values.get("docsExamined") as Int
-        if (values.containsKey("cursorExhausted")) cursorExhausted = values.get("cursorExhausted") as Int
-        if (values.containsKey("numYields")) numYields = values.get("numYields") as Int
-        if (values.containsKey("numberReturned")) numberReturned = values.get("numberReturned") as Int
-        if (values.containsKey("queryHash")) queryHash = values.get("queryHash") as String
-        if (values.containsKey("resultLength")) resultLength = values.get("resultLength") as Int
-        if (values.containsKey("locks")) locks = values.get("locks") as JsonObject
-        if (values.containsKey("protocol")) protocol = values.get("protocol") as String
-        if (values.containsKey("commandName")) commandName = values.get("commandName") as String
-        if (values.containsKey("executionTimeMS")) executionTimeMS = values.get("executionTimeMS") as Int
+        if (values.containsKey("appName")) appName = values["appName"] as String
+        if (values.containsKey("command")) command = values["command"] as JsonObject
+        if (values.containsKey("planSummary")) planSummary = values["planSummary"] as PlanSummary
+        if (values.containsKey("keysExamined")) keysExamined = values["keysExamined"] as Int
+        if (values.containsKey("docsExamined")) docsExamined = values["docsExamined"] as Int
+        if (values.containsKey("cursorExhausted")) cursorExhausted = values["cursorExhausted"] as Int
+        if (values.containsKey("numYields")) numYields = values["numYields"] as Int
+        if (values.containsKey("numberReturned")) numberReturned = values["numberReturned"] as Int
+        if (values.containsKey("queryHash")) queryHash = values["queryHash"] as String
+        if (values.containsKey("resultLength")) resultLength = values["resultLength"] as Int
+        if (values.containsKey("locks")) locks = values["locks"] as JsonObject
+        if (values.containsKey("protocol")) protocol = values["protocol"] as String
+        if (values.containsKey("commandName")) commandName = values["commandName"] as String
+        if (values.containsKey("executionTimeMS")) executionTimeMS = values["executionTimeMS"] as Int
+        if (values.containsKey("exception")) exception = values["exception"] as String
+        if (values.containsKey("code")) code = values["code"] as Int
         return this
     }
 
@@ -201,6 +216,7 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
         } catch (err: Exception) {
             if (options.skipParseErrors) {
                 logger.info ("Failed to parse log statement: [$currentLine]", err)
+
                 if (hasNext()) {
                     return next()
                 } else {
@@ -236,8 +252,13 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
             restOfLine = restOfLine.replace(Regex("""(\d)+ms"""), "")
         }
 
+        // Check if it's been shortened (we can't parse this)
+        if (restOfLine.contains(VALIDATE_SHORTENED)) {
+            return NoSupportedLogEntry(currentLine!!)
+        }
+
         // Create string tokenizer
-        val partsTokenizer = StringTokenizer(restOfLine)
+        val partsTokenizer = StringTokenizer(restOfLine, " ")
         // Keep parsing until end
         val values = extractLogLineParts(partsTokenizer)
         // Update the value
@@ -290,27 +311,17 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
             restOfLine = restOfLine.replace(Regex("""(\d)+ms"""), "")
         }
 
+        // Check if it's been shortened (we can't parse this)
+        if (restOfLine.contains(VALIDATE_SHORTENED)) {
+            return NoSupportedLogEntry(currentLine!!)
+        }
+
         // Create string tokenizer
-        val partsTokenizer = StringTokenizer(restOfLine)
+        val partsTokenizer = StringTokenizer(restOfLine, " ")
         // Keep parsing until end
         val values = extractLogLineParts(partsTokenizer)
         // Update the value
         return entry.update(values)
-    }
-
-    private fun correctForShortenedExpression(json: String): JsonObject {
-        var finalJson = json
-
-        // Check if the json has been shortened
-        return when (finalJson.contains(Regex("[ ]+[\\.]{3}[ ]+"))) {
-            true -> {
-                logger.info { "could not parse json as it's been shortend [$finalJson]" }
-                JsonObject()
-            }
-            false -> {
-                commandToJsonObject(finalJson)
-            }
-        }
     }
 
     private fun extractLogLineParts(partsTokenizer: StringTokenizer) : MutableMap<String, Any> {
@@ -333,6 +344,7 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
                 val jsToken = partsTokenizer.nextToken()
                 val json: String
 
+                // Attempt to read the string as a json
                 if (jsToken == "{") {
                     json = readJson(partsTokenizer, jsToken)
                 } else {
@@ -341,7 +353,7 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
                 }
 
                 // Check if the json file has been redacted
-                values["command"] = correctForShortenedExpression(json)
+                values["command"] = commandToJsonObject(json)
             } else if (token.startsWith("appName:")) {
                 val tokens = mutableListOf<String>()
 
@@ -353,10 +365,9 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
                         break
                     }
 
-                    if (tokens.size == 0) {
-                        tokens += value.substring(1)
-                    } else {
-                        tokens += value
+                    tokens += when (tokens.size) {
+                        0 -> value.substring(1)
+                        else -> value
                     }
                 }
 
@@ -393,51 +404,80 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
                 if (token.contains("{") && token.contains("}")) {
                     values["locks"] = JsonObject()
                 } else if (token.contains("{")) {
-                    values["locks"] = correctForShortenedExpression(readJson(partsTokenizer, "{"))
+                    values["locks"] = commandToJsonObject(readJson(partsTokenizer, "{"))
                 } else {
-                    values["locks"] = correctForShortenedExpression(readJson(partsTokenizer))
+                    values["locks"] = commandToJsonObject(readJson(partsTokenizer))
                 }
             } else if (token.startsWith("update:")) {
-                val update = correctForShortenedExpression(readJson(partsTokenizer))
+                val update = commandToJsonObject(readJson(partsTokenizer))
 
                 if (values.containsKey("command")) {
                     (values.get("command") as JsonObject).put("u", update)
                 }
             } else if (token.startsWith("query:")) {
-                val query = correctForShortenedExpression(readJson(partsTokenizer))
+                val query = commandToJsonObject(readJson(partsTokenizer))
 
                 if (values.containsKey("command")) {
                     (values.get("command") as JsonObject).put("q", query)
                 }
             } else if (token.startsWith("planSummary:")) {
-                val scanType = partsTokenizer.nextToken().trim()
-                var document = JsonObject()
-
-                if (scanType.toUpperCase() == "IXSCAN") {
-                    document = correctForShortenedExpression(readJson(partsTokenizer))
-                }
-
-                values["planSummary"] = PlanSummary(scanType, document)
-            } else if (token.startsWith("exception:")) {
                 // Read until next tag
                 val tokens = mutableListOf<String>()
+                previousToken = readUntilNextTag(tokens, partsTokenizer)
 
-                while (true) {
-                    val nextToken = partsTokenizer.nextToken()
+                // Create the string to parse
+                val plan = tokens.joinToString(" ")
 
-                    if (nextToken.contains("^\\s+\\:")) {
-                        previousToken = nextToken
+                // Parse it
+                val tokenizer = StringTokenizer(plan, " ")
+                val entries = mutableListOf<PlanSummaryEntry>()
+
+                while (tokenizer.hasMoreTokens()) {
+                    val nToken = tokenizer.nextToken()
+
+                    if (nToken.contains("IXSCAN")) {
+                        // Read the json
+                        val json = readJson(tokenizer)
+                        entries += PlanSummaryEntry("IXSCAN", commandToJsonObject(json))
                     }
                 }
 
-                println()
-                // exception: Unrecognized expression '${'$'}date' code:168
+                values["planSummary"] = PlanSummary(entries)
+            } else if (token.startsWith("exception:")) {
+                // Read until next tag
+                val tokens = mutableListOf<String>()
+                previousToken = readUntilNextTag(tokens, partsTokenizer, "code")
+                values["exception"] = tokens.joinToString(" ")
             } else if (token.startsWith("code:")) {
                 values["code"] = extractInt(token, partsTokenizer)
             }
         }
 
         return values
+    }
+
+    private fun readUntilNextTag(tokens: MutableList<String>, tokenizer: StringTokenizer, untilTag: String? = null) : String? {
+        var previousToken: String?
+
+        while (true) {
+            val nextToken = tokenizer.nextToken()
+
+            if (nextToken.contains(Regex("^(\\w+):"))) {
+                val tag = Regex("^(\\w+):").find(nextToken)!!.groups[1]!!.value
+
+                if (untilTag != null && tag == untilTag) {
+                    previousToken = nextToken
+                    break
+                } else if (untilTag == null && tag in tags) {
+                    previousToken = nextToken
+                    break
+                }
+            }
+
+            tokens += nextToken
+        }
+
+        return previousToken
     }
 
     private fun readJson(partsTokenizer: StringTokenizer, token: String? = null): String {
@@ -452,12 +492,14 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
         do {
             val nextToken = partsTokenizer.nextToken()
 
-            if (nextToken.startsWith("{") && nextToken.contains("}")) {
-            } else if (nextToken.startsWith("{")) {
+            if (nextToken.contains("{") && nextToken.contains("}")) {
+            } else if (nextToken.contains("{")) {
                 depth += 1
-            } else if (nextToken.startsWith("}")) {
-                depth -= 1
-            } else if (nextToken.endsWith("}")) {
+            } else if (nextToken.contains("}")) {
+                if (!nextToken.endsWith("}")) {
+
+                }
+
                 depth -= 1
             }
 
@@ -468,12 +510,18 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
             throw Exception("illegal json string [${tokens.joinToString(" ")}]")
         }
 
-        return tokens.joinToString(" ")
+        return tokens.joinToString(" ").substringBeforeLast("}") + "}"
     }
 
     fun forEach(function: (entry: LogEntry) -> Unit) {
         while (hasNext()) {
-            function(next())
+            try {
+                function(next())
+            } catch (err: Exception) {
+                if (err.message != "no currentLine read") {
+                    function(next())
+                }
+            }
         }
     }
 
