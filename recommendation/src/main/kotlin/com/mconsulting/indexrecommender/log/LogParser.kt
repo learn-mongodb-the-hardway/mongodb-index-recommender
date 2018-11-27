@@ -462,6 +462,10 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
         while (true) {
             val nextToken = tokenizer.nextToken()
 
+            if (nextToken.startsWith("{")) {
+                tokens += readJson(tokenizer, nextToken)
+            }
+
             if (nextToken.contains(Regex("^(\\w+):"))) {
                 val tag = Regex("^(\\w+):").find(nextToken)!!.groups[1]!!.value
 

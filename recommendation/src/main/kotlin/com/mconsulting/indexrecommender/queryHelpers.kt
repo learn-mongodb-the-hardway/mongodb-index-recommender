@@ -334,7 +334,11 @@ private fun rewriteBsonTypes(json: String): String {
             tokens += "\"$token\""
         } else if (token.contains(Regex("""^[\d|\.]*[e|E][\-|\+]\d+"""))) {
             tokens += "{ \"\$numberDecimal\": \"$token\" }"
-        } else if (token.contains(Regex("([\\w|\\\$|\\_|\\-]+\\.)+[\\w|\\\$|\\_|\\-]+:"))) {
+        } else if (token.contains(Regex("([\\w|\\\$|\\_|\\-|\\d]+\\.)+[\\w|\\\$|\\_|\\-|\\d]+:"))) {
+            tokens += "\"${token.substringBeforeLast(":")}\":"
+        } else if (token.contains(Regex("^\\d")) && token.endsWith(":")) {
+            tokens += "\"${token.substringBeforeLast(":")}\":"
+        } else if (!token.contains("\"") && token.contains("-") && token.endsWith(":")) {
             tokens += "\"${token.substringBeforeLast(":")}\":"
         } else if (token.contains("\"")) {
             // Previous character
