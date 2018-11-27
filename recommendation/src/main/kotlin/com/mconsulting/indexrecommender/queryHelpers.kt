@@ -21,6 +21,7 @@ import java.util.*
 import javax.script.ScriptEngineManager
 import kotlin.Exception
 import kotlin.math.roundToLong
+import kotlin.math.sign
 
 fun generateProjection(document: JsonObject): JsonObject {
     val paths = mutableListOf<String>()
@@ -171,8 +172,6 @@ fun slowPath(json: String): JsonObject {
 
     // Rewrite script object to BsonDocument
     return translateScriptObject(obj)
-//    // Turn to JSON and then re-parse to correctly handle any extended JSON
-//    return Parser().parse(StringReader(result.toJsonString())) as JsonObject
 }
 
 fun translateScriptObject(obj: ScriptObjectMirror) : JsonObject {
@@ -212,40 +211,6 @@ fun translateScriptObject(obj: ScriptObjectMirror) : JsonObject {
     return document
 }
 
-//fun translateScriptObject(obj: ScriptObjectMirror) : BsonDocument {
-//    var document = BsonDocument()
-//
-//    for (entry in obj.entries) {
-//        val value = entry.value
-//        val bsonValue:BsonValue = when(value) {
-//            is ScriptObjectMirror -> {
-//                if (value.isFunction) {
-//                    BsonJavaScript(value.toString())
-//                } else if (isRegularExpression(value)) {
-//                    mapToRegularExpression(value)
-//                } else {
-//                    translateScriptObject(value)
-//                }
-//            }
-//            is String -> BsonString(value)
-//            is Double -> {
-//                if ((value == Math.floor(value)) && !value.isInfinite()) {
-//                    BsonInt64(value.roundToLong())
-//                } else {
-//                    BsonDouble(value)
-//                }
-//            }
-//            is Int -> BsonInt32(value)
-//            is Boolean -> BsonBoolean(value)
-//            else -> BsonUndefined()
-//        }
-//
-//        document.append(entry.key, bsonValue)
-//    }
-//
-//    return document
-//}
-
 fun mapToRegularExpression(value: ScriptObjectMirror): BsonRegularExpression {
     var options = ""
 
@@ -268,10 +233,10 @@ fun isRegularExpression(value: ScriptObjectMirror): Boolean {
         && value.containsKey("source")
 }
 
-fun fastPath(json: String): JsonObject {
-    var finalJson = rewriteBsonTypes(json)
-    return Parser().parse(StringReader(finalJson)) as JsonObject
-}
+//fun fastPath(json: String): JsonObject {
+//    var finalJson = rewriteBsonTypes(json)
+//    return Parser().parse(StringReader(finalJson)) as JsonObject
+//}
 
 private fun rewriteBsonTypes(json: String): String {
     var finalJson = json
@@ -295,10 +260,18 @@ private fun rewriteBsonTypes(json: String): String {
     val tokenizer = StringTokenizer(finalJson, " ")
     val tokens = mutableListOf<String>()
     var previousToken: String? = null
+    var leftOverToken: String? = null
 
     // Go over all the tokens
     while (tokenizer.hasMoreTokens()) {
-        val token = tokenizer.nextToken()
+        var token: String
+
+        if (leftOverToken != null) {
+            token = leftOverToken
+            leftOverToken = null
+        } else {
+            token = tokenizer.nextToken()
+        }
 
         if (token.contains("-inf.0")) {
             tokens += token.replace("-inf.0", "\"-inf.0\"")
@@ -340,7 +313,7 @@ private fun rewriteBsonTypes(json: String): String {
             tokens += "\"${token.substringBeforeLast(":")}\":"
         } else if (!token.contains("\"") && token.contains("-") && token.endsWith(":")) {
             tokens += "\"${token.substringBeforeLast(":")}\":"
-        } else if (token.contains("\"")) {
+        } else if (token.startsWith("\"")) {
             // Previous character
             var previousChar: Char = ' '
             // Count the number of unescaped quotes
@@ -353,15 +326,31 @@ private fun rewriteBsonTypes(json: String): String {
                 }
             }
 
-            // If it's more tan
-            if (numberOfDoubleQuotes > 2) {
+            // We need to read the string until the next double quote
+            if (numberOfDoubleQuotes == 1) {
+                val stringTokens = mutableListOf(token)
+
+                while (true && tokenizer.hasMoreTokens()) {
+                    var nextToken = tokenizer.nextToken()
+
+                    // Did we find the end of the string
+                    if (nextToken.contains("\"")) {
+                        stringTokens += nextToken.substringBeforeLast("\"") + "\""
+                        leftOverToken = nextToken.substringAfterLast("\"")
+                        break
+                    } else {
+                        stringTokens += nextToken
+                    }
+                }
+                tokens += stringTokens.joinToString(" ")
+            } else if (numberOfDoubleQuotes == 2) {
+                tokens += token
+            } else {
                 val tok = token
                     .substringAfter("\"")
                     .substringBeforeLast("\"")
                     .replace("\"", "\\\"")
                 tokens += "\"$tok\"" + token.substringAfterLast("\"")
-            } else {
-                tokens += token
             }
         } else {
             tokens += token
