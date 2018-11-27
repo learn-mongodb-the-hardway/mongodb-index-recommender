@@ -15,11 +15,16 @@ class ParseLogFilesTest {
     @Test
     @Integration
     fun parseLogsFromMongo_3_4() {
-//        executeParse()
+        executeParse("logs/full-logs/mongo-log-3_4.zip")
     }
 
-    fun executeParse() {
-        val file = "logs/full-logs/mongo-log-3_4.zip"
+    @Test
+    @Integration
+    fun parseLogsFromMongo_4_0() {
+        executeParse("logs/full-logs/mongo-log-4_0.zip")
+    }
+
+    fun executeParse(file: String) {
         val inputStream = readResourceAsStream(file)
         val zipInputStream = ZipInputStream(inputStream)
         var entry = zipInputStream.nextEntry

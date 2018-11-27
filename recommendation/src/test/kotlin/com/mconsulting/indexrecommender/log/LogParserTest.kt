@@ -247,7 +247,7 @@ class LogParserTest {
         assertEquals(2, logEntries.size)
         assertTrue(logEntries.first() is CommandLogEntry)
         assertEquals(parseJSON("""
-            {"find":"max_time_ms","filter":{"${'$'}where":{"${'$'}code":"function () {\nsleep(100);\nreturn true;\n}"}},"maxTimeMS":{"${'$'}numberLong":"10000"}}
+            {"find":"max_time_ms","filter":{"${'$'}where":{"${'$'}code":"function () {\nsleep(100);\nreturn true;\n}"}},"maxTimeMS":10000.0}
         """.trimMargin()),
             (logEntries.first() as CommandLogEntry).command)
     }
@@ -270,7 +270,7 @@ class LogParserTest {
         assertEquals(1, logEntries.size)
         assertTrue(logEntries.first() is CommandLogEntry)
         assertEquals(parseJSON("""
-            {"find":"max_time_ms","filter":{"${'$'}where":{"${'$'}code":"function () {\n sleep(100);\n return true;\n}"}},"maxTimeMS":{"${'$'}numberLong":"10000"}}
+            {"find":"max_time_ms","filter":{"${'$'}where":{"${'$'}code":"function () {\n sleep(100);\n return true;\n}"}},"maxTimeMS":10000.0}
         """.trimMargin()),
             (logEntries.first() as CommandLogEntry).command)
     }
@@ -561,7 +561,7 @@ function(){
         assertEquals(1, logEntries.size)
         assertEquals(
             parseJSON("""
-                {"aggregate":"jstests_aggregation_server6190","pipeline":[{"${'$'}project":{"a":{"${'$'}week":{"${'$'}timestamp":{"t":441763200000,"i":1000000000}}}}},{"${'$'}match":{"a":{"${'$'}type":16.0}}}],"cursor":{}}
+                {"aggregate":"jstests_aggregation_server6190","pipeline":[{"${'$'}project":{"a":{"${'$'}week":{"${'$'}timestamp":{"t":4.417632E11,"i":1000000000}}}}},{"${'$'}match":{"a":{"${'$'}type":16.0}}}],"cursor":{}}
             """.trimIndent()),
             (logEntries.first() as CommandLogEntry).command
         )
@@ -621,6 +621,82 @@ function(){
         assertEquals(
             parseJSON("""
                 {"q":{"_id":6.0},"u":{"${'$'}min":{"a":"1e-15.0"}}}
+            """.trimIndent()),
+            (logEntries.first() as WriteCommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldParseBinDataHex() {
+        val logEntriesText = """2018-11-22T17:52:34.529+0100 I WRITE    [LogicalSessionCacheRefresh] update config.system.sessions command: { q: { _id: { id: UUID("71e7b7dc-8219-4be2-81a3-160f88b3dac0"), uid: BinData(0, E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855) } }, u: { ${'$'}currentDate: { lastUse: true } }, multi: false, upsert: true } planSummary: IDHACK keysExamined:0 docsExamined:0 nMatched:0 nModified:0 upsert:1 keysInserted:2 numYields:0 locks:{ Global: { acquireCount: { r: 1, w: 1 } }, Database: { acquireCount: { w: 1 } }, Collection: { acquireCount: { w: 1 } } } 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"q":{"_id":{"id":{"${'$'}binary":"NzFlN2I3ZGMtODIxOS00YmUyLTgxYTMtMTYwZjg4YjNkYWMw","${'$'}type":"04"},"uid":{"${'$'}binary":"E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855","${'$'}type":"0"}}},"u":{"${'$'}currentDate":{"lastUse":true}},"multi":false,"upsert":true}
+            """.trimIndent()),
+            (logEntries.first() as WriteCommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldParse3() {
+        val logEntriesText = """2018-11-22T17:37:15.637+0100 I COMMAND  [conn1203] command test.date_to_string appName: "MongoDB Shell" command: aggregate { aggregate: "date_to_string", pipeline: [ { ${'$'}project: { date: { ${'$'}dateToString: { format: "Natural: %Y-W%w-%U, ISO: %G-W%u-%V", date: "${'$'}date" } } } }, { ${'$'}sort: { _id: 1.0 } } ], cursor: {}, ${'$'}db: "test" } planSummary: COLLSCAN keysExamined:0 docsExamined:3 hasSortStage:1 cursorExhausted:1 numYields:0 nreturned:3 reslen:312 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 2 } }, Collection: { acquireCount: { r: 2 } } } protocol:op_command 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"aggregate":"date_to_string","pipeline":[{"${'$'}project":{"date":{"${'$'}dateToString":{"format":"Natural: %Y-W%w-%U, ISO: %G-W%u-%V","date":"${'$'}date"}}}},{"${'$'}sort":{"_id":1.0}}],"cursor":{},"${'$'}db":"test"}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldParse4() {
+        val logEntriesText = """2018-11-22T17:06:02.692+0100 I COMMAND  [conn1153] command test.roundtrip_basic appName: "MongoDB Shell" command: find { find: "roundtrip_basic", filter: { decimal: 9.999999999999999999999999999999999E+6144 }, sort: { decimal: 1.0, _id: 1.0 }, projection: { _id: 0.0 } } planSummary: COLLSCAN keysExamined:0 docsExamined:13 hasSortStage:1 cursorExhausted:1 numYields:0 nreturned:1 reslen:126 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 1 } }, Collection: { acquireCount: { r: 1 } } } protocol:op_command 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"find":"roundtrip_basic","filter":{"decimal":{"${'$'}numberDecimal":"9.999999999999999999999999999999999E+6144"}},"sort":{"decimal":1.0,"_id":1.0},"projection":{"_id":0.0}}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldParse5() {
+        val logEntriesText = """2018-11-22T17:02:57.879+0100 I WRITE    [conn825] update test.set6 appName: "MongoDB Shell" planSummary: COLLSCAN update: { ${'$'}set: { r.${'$'}id: 2.0 } } keysExamined:0 docsExamined:1 nMatched:1 nModified:1 numYields:0 locks:{ Global: { acquireCount: { r: 1, w: 1 } }, Database: { acquireCount: { w: 1 } }, Collection: { acquireCount: { w: 1 } } } 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"u":{"${'$'}set":{"r.${'$'}id":2.0}}}
             """.trimIndent()),
             (logEntries.first() as WriteCommandLogEntry).command
         )

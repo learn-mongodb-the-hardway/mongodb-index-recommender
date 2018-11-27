@@ -128,7 +128,7 @@ private val OBJECTID_REGEX = Pattern(Regex("""ObjectId\([\"|']([\d|\w]+)[\"|']\)
 private val NUMBERLONG_REGEX = Pattern(Regex("""NumberLong\([\"|']([\d]+)[\"|']\)"""), "{ \"\\${'$'}numberLong\": \"$1\" }")
 private val NUMBERINT_REGEX = Pattern(Regex("""NumberInt\([\"|']([\d]+)[\"|']\)"""), "$1")
 private val NUMBERDECIMAL_REGEX = Pattern(Regex("""NumberDecimal\([\"|']([\d|\.]+)[\"|']\)"""), "{ \"\\${'$'}numberDecimal\": \"$1\" }")
-private val BINDATA_REGEX = Pattern(Regex("""BinData\(([\d])+,[ ]*[\"|']([\d|\w|\+|\/\=]+)[\"|']\)"""), "{ \"\\${'$'}binary\": \"$2\", \"\\${'$'}type\": \"$1\" }")
+private val BINDATA_REGEX = Pattern(Regex("""BinData\(([\d])+,[ ]*[\"|']*([\d|\w|\+|\/\=]+)[\"|']*\)"""), "{ \"\\${'$'}binary\": \"$2\", \"\\${'$'}type\": \"$1\" }")
 private val BINDATA2_REGEX = Pattern(Regex("""BinData\(([\d])+,[ ]*\)"""), "{ \"\\${'$'}binary\": \"\", \"\\${'$'}type\": \"$1\" }")
 private val TIMESTAMP_REGEX = Pattern(Regex("""Timestamp\(([\d])+,[ ]*([\d])+\)"""), "{ \"\\${'$'}timestamp\": { \"t\": $1, \"i\": $2 } }")
 private val TIMESTAMP2_REGEX = Pattern(Regex("""Timestamp[ ]*(\d+)\|(\d+)"""), "{ \"\\${'$'}timestamp\": { \"t\": $1, \"i\": $2 } }")
@@ -147,16 +147,17 @@ private val engine = ScriptEngineManager().getEngineByName("javascript")
 private val logger = KotlinLogging.logger { }
 
 fun commandToJsonObject(json: String): JsonObject {
-    return when (!json.contains(Regex("\\:[ ]*function[ ]*\\("))) {
-        true -> {
-            try {
-                fastPath(json)
-            } catch (ex: Exception) {
-                slowPath(json)
-            }
-        }
-        else -> slowPath(json)
-    }
+    return slowPath(json)
+//    return when (!json.contains(Regex("\\:[ ]*function[ ]*\\("))) {
+//        true -> {
+//            try {
+//                fastPath(json)
+//            } catch (ex: Exception) {
+//                slowPath(json)
+//            }
+//        }
+//        else -> slowPath(json)
+//    }
 }
 
 fun slowPath(json: String): JsonObject {
@@ -169,44 +170,81 @@ fun slowPath(json: String): JsonObject {
     }
 
     // Rewrite script object to BsonDocument
-    val result = translateScriptObject(obj)
-    // Turn to JSON and then re-parse to correctly handle any extended JSON
-    return Parser().parse(StringReader(result.toJson())) as JsonObject
+    return translateScriptObject(obj)
+//    // Turn to JSON and then re-parse to correctly handle any extended JSON
+//    return Parser().parse(StringReader(result.toJsonString())) as JsonObject
 }
 
-fun translateScriptObject(obj: ScriptObjectMirror) : BsonDocument {
-    var document = BsonDocument()
+fun translateScriptObject(obj: ScriptObjectMirror) : JsonObject {
+    var document = JsonObject()
 
     for (entry in obj.entries) {
         val value = entry.value
-        val bsonValue:BsonValue = when(value) {
+        val jsonValue = when(value) {
             is ScriptObjectMirror -> {
                 if (value.isFunction) {
-                    BsonJavaScript(value.toString())
+                    JsonObject(mapOf(
+                        "\$code" to value.toString()
+                    ))
+                } else if (value.isArray) {
+                    JsonArray(value.values.map {
+                        when (it) {
+                            is ScriptObjectMirror -> translateScriptObject(it)
+                            else -> it
+                        }
+                    })
                 } else if (isRegularExpression(value)) {
-                    mapToRegularExpression(value)
+                    val value = mapToRegularExpression(value)
+                    JsonObject(mapOf(
+                        "\$regex" to value.pattern,
+                        "\$options" to value.options
+                    ))
                 } else {
                     translateScriptObject(value)
                 }
             }
-            is String -> BsonString(value)
-            is Double -> {
-                if ((value == Math.floor(value)) && !value.isInfinite()) {
-                    BsonInt64(value.roundToLong())
-                } else {
-                    BsonDouble(value)
-                }
-            }
-            is Int -> BsonInt32(value)
-            is Boolean -> BsonBoolean(value)
-            else -> BsonUndefined()
+            else -> value
         }
 
-        document.append(entry.key, bsonValue)
+        document[entry.key] = jsonValue
     }
 
     return document
 }
+
+//fun translateScriptObject(obj: ScriptObjectMirror) : BsonDocument {
+//    var document = BsonDocument()
+//
+//    for (entry in obj.entries) {
+//        val value = entry.value
+//        val bsonValue:BsonValue = when(value) {
+//            is ScriptObjectMirror -> {
+//                if (value.isFunction) {
+//                    BsonJavaScript(value.toString())
+//                } else if (isRegularExpression(value)) {
+//                    mapToRegularExpression(value)
+//                } else {
+//                    translateScriptObject(value)
+//                }
+//            }
+//            is String -> BsonString(value)
+//            is Double -> {
+//                if ((value == Math.floor(value)) && !value.isInfinite()) {
+//                    BsonInt64(value.roundToLong())
+//                } else {
+//                    BsonDouble(value)
+//                }
+//            }
+//            is Int -> BsonInt32(value)
+//            is Boolean -> BsonBoolean(value)
+//            else -> BsonUndefined()
+//        }
+//
+//        document.append(entry.key, bsonValue)
+//    }
+//
+//    return document
+//}
 
 fun mapToRegularExpression(value: ScriptObjectMirror): BsonRegularExpression {
     var options = ""
@@ -261,7 +299,6 @@ private fun rewriteBsonTypes(json: String): String {
     // Go over all the tokens
     while (tokenizer.hasMoreTokens()) {
         val token = tokenizer.nextToken()
-        val match = Regex("([\\$|\\_|\\-|\\w+|0-9|\\.]+)\\:$").find(token)
 
         if (token.contains("-inf.0")) {
             tokens += token.replace("-inf.0", "\"-inf.0\"")
@@ -293,10 +330,12 @@ private fun rewriteBsonTypes(json: String): String {
             tokens +=  token.replace(DATE_REGEXP.match, DATE_REGEXP.replace)
         } else if (token.startsWith('$')) {
             tokens += "\"${token.substringBeforeLast(":")}\":"
-        } else if (match != null) {
-            tokens += "\"${match.groups[1]!!.value}\":"
         } else if (token.contains(Regex("""^\d+e\-\d+"""))) {
             tokens += "\"$token\""
+        } else if (token.contains(Regex("""^[\d|\.]*[e|E][\-|\+]\d+"""))) {
+            tokens += "{ \"\$numberDecimal\": \"$token\" }"
+        } else if (token.contains(Regex("([\\w|\\\$|\\_|\\-]+\\.)+[\\w|\\\$|\\_|\\-]+:"))) {
+            tokens += "\"${token.substringBeforeLast(":")}\":"
         } else if (token.contains("\"")) {
             // Previous character
             var previousChar: Char = ' '
@@ -316,7 +355,7 @@ private fun rewriteBsonTypes(json: String): String {
                     .substringAfter("\"")
                     .substringBeforeLast("\"")
                     .replace("\"", "\\\"")
-                tokens += "\"$tok\""
+                tokens += "\"$tok\"" + token.substringAfterLast("\"")
             } else {
                 tokens += token
             }
