@@ -439,7 +439,7 @@ if (this.slow) {
     }
 
     @Test
-    fun shoulCorreclyParseMissingCloseQuote() {
+    fun shouldCorrectlyParseMissingCloseQuote() {
         val logEntriesText = """2018-11-22T17:01:04.118+0100 I COMMAND  [conn633] command test.mr_comments appName: "MongoDB Shell" command: mapReduce { mapreduce: "mr_comments", map: "// This will fail
 function(){
     // Emit some stuff
@@ -455,11 +455,17 @@ function(){
             logEntries += it
         }
 
-        assertEquals(0, logEntries.size)
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"mapreduce":"mr_comments","map":"// This will fail\nfunction(){\n // Emit some stuff\n emit(this.foo, 1)\n}\n","reduce":{"${'$'}code":"function (key, values) {\n return Array.sum(values);\n }"},"out":"mr_comments_out"}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
     }
 
     @Test
-    fun shouldParseMapreduce() {
+    fun shouldParseMapReduce() {
         val logEntriesText = """2018-11-22T17:01:00.349+0100 I COMMAND  [conn631] command test.mr_bigobject appName: "MongoDB Shell" command: mapReduce { mapreduce: "mr_bigobject", map: function () {
     emit(1, this.s);
 }, reduce: function (k, v) {
@@ -777,6 +783,153 @@ function(){
             """.trimIndent()),
             (logEntries.first() as CommandLogEntry).command
         )
+    }
+
+    @Test
+    fun shouldParse10() {
+        val logEntriesText = """2018-11-22T17:01:04.043+0100 I COMMAND  [conn633] command test.mr_comments appName: "MongoDB Shell" command: mapReduce { mapreduce: "mr_comments", map: "// This will fail
+
+    // Emit some stuff
+    emit(this.foo, 1)
+", reduce: function (key, values) {
+        return Array.sum(values);
+    }, out: "mr_comments_out" } planSummary: COUNT keysExamined:0 docsExamined:0 numYields:0 reslen:124 locks:{ Global: { acquireCount: { r: 42, w: 18, W: 2 } }, Database: { acquireCount: { r: 9, w: 9, R: 2, W: 12 } }, Collection: { acquireCount: { r: 9, w: 12 } }, Metadata: { acquireCount: { W: 1 } } } protocol:op_command 75ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"mapreduce":"mr_comments","map":"// This will fail\n\n // Emit some stuff\n emit(this.foo, 1)\n","reduce":{"${'$'}code":"function (key, values) {\n return Array.sum(values);\n }"},"out":"mr_comments_out"}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldParse11() {
+        val logEntriesText = """2018-11-22T17:01:24.798+0100 I WRITE    [conn657] update test.system.js appName: "MongoDB Shell" query: { _id: "mr_stored_map" } planSummary: IDHACK update: { _id: "mr_stored_map", value: function (obj) {
+    emit(obj.partner, {stats: [obj.visits]});
+} } keysExamined:0 docsExamined:0 nMatched:0 nModified:0 upsert:1 keysInserted:1 numYields:0 locks:{ Global: { acquireCount: { r: 1, w: 1 } }, Database: { acquireCount: { w: 1 } }, Collection: { acquireCount: { w: 1 } } } 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"q":{"_id":"mr_stored_map"},"u":{"_id":"mr_stored_map","value":{"${'$'}code":"function (obj) {\n emit(obj.partner, {stats: [obj.visits]});\n}"}}}
+            """.trimIndent()),
+            (logEntries.first() as WriteCommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldParse12() {
+        val logEntriesText = """2018-11-22T17:02:18.659+0100 I WRITE    [conn760] update test.things appName: "MongoDB Shell" query: { _id: ObjectId('5bf6d30a55576f83372781f0') } planSummary: IDHACK update: { _id: ObjectId('5bf6d30a55576f83372781f0'), name: "abc", o: DBRef('otherthings',5bf6d30a55576f83372781ee) } keysExamined:1 docsExamined:1 nMatched:1 nModified:1 numYields:0 locks:{ Global: { acquireCount: { r: 1, w: 1 } }, Database: { acquireCount: { w: 1 } }, Collection: { acquireCount: { w: 1 } } } 1ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"q":{"_id":{"${'$'}oid":"5bf6d30a55576f83372781f0"}},"u":{"_id":{"${'$'}oid":"5bf6d30a55576f83372781f0"},"name":"abc","o":{"${'$'}ref":"otherthings","${'$'}id":{"${'$'}oid":"5bf6d30a55576f83372781ee"}}}}
+            """.trimIndent()),
+            (logEntries.first() as WriteCommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldParse13() {
+        val logEntriesText = """2018-11-22T17:37:18.359+0100 I COMMAND  [conn1218] command test.trim_expressions appName: "MongoDB Shell" command: aggregate { aggregate: "trim_expressions", pipeline: [ { ${'$'}project: { output: { ${'$'}trim: { input: " a b
+c " } } } } ], cursor: {}, ${'$'}db: "test" } planSummary: COLLSCAN keysExamined:0 docsExamined:1 cursorExhausted:1 numYields:0 nreturned:1 reslen:153 locks:{ Global: { acquireCount: { r: 2 } }, Database: { acquireCount: { r: 2 } }, Collection: { acquireCount: { r: 2 } } } protocol:op_command 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"aggregate":"trim_expressions","pipeline":[{"${'$'}project":{"output":{"${'$'}trim":{"input":" a b\nc "}}}}],"cursor":{},"${'$'}db":"test"}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldParse14() {
+        val logEntriesText = """2018-11-22T17:36:12.915+0100 I COMMAND  [conn1034] command test.${'$'}cmd appName: "MongoDB Shell" command: update { update: "update_modifier_pop", updates: [ { q: { _id: 0.0 }, u: { ${'$'}pop: { a.${'$'}[i].b: -1.0 } }, multi: false, upsert: false } ], ordered: true, ${'$'}db: "test" } numYields:0 reslen:179 locks:{} protocol:op_command 0ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"update":"update_modifier_pop","updates":[{"q":{"_id":0.0},"u":{"${'$'}pop":{"a.${'$'}[i].b":-1.0}},"multi":false,"upsert":false}],"ordered":true,"${'$'}db":"test"}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
+    }
+
+    @Test
+    fun shouldParse15() {
+        val logEntriesText = """2018-11-22T17:34:32.479+0100 I COMMAND  [conn693] command test.mr_tolerates_js_exception appName: "MongoDB Shell" command: mapReduce { mapReduce: "mr_tolerates_js_exception", map: function () {
+"use strict";
+
+            emit(this.a, 1);
+        }, reduce: function (key, value) {
+"use strict";
+
+            throw 42;
+        }, out: { inline: 1.0 }, ${'$'}db: "test" } planSummary: COLLSCAN numYields:0 ok:0 errMsg:"uncaught exception: 42" errName:JSInterpreterFailure errCode:139 reslen:118 locks:{ Global: { acquireCount: { r: 9 } }, Database: { acquireCount: { r: 4, R: 2 } }, Collection: { acquireCount: { r: 4 } } } protocol:op_command 15ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(1, logEntries.size)
+        assertEquals(
+            parseJSON("""
+                {"mapReduce":"mr_tolerates_js_exception","map":{"${'$'}code":"function () {\n\"use strict\";\n\n emit(this.a, 1);\n }"},"reduce":{"${'$'}code":"function (key, value) {\n\"use strict\";\n\n throw 42;\n }"},"out":{"inline":1.0},"${'$'}db":"test"}
+            """.trimIndent()),
+            (logEntries.first() as CommandLogEntry).command
+        )
+        assertNotNull((logEntries.first() as CommandLogEntry).exception)
+        assertNotNull((logEntries.first() as CommandLogEntry).errMsg)
+        assertNotNull((logEntries.first() as CommandLogEntry).errName)
+        assertNotEquals(0, (logEntries.first() as CommandLogEntry).code)
+        assertNotEquals(0, (logEntries.first() as CommandLogEntry).errCode)
+    }
+
+    @Test
+    fun shouldParse16() {
+        val logEntriesText = """2018-11-22T17:34:29.966+0100 I COMMAND  [conn687] command test.mr_optim appName: "MongoDB Shell" command: mapReduce { mapreduce: "mr_optim", map: function m() {
+    emit(this._id, 13);
+}, reduce: function r(key, values) {
+    return "bad";
+}, out: { inline: 1.0 }, ${'$'}db: "test" } planSummary: COLLSCAN keysExamined:0 docsExamined:1000 numYields:7 reslen:42016 locks:{ Global: { acquireCount: { r: 41 } }, Database: { acquireCount: { r: 4, R: 18 } }, Collection: { acquireCount: { r: 4 } } } protocol:op_command 24ms"""
+        val logParser = LogParser(BufferedReader(StringReader(logEntriesText)), LogParserOptions(true))
+        val logEntries = mutableListOf<LogEntry>()
+        logParser.forEach {
+            logEntries += it
+        }
+
+        assertEquals(0, logEntries.size)
     }
 
     private fun getWrites(logEntries: MutableList<LogEntry>, name: String): List<LogEntry> {

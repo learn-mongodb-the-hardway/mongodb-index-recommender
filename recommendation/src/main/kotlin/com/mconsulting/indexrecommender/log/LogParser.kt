@@ -3,6 +3,7 @@ package com.mconsulting.indexrecommender.log
 import com.beust.klaxon.JsonObject
 import com.mconsulting.indexrecommender.Namespace
 import com.mconsulting.indexrecommender.commandToJsonObject
+import com.mconsulting.indexrecommender.readDoubleQuotedString
 import mu.KLogging
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -64,6 +65,9 @@ class CommandLogEntry(dateTime: DateTime, severityLevel: SeverityLevels, namespa
         if (values.containsKey("executionTimeMS")) executionTimeMS = values.get("executionTimeMS") as Int
         if (values.containsKey("exception")) exception = values["exception"] as String
         if (values.containsKey("code")) code = values["code"] as Int
+        if (values.containsKey("errMsg")) errMsg = values["errMsg"] as String
+        if (values.containsKey("errName")) errName = values["errName"] as String
+        if (values.containsKey("errCode")) errCode = values["errCode"] as Int
         return this
     }
 
@@ -81,6 +85,9 @@ class CommandLogEntry(dateTime: DateTime, severityLevel: SeverityLevels, namespa
     var protocol: String = ""
     var commandName: String = ""
     var executionTimeMS: Int = -1
+    var errMsg: String = ""
+    var errName: String = ""
+    var errCode: Int = 0
 }
 
 class WriteCommandLogEntry(var commandName: String, dateTime: DateTime, severityLevel: SeverityLevels, namespace: Namespace) : LogEntryBase(
@@ -104,6 +111,9 @@ class WriteCommandLogEntry(var commandName: String, dateTime: DateTime, severity
         if (values.containsKey("executionTimeMS")) executionTimeMS = values["executionTimeMS"] as Int
         if (values.containsKey("exception")) exception = values["exception"] as String
         if (values.containsKey("code")) code = values["code"] as Int
+        if (values.containsKey("errMsg")) errMsg = values["errMsg"] as String
+        if (values.containsKey("errName")) errName = values["errName"] as String
+        if (values.containsKey("errCode")) errCode = values["errCode"] as Int
         return this
     }
 
@@ -124,6 +134,9 @@ class WriteCommandLogEntry(var commandName: String, dateTime: DateTime, severity
     var locks: JsonObject = JsonObject()
     var protocol: String = ""
     var executionTimeMS: Int = -1
+    var errMsg: String = ""
+    var errName: String = ""
+    var errCode: Int = 0
 }
 
 class NoSupportedLogEntry(val line: String) : LogEntry
@@ -400,6 +413,17 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
                 values["queryHash"] = extractString(token, partsTokenizer)
             } else if (token.startsWith("protocol:")) {
                 values["protocol"] = extractString(token, partsTokenizer)
+            } else if (token.startsWith("errMsg:")) {
+                val parts = token.split("errMsg:")
+                val tokens = mutableListOf<String>()
+
+                previousToken = readDoubleQuotedString(parts[1], partsTokenizer, previousToken, tokens)
+
+                values["errMsg"] = tokens.joinToString(" ")
+            } else if (token.startsWith("errName:")) {
+                values["errName"] = extractString(token, partsTokenizer)
+            } else if (token.startsWith("errCode:")) {
+                values["errCode"] = extractInt(token, partsTokenizer)
             } else if (token.startsWith("locks:")) {
                 if (token.contains("{") && token.contains("}")) {
                     values["locks"] = JsonObject()
@@ -425,41 +449,55 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
                 val tokens = mutableListOf<String>()
                 previousToken = readUntilNextTag(tokens, partsTokenizer)
 
-                // Create the string to parse
-                val plan = tokens.joinToString(" ")
+                // If we have a single Token
+                if (tokens.size == 1)  {
+                    values["planSummary"] = PlanSummary(listOf(PlanSummaryEntry(tokens.first())))
+                } else {
+                    // Create the string to parse
+                    val plan = tokens.joinToString(" ")
 
-                // Parse it
-                val tokenizer = StringTokenizer(plan, " ")
-                val entries = mutableListOf<PlanSummaryEntry>()
+                    // Parse it
+                    val tokenizer = StringTokenizer(plan, " ")
+                    val entries = mutableListOf<PlanSummaryEntry>()
 
-                while (tokenizer.hasMoreTokens()) {
-                    val nToken = tokenizer.nextToken()
+                    while (tokenizer.hasMoreTokens()) {
+                        val nToken = tokenizer.nextToken()
 
-                    if (nToken.contains("IXSCAN")) {
-                        // Read the json
-                        val json = readJson(tokenizer)
-                        entries += PlanSummaryEntry("IXSCAN", commandToJsonObject(json))
+                        if (nToken.contains("IXSCAN")) {
+                            // Read the json
+                            val json = readJson(tokenizer)
+                            entries += PlanSummaryEntry("IXSCAN", commandToJsonObject(json))
+                        }
                     }
-                }
 
-                values["planSummary"] = PlanSummary(entries)
+                    values["planSummary"] = PlanSummary(entries)
+                }
             } else if (token.startsWith("exception:")) {
                 // Read until next tag
                 val tokens = mutableListOf<String>()
-                previousToken = readUntilNextTag(tokens, partsTokenizer, "code")
+                previousToken = readUntilNextTag(tokens, partsTokenizer, listOf("code", "reslen"))
                 values["exception"] = tokens.joinToString(" ")
             } else if (token.startsWith("code:")) {
                 values["code"] = extractInt(token, partsTokenizer)
             }
         }
 
+        // Do we have an errName but no exception
+        if (values.containsKey("errMsg") && !values.containsKey("exception")) {
+            values["exception"] = values["errMsg"]!!
+        }
+
+        if (values.containsKey("errCode") && !values.containsKey("code")) {
+            values["code"] = values["errCode"]!!
+        }
+
         return values
     }
 
-    private fun readUntilNextTag(tokens: MutableList<String>, tokenizer: StringTokenizer, untilTag: String? = null) : String? {
-        var previousToken: String?
+    private fun readUntilNextTag(tokens: MutableList<String>, tokenizer: StringTokenizer, untilTag: List<String> = listOf()) : String? {
+        var previousToken: String? = null
 
-        while (true) {
+        while (tokenizer.hasMoreTokens()) {
             val nextToken = tokenizer.nextToken()
 
             if (nextToken.startsWith("{")) {
@@ -469,10 +507,10 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
             if (nextToken.contains(Regex("^(\\w+):"))) {
                 val tag = Regex("^(\\w+):").find(nextToken)!!.groups[1]!!.value
 
-                if (untilTag != null && tag == untilTag) {
+                if (untilTag.isNotEmpty() && tag in untilTag) {
                     previousToken = nextToken
                     break
-                } else if (untilTag == null && tag in tags) {
+                } else if (untilTag.isEmpty() && tag in tags) {
                     previousToken = nextToken
                     break
                 }
@@ -496,15 +534,16 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
         do {
             val nextToken = partsTokenizer.nextToken()
 
-            if (nextToken.contains("{") && nextToken.contains("}")) {
-            } else if (nextToken.contains("{")) {
-                depth += 1
-            } else if (nextToken.contains("}")) {
-                if (!nextToken.endsWith("}")) {
-
+            if (nextToken.contains("{")) {
+                depth += nextToken.count {
+                    it == '{'
                 }
+            }
 
-                depth -= 1
+            if (nextToken.contains("}")) {
+                depth -= nextToken.count {
+                    it == '}'
+                }
             }
 
             tokens += nextToken

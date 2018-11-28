@@ -238,6 +238,8 @@ fun isRegularExpression(value: ScriptObjectMirror): Boolean {
 //    return Parser().parse(StringReader(finalJson)) as JsonObject
 //}
 
+val DBRefRegex = Regex("""DBRef\((([\w|[a-z]|\'|\"|\${'$'}|\-|\_|\:| ])+,)+[ ]*([\w|[a-z]|\'|\"|\${'$'}|\-|\_|\:| ])+\)""")
+
 private fun rewriteBsonTypes(json: String): String {
     var finalJson = json
 
@@ -255,6 +257,9 @@ private fun rewriteBsonTypes(json: String): String {
     finalJson = finalJson.replace(BOOLEAN2_REGEX.match, BOOLEAN2_REGEX.replace)
     finalJson = finalJson.replace(MINKEY_REGEX.match, MINKEY_REGEX.replace)
     finalJson = finalJson.replace(MAXKEY_REGEX.match, MAXKEY_REGEX.replace)
+
+    // Replace any DBRef instances
+    finalJson = rewriteDbRef(finalJson)
 
     // Tokenize the json to rewrite some tokens
     val tokenizer = StringTokenizer(finalJson, " ")
@@ -307,51 +312,14 @@ private fun rewriteBsonTypes(json: String): String {
             tokens += "\"$token\""
         } else if (token.contains(Regex("""^[\d|\.]*[e|E][\-|\+]\d+"""))) {
             tokens += "{ \"\$numberDecimal\": \"$token\" }"
-        } else if (token.contains(Regex("([\\w|\\\$|\\_|\\-|\\d]+\\.)+[\\w|\\\$|\\_|\\-|\\d]+:"))) {
+        } else if (token.contains(Regex("([\\w|\\\$|\\_|\\-|\\d|$|\\[||\\]]+\\.)+[\\w|\\\$|\\_|\\-|\\d|\$|\\[||\\]]+:"))) {
             tokens += "\"${token.substringBeforeLast(":")}\":"
         } else if (token.contains(Regex("^\\d")) && token.endsWith(":")) {
             tokens += "\"${token.substringBeforeLast(":")}\":"
         } else if (!token.contains("\"") && token.contains("-") && token.endsWith(":")) {
             tokens += "\"${token.substringBeforeLast(":")}\":"
         } else if (token.startsWith("\"")) {
-            // Previous character
-            var previousChar: Char = ' '
-            // Count the number of unescaped quotes
-            val numberOfDoubleQuotes = token.count {
-                if (it == '"' && previousChar != '\\') {
-                    true
-                } else {
-                    previousChar = it
-                    false
-                }
-            }
-
-            // We need to read the string until the next double quote
-            if (numberOfDoubleQuotes == 1) {
-                val stringTokens = mutableListOf(token)
-
-                while (true && tokenizer.hasMoreTokens()) {
-                    var nextToken = tokenizer.nextToken()
-
-                    // Did we find the end of the string
-                    if (nextToken.contains("\"")) {
-                        stringTokens += nextToken.substringBeforeLast("\"") + "\""
-                        leftOverToken = nextToken.substringAfterLast("\"")
-                        break
-                    } else {
-                        stringTokens += nextToken
-                    }
-                }
-                tokens += stringTokens.joinToString(" ")
-            } else if (numberOfDoubleQuotes == 2) {
-                tokens += token
-            } else {
-                val tok = token
-                    .substringAfter("\"")
-                    .substringBeforeLast("\"")
-                    .replace("\"", "\\\"")
-                tokens += "\"$tok\"" + token.substringAfterLast("\"")
-            }
+            leftOverToken = readDoubleQuotedString(token, tokenizer, leftOverToken, tokens)
         } else {
             tokens += token
         }
@@ -361,4 +329,78 @@ private fun rewriteBsonTypes(json: String): String {
 
     val finalResult = tokens.joinToString(" ")
     return finalResult
+}
+
+fun readDoubleQuotedString(token: String, tokenizer: StringTokenizer, leftOverToken: String?, tokens: MutableList<String>): String? {
+    // Previous character
+    var leftOverToken1 = leftOverToken
+    var previousChar: Char = ' '
+    // Count the number of unescaped quotes
+    val numberOfDoubleQuotes = token.count {
+        if (it == '"' && previousChar != '\\') {
+            true
+        } else {
+            previousChar = it
+            false
+        }
+    }
+
+    // We need to read the string until the next double quote
+    if (numberOfDoubleQuotes == 1) {
+        val stringTokens = mutableListOf(token.replace("\n", """\n"""))
+
+        while (true && tokenizer.hasMoreTokens()) {
+            var nextToken = tokenizer.nextToken().replace("\n", """\n""")
+
+            // Did we find the end of the string
+            if (nextToken.contains("\"")) {
+                stringTokens += nextToken.substringBeforeLast("\"") + "\""
+                leftOverToken1 = nextToken.substringAfterLast("\"")
+                break
+            } else {
+                stringTokens += nextToken
+            }
+        }
+        tokens += stringTokens.joinToString(" ")
+    } else if (numberOfDoubleQuotes == 2) {
+        tokens += token.replace("\n", """\n""")
+    } else {
+        val tok = token
+            .substringAfter("\"")
+            .substringBeforeLast("\"")
+            .replace("\"", "\\\"")
+        tokens += ("\"$tok\"" + token.substringAfterLast("\"")).replace("\n", """\n""")
+    }
+    return leftOverToken1
+}
+
+private fun rewriteDbRef(finalJson: String): String {
+    var finalJson1 = finalJson
+    while (finalJson1.contains(DBRefRegex)) {
+        val match = DBRefRegex.find(finalJson1)
+        val string = match!!.value
+        val paramsString = string.substringAfter("DBRef(").substringBeforeLast(")")
+        val params = paramsString.split(",").map { it.trim() }
+
+        // Grab the collection name and id
+        val collectionName = params[0].replace("'", "\"")
+        val id = params[1]
+        val parts = mutableListOf("\"\$ref\": $collectionName")
+
+        // [^[\d|a-f|A-F]+$|^[\"|\'][\d|a-f|A-F]+[\"|\'$}]]
+        // Replace the id if it's freestanding
+        if (id.matches(Regex("""(^[\d|a-f|A-F]+${'$'})"""))) {
+            parts += "\"\$id\": { \"\$oid\": \"$id\" }"
+        } else if (id.matches(Regex("""(^["|'][\d|a-f|A-F]+["|']${'$'})"""))) {
+            parts += "\"\$id\": { \"\$oid\": \"${id.replace("'", "\"")}\" }"
+        }
+
+        // Do we have the $db field
+        if (parts.size == 3) {
+            parts += "\"\$db\": ${parts[2].replace("'", "\"")}"
+        }
+
+        finalJson1 = finalJson1.replaceFirst(string, " { ${parts.joinToString(", ")} }")
+    }
+    return finalJson1
 }
