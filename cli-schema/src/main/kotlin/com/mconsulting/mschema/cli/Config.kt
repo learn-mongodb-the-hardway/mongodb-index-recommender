@@ -67,9 +67,9 @@ class ExtractConfig(parser: ArgParser) {
         }
     }
 
-    val skipReadProfileCollection by parser.flagging("--skip-read-profile-collection", help = "General: Skip attempting to query the profile collection").default(false)
+    val skipReadProfileCollection by parser.flagging("--skip-read-profile-collection", help = "General: Skip attempting to queries the profile collection").default(false)
 
-    val skipQueryShapeExplainPlanExecution by parser.flagging("--skip-query-shape-explain-plan-execution", help = "General: Skip attempt to use detected query shapes to detect additional information").default(false)
+    val skipQueryShapeExplainPlanExecution by parser.flagging("--skip-queries-shape-explain-plan-execution", help = "General: Skip attempt to use detected queries shapes to detect additional information").default(false)
 
     val outputFormat by parser.storing("--format", help = """Extract: Output format for index recommender, one of ["txt", "json"], ex: [--output txt]""") {
         when (this.toLowerCase()) {
