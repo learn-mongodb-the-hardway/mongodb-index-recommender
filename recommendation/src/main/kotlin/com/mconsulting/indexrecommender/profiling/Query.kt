@@ -9,14 +9,10 @@ data class QueryCommand(val db: String, val collection: String, val filter: Json
 class Query(doc: JsonObject) : ReadOperation(doc) {
 
     fun command() : QueryCommand {
-        var command: JsonObject
-
-        if (doc.containsKey("command")) {
-            command = doc.obj("command")!!
-        } else if (doc.containsKey("query")) {
-            command = doc.obj("query")!!
-        } else {
-            throw Exception("unexpected query profile document format, could not find either the [\"command\", \"query\"] field")
+        val command = when {
+            doc.containsKey("command") -> doc.obj("command")!!
+            doc.containsKey("query") -> doc.obj("query")!!
+            else -> throw Exception("unexpected query profile document format, could not find either the [\"command\", \"query\"] field")
         }
 
         var sort = JsonObject()

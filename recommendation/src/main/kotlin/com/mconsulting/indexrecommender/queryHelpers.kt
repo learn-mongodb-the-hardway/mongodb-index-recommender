@@ -2,26 +2,13 @@ package com.mconsulting.indexrecommender
 
 import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonObject
-import com.beust.klaxon.Parser
 import jdk.nashorn.api.scripting.ScriptObjectMirror
 import mu.KotlinLogging
 import org.bson.BsonArray
-import org.bson.BsonBoolean
 import org.bson.BsonDocument
-import org.bson.BsonDouble
-import org.bson.BsonInt32
-import org.bson.BsonInt64
-import org.bson.BsonJavaScript
 import org.bson.BsonRegularExpression
-import org.bson.BsonString
-import org.bson.BsonUndefined
-import org.bson.BsonValue
-import java.io.StringReader
 import java.util.*
 import javax.script.ScriptEngineManager
-import kotlin.Exception
-import kotlin.math.roundToLong
-import kotlin.math.sign
 
 fun generateProjection(document: JsonObject): JsonObject {
     val paths = mutableListOf<String>()
@@ -149,16 +136,6 @@ private val logger = KotlinLogging.logger { }
 
 fun commandToJsonObject(json: String): JsonObject {
     return slowPath(json)
-//    return when (!json.contains(Regex("\\:[ ]*function[ ]*\\("))) {
-//        true -> {
-//            try {
-//                fastPath(json)
-//            } catch (ex: Exception) {
-//                slowPath(json)
-//            }
-//        }
-//        else -> slowPath(json)
-//    }
 }
 
 fun slowPath(json: String): JsonObject {

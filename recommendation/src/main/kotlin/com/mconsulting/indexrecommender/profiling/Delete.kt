@@ -14,5 +14,5 @@ class Delete(doc: JsonObject) : WriteOperation(doc) {
             command.obj("q")!!)
     }
 
-    fun numberDeleted() = doc.int("ndeleted")!!
+    fun numberDeleted() = getInt("ndeleted", doc)
 }

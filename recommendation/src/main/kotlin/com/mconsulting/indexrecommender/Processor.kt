@@ -33,16 +33,16 @@ class Processor(
         }
 
         // Process each of the ingress sources
-        ingressSources.forEach {
-            it.forEach(namespaces) {
-                when (it) {
+        ingressSources.forEach {ingress ->
+            ingress.forEach(namespaces) { operation ->
+                when (operation) {
                     is LogEntryBase -> {
-                        val collection = getCollection(it.namespace)
-                        collection.addLogEntry(it)
+                        val collection = getCollection(operation.namespace)
+                        collection.addLogEntry(operation)
                     }
                     is Operation -> {
-                        val collection = getCollection(it.namespace())
-                        collection.addOperation(it)
+                        val collection = getCollection(operation.namespace())
+                        collection.addOperation(operation)
                     }
                 }
             }
@@ -56,9 +56,17 @@ class Processor(
 
     private fun getCollection(namespace: Namespace): Collection {
         // Grab the db object
-        val db = dbs[namespace.db]!!
+        val db = getDatabase(namespace)
         // Grab (or create a collection object)
         return db.getCollection(namespace)
+    }
+
+    private fun getDatabase(namespace: Namespace): Db {
+        if (!dbs.containsKey(namespace.db)) {
+            dbs[namespace.db] = Db(client, namespace, collectionOptions)
+        }
+
+        return dbs[namespace.db]!!
     }
 }
 

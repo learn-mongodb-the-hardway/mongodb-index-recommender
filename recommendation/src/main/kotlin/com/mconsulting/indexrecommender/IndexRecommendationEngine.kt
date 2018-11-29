@@ -16,10 +16,12 @@ import com.mconsulting.indexrecommender.log.CommandLogEntry
 import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.AggregationCommand
+import com.mconsulting.indexrecommender.profiling.NotSupportedOperation
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
 import com.mconsulting.indexrecommender.profiling.QueryCommand
 import com.mongodb.MongoClient
+import mu.KLogging
 import org.bson.BsonDocument
 
 class IndexRecommendationOptions()
@@ -48,12 +50,15 @@ class IndexRecommendationEngine(
     val collection: Collection? = null,
     val options: IndexRecommendationOptions = IndexRecommendationOptions()) {
 
-    val candidateIndexes = mutableListOf<Index>()
+    private val candidateIndexes = mutableListOf<Index>()
 
     fun process(operation: Operation) {
+        if (logger.isDebugEnabled) logger.debug { "Processing operation [${operation.doc.toJsonString()}" }
+
         when (operation) {
             is Query -> processQuery(operation)
             is Aggregation -> processAggregation(operation)
+            is NotSupportedOperation -> logger.warn { "Attempting to process a non supported operation" }
         }
     }
 
@@ -505,4 +510,6 @@ class IndexRecommendationEngine(
             candidateIndexes += index
         }
     }
+
+    companion object : KLogging()
 }

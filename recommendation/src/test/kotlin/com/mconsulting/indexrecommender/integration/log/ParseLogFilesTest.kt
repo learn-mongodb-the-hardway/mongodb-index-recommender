@@ -62,18 +62,17 @@ class ParseLogFilesTest {
     private fun parseJson(bufferedReader: BufferedReader) {
         class BufferJSONIngress(val bufferedReader: BufferedReader) : Ingress {
             override fun forEach(namespaces: List<Namespace>, func: (value: Any) -> Unit) {
-                // Read the line
-                val line = bufferedReader.readLine()
-                // Parse the json
-                val doc = Parser().parse(StringReader(line)) as JsonObject
-                // Create operation
-                val operation = createOperation(doc)
-
-                if (operation == null) {
-                    println(doc.toJsonString(true))
+                while (true) {
+                    // Read the line
+                    val line = bufferedReader.readLine() ?: break
+                    println(line)
+                    // Parse the json
+                    val doc = Parser().parse(StringReader(line)) as JsonObject
+                    // Create operation
+                    val operation = createOperation(doc)
+                    // Call the function
+                    func(operation!!)
                 }
-                // Call the function
-                func(operation!!)
             }
         }
 

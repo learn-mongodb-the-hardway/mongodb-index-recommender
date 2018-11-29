@@ -3,7 +3,6 @@ package com.mconsulting.indexrecommender
 import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonBase
 import com.beust.klaxon.JsonObject
-import com.beust.klaxon.JsonValue
 import com.mconsulting.indexrecommender.log.CommandLogEntry
 import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
@@ -18,12 +17,6 @@ import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation
 import org.apache.commons.math3.stat.descriptive.moment.Variance
 import org.apache.commons.math3.stat.descriptive.rank.Max
 import org.apache.commons.math3.stat.descriptive.rank.Min
-import org.bson.BsonArray
-import org.bson.BsonBoolean
-import org.bson.BsonDocument
-import org.bson.BsonElement
-import org.bson.BsonInt32
-import org.bson.BsonValue
 import java.time.temporal.ChronoUnit
 import java.util.*
 
@@ -201,7 +194,7 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
             timestamp = operation.timestamp(),
             responseLength = 0.0,
             resolution = options.bucketResolution,
-            millis = operation.milis().toDouble()
+            millis = operation.millis().toDouble()
         )
 
         if (inserts == null) {
@@ -249,7 +242,7 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
             timestamp = operation.timestamp(),
             responseLength = responseLength.toDouble(),
             resolution = options.bucketResolution,
-            millis = operation.milis().toDouble()
+            millis = operation.millis().toDouble()
         )
 
         // Check if the filter exists

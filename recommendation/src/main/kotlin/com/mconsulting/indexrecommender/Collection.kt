@@ -2,25 +2,24 @@ package com.mconsulting.indexrecommender
 
 import com.beust.klaxon.JsonObject
 import com.mconsulting.indexrecommender.indexes.Index
-import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.indexes.IndexParser
 import com.mconsulting.indexrecommender.indexes.IndexParserOptions
-import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
-import com.mconsulting.indexrecommender.ingress.Ingress
 import com.mconsulting.indexrecommender.log.LogEntry
-import com.mconsulting.indexrecommender.log.LogEntryBase
 import com.mconsulting.indexrecommender.profiling.Aggregation
+import com.mconsulting.indexrecommender.profiling.Count
 import com.mconsulting.indexrecommender.profiling.Delete
+import com.mconsulting.indexrecommender.profiling.GeoNear
 import com.mconsulting.indexrecommender.profiling.Insert
+import com.mconsulting.indexrecommender.profiling.NotSupportedOperation
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
 import com.mconsulting.indexrecommender.profiling.Update
 import com.mongodb.MongoClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
+import mu.KLogging
+import mu.KotlinLogging
 import org.bson.BsonDocument
-import org.bson.BsonInt32
-import org.bson.BsonString
 
 data class CollectionOptions(
     val allowExplainExecution: Boolean = true,
@@ -47,7 +46,7 @@ class Collection(
     val db: Db,
     options: CollectionOptions = CollectionOptions()) {
 
-    private var database: MongoDatabase
+    private var database: MongoDatabase = client.getDatabase(namespace.db)
     private var collection: MongoCollection<BsonDocument>
     private var existingIndexes: List<Index> = listOf()
     private var statisticsProcessor: StatisticsProcessor = StatisticsProcessor()
@@ -61,7 +60,6 @@ class Collection(
     private var recommendationEngine: IndexRecommendationEngine = IndexRecommendationEngine(client, this)
 
     init {
-        database = client.getDatabase(namespace.db)
         collection = database.getCollection(namespace.collection, BsonDocument::class.java)
         // Process any existing indexes
         processExistingIndexes()
@@ -100,33 +98,38 @@ class Collection(
     fun addIndex(index: Index) {
         recommendationEngine.addIndex(index)
     }
+
+    companion object : KLogging()
 }
 
+private val logger = KotlinLogging.logger { }
+
 fun createOperation(doc: JsonObject): Operation? {
-    var operation: Operation? = null
+    val operation = doc.string("op")
 
-    if (doc.string("op") == "query") {
-        return Query(doc)
-    } else if (doc.string("op") == "insert") {
-        return Insert(doc)
-    } else if (doc.string("op") == "remove") {
-        return Delete(doc)
-    } else if (doc.string("op") == "update") {
-        return Update(doc)
-    } else if (doc.string("op") == "command") {
-        // Identify the operation
-        // (we care only about operations that contain reads (query, agg, update, count etc.)
-        val command = doc.obj("command")!!
+    return when (operation) {
+        "query" -> Query(doc)
+        "insert" -> Insert(doc)
+        "remove" -> Delete(doc)
+        "update" -> Update(doc)
+        "command" -> {
+            // Identify the operation
+            // (we care only about operations that contain reads (query, agg, update, count etc.)
+            val command = doc.obj("command")!!
 
-        // We have an agregation command
-        if (command.containsKey("aggregate")) {
-            return Aggregation(doc)
-        } else if (command.containsKey("count")) {
-            throw NotImplementedError("count command not implemented")
-        } else if (command.containsKey("update")) {
-            throw NotImplementedError("update command not implemented")
+            return when {
+                command.containsKey("aggregate") -> Aggregation(doc)
+                command.containsKey("geoNear") -> GeoNear(doc)
+                command.containsKey("count") -> Count(doc)
+                else -> {
+                    logger.warn { "Failed to create operation from [${doc.toJsonString()}" }
+                    NotSupportedOperation(doc)
+                }
+            }
+        }
+        else -> {
+            logger.warn { "Failed to create operation from [${doc.toJsonString()}" }
+            NotSupportedOperation(doc)
         }
     }
-
-    return operation
 }

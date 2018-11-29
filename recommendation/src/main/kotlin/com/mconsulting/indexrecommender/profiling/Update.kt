@@ -15,5 +15,5 @@ class Update(doc: JsonObject) : WriteOperation(doc) {
             command.obj("q")!!)
     }
 
-    fun numberModified() = doc.int("nModified")!!
+    fun numberModified() = getInt("nModified", doc)
 }
