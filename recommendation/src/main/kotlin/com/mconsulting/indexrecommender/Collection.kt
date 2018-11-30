@@ -122,13 +122,13 @@ fun createOperation(doc: JsonObject): Operation? {
                 command.containsKey("geoNear") -> GeoNear(doc)
                 command.containsKey("count") -> Count(doc)
                 else -> {
-                    logger.warn { "Failed to create operation from [${doc.toJsonString()}" }
+                    logger.warn { "Failed to create operation from [${doc.toJsonString()}]" }
                     NotSupportedOperation(doc)
                 }
             }
         }
         else -> {
-            logger.warn { "Failed to create operation from [${doc.toJsonString()}" }
+            logger.warn { "Failed to create operation from [${doc.toJsonString()}]" }
             NotSupportedOperation(doc)
         }
     }

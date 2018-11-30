@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test
 import java.io.BufferedReader
 import java.io.File
 import java.io.StringReader
+import java.lang.Exception
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 
@@ -55,6 +56,7 @@ class ParseLogFilesTest {
         do {
             if (entry.name.endsWith(".json")) {
                 parseJson(zipFile.getInputStream(entry).bufferedReader())
+//                parseJson(BufferedReader(StringReader("""{"op":"command","ns":"test","command":{"${'$'}eval":{"${'$'}code":"function () {\n        return 33;\n    }"}},"numYield":0,"locks":{"Global":{"acquireCount":{"r":{"${'$'}numberLong":"3"},"W":{"${'$'}numberLong":"1"}}},"Database":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}},"Collection":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}}},"responseLength":38,"protocol":"op_command","millis":23,"ts":{"${'$'}date":"2018-11-22T16:00:09.406Z"},"client":"127.0.0.1","appName":"MongoDB Shell","allUsers":[],"user":""}""".trimIndent())))
             }
             entry = zipInputStream.nextEntry
         } while (entry != null)
@@ -68,14 +70,23 @@ class ParseLogFilesTest {
             override fun forEach(namespaces: List<Namespace>, func: (value: Any) -> Unit) {
                 while (true) {
                     // Read the line
-                    val line = bufferedReader.readLine() ?: break
-                    println(line)
+                    var line = bufferedReader.readLine() ?: break
+                    line = line
+                        .replace("-Infinity", "-9007199254740991")
+                        .replace("+Infinity", "9007199254740991")
+                        .replace("NaN", "\"NaN\"")
+//                    println(line)
                     // Parse the json
                     val doc = Parser().parse(StringReader(line)) as JsonObject
                     // Create operation
                     val operation = createOperation(doc)
-                    // Call the function
-                    func(operation!!)
+                    try {
+                        // Call the function
+                        func(operation!!)
+                    } catch (err: Exception) {
+                        println(line)
+                        throw err
+                    }
                 }
             }
         }

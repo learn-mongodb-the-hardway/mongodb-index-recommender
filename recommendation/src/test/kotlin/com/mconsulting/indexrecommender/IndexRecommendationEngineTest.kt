@@ -6,6 +6,8 @@ import com.mconsulting.indexrecommender.indexes.Field
 import com.mconsulting.indexrecommender.indexes.Index
 import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
+import com.mconsulting.indexrecommender.indexes.TextField
+import com.mconsulting.indexrecommender.indexes.TextIndex
 import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
 import com.mongodb.MongoClient
 import com.mongodb.MongoClientURI
@@ -45,7 +47,7 @@ class IndexRecommendationEngineTest {
     }
 
     @Test
-    fun handleGeoORperationInQuery2() {
+    fun handleGeoOperationInQuery2() {
         val query = """{"op":"update","ns":"test.geo_polygon1","query":{"_id":0.0},"updateobj":{"_id":0.0,"loc":[1.0,1.0]},"keysExamined":0,"docsExamined":0,"nMatched":0,"nModified":0,"upsert":true,"keysInserted":1,"numYield":0,"locks":{"Global":{"acquireCount":{"r":{"${'$'}numberLong":"3"},"w":{"${'$'}numberLong":"3"}}},"Database":{"acquireCount":{"w":{"${'$'}numberLong":"2"},"W":{"${'$'}numberLong":"1"}}},"Collection":{"acquireCount":{"w":{"${'$'}numberLong":"2"}}}},"millis":21,"planSummary":"IDHACK","execStats":{"stage":"UPDATE","nReturned":0,"executionTimeMillisEstimate":0,"works":2,"advanced":0,"needTime":1,"needYield":0,"saveState":0,"restoreState":0,"isEOF":1,"invalidates":0,"nMatched":0,"nWouldModify":0,"nInvalidateSkips":0,"wouldInsert":true,"fastmodinsert":false,"inputStage":{"stage":"IDHACK","nReturned":0,"executionTimeMillisEstimate":0,"works":1,"advanced":0,"needTime":0,"needYield":0,"saveState":0,"restoreState":0,"isEOF":1,"invalidates":0,"keysExamined":0,"docsExamined":0}},"ts":{"${'$'}date":"2018-11-22T15:58:59.377Z"},"client":"127.0.0.1","appName":"MongoDB Shell","allUsers":[],"user":""}"""
         val indexes = recommend(client, query)
 
@@ -53,6 +55,33 @@ class IndexRecommendationEngineTest {
         assertEquals(SingleFieldIndex(
             "_id_1", Field("_id", IndexDirection.UNKNOWN)
         ), indexes[0])
+    }
+
+    @Test
+    fun handleQuery() {
+        val query = """{"op":"query","ns":"test.getmore_cmd_maxtimems","query":{"find":"getmore_cmd_maxtimems","batchSize":2.0},"cursorid":{"${'$'}numberLong":"10112319036369"},"keysExamined":0,"docsExamined":2,"numYield":0,"locks":{"Global":{"acquireCount":{"r":{"${'$'}numberLong":"2"}}},"Database":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}},"Collection":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}}},"nreturned":2,"responseLength":171,"protocol":"op_command","millis":0,"planSummary":"COLLSCAN","execStats":{"stage":"COLLSCAN","nReturned":2,"executionTimeMillisEstimate":0,"works":3,"advanced":2,"needTime":1,"needYield":0,"saveState":1,"restoreState":0,"isEOF":0,"invalidates":0,"direction":"forward","docsExamined":2},"ts":{"${'$'}date":"2018-11-22T15:59:29.935Z"},"client":"127.0.0.1","appName":"MongoDB Shell","allUsers":[],"user":""}"""
+        val indexes = recommend(client, query)
+
+        assertEquals(0, indexes.size)
+    }
+
+    @Test
+    fun handleEval() {
+        val query = """{"op":"command","ns":"test","command":{"${'$'}eval":{"${'$'}code":"function () {\n        return 33;\n    }"}},"numYield":0,"locks":{"Global":{"acquireCount":{"r":{"${'$'}numberLong":"3"},"W":{"${'$'}numberLong":"1"}}},"Database":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}},"Collection":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}}},"responseLength":38,"protocol":"op_command","millis":23,"ts":{"${'$'}date":"2018-11-22T16:00:09.406Z"},"client":"127.0.0.1","appName":"MongoDB Shell","allUsers":[],"user":""}"""
+        val indexes = recommend(client, query)
+
+        assertEquals(0, indexes.size)
+    }
+
+    @Test
+    fun handleQuery2() {
+        val query = """{"op":"query","ns":"test.jstests_not2","query":{"find":"jstests_not2","filter":{"i":{"${'$'}not":{"${'$'}regex":"a","${'$'}options":""},"${'$'}regex":"a"}}},"keysExamined":0,"docsExamined":2,"cursorExhausted":true,"numYield":0,"locks":{"Global":{"acquireCount":{"r":{"${'$'}numberLong":"2"}}},"Database":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}},"Collection":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}}},"nreturned":0,"responseLength":90,"protocol":"op_command","millis":0,"planSummary":"COLLSCAN","execStats":{"stage":"COLLSCAN","filter":{"${'$'}and":[{"i":{"${'$'}regex":"a"}},{"${'$'}nor":[{"i":{"${'$'}regex":"a"}}]}]},"nReturned":0,"executionTimeMillisEstimate":0,"works":4,"advanced":0,"needTime":3,"needYield":0,"saveState":0,"restoreState":0,"isEOF":1,"invalidates":0,"direction":"forward","docsExamined":2},"ts":{"${'$'}date":"2018-11-22T16:01:27.153Z"},"client":"127.0.0.1","appName":"MongoDB Shell","allUsers":[],"user":""}"""
+        val indexes = recommend(client, query)
+
+        assertEquals(1, indexes.size)
+        assertEquals(TextIndex("i_1", listOf(
+            TextField(listOf("i"), 1)
+        )), indexes.first() as TextIndex)
     }
 
     companion object {

@@ -13,7 +13,7 @@ class Aggregation(doc: JsonObject) : ReadOperation(doc) {
 
         return AggregationCommand(
             namespace().db,
-            command.string("aggregate")!!,
+            namespace().collection,
             command.array<JsonObject>("pipeline")!!)
     }
 }

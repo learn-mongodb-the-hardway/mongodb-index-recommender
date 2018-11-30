@@ -25,13 +25,6 @@ fun generateProjection(document: JsonObject): JsonObject {
 fun generatePaths(document: JsonObject, path: MutableList<String>, paths: MutableList<String>) {
     for (entry in document.entries) {
         val subPath = path.toMutableList()
-
-        // Do we have an operator ($) then we are at the end of that particular path
-        if (entry.key.startsWith("$")) {
-            paths.add(subPath.joinToString("."))
-            continue
-        }
-
         subPath += entry.key
 
         if (!entry.key.contains(".")) {
@@ -78,7 +71,7 @@ fun array(doc: JsonArray<*>, path: MutableList<String>, func: (doc: JsonObject, 
 }
 
 fun document(doc: JsonObject, path: MutableList<String>, func: (doc: JsonObject, path: MutableList<String>, entry: MutableMap.MutableEntry<String, Any?>) -> Any?) {
-    for (entry in doc.entries) {
+    for (entry in doc.entries.toList()) {
 
         func(doc, path, entry)
 

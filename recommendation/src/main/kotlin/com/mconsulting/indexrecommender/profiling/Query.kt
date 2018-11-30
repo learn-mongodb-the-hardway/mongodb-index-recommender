@@ -23,10 +23,18 @@ class Query(doc: JsonObject) : ReadOperation(doc) {
             sort = command.obj("sort")!!
         }
 
+        val filter: JsonObject
+
+        if (command.containsKey("filter")) {
+            filter = command.obj("filter")!!
+        } else {
+            filter = JsonObject()
+        }
+
         return QueryCommand(
             namespace().db,
-            command.string("find")!!,
-            command.obj("filter")!!,
+            namespace().collection,
+            filter,
             sort)
     }
 

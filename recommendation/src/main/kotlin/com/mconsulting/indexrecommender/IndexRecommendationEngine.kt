@@ -335,13 +335,14 @@ class IndexRecommendationEngine(
      * The left over fields will then be processed against other possible index candidates
      */
     private fun processRegularExpression(query: QueryCommand, candidateIndexes: MutableList<Index>) {
-        val regularExpressions = mutableListOf<List<String>>()
+        var regularExpressions = mutableListOf<List<String>>()
         val filteredOutDoc = JsonObject(query.filter.toMap())
         val filteredSortDoc = JsonObject(query.sort.toMap())
-        val queryFilterNames = JsonObject()
 
         traverse(query.filter) { _, _path, entry ->
-            if (entry.value is JsonObject && isBsonRegularExpression(entry.value as JsonObject)) {
+            if (entry.value is JsonObject
+                && isBsonRegularExpression(entry.value as JsonObject)
+            ) {
                 // Add to the list of regular expressions
                 regularExpressions.add(_path.toList() + entry.key)
                 // Remove from the filtered out Doc
@@ -349,9 +350,18 @@ class IndexRecommendationEngine(
                 // Remove from the sort
                 filteredSortDoc.remove(_path + entry.key)
                 // Add to the BsonDocument that will be used for naming
-                queryFilterNames.put("${(_path + entry.key).joinToString(".")}", 1)
+//                queryFilterNames.put("${(_path + entry.key).joinToString(".")}", 1)
             }
         }
+
+        // Clear out any non $regex expressions
+        regularExpressions = regularExpressions.map { path ->
+            path.filter { !it.startsWith("$") }
+        }.toMutableList()
+
+        val queryFilterNames = JsonObject(regularExpressions.map {
+            it.joinToString(".") to 1
+        }.toMap())
 
         // Generate a text index recommendation
         candidateIndexes += TextIndex(
