@@ -16,6 +16,7 @@ import com.mongodb.MongoClientURI
 import com.mongodb.client.MongoDatabase
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import java.io.BufferedReader
 import java.io.File
@@ -25,18 +26,21 @@ import java.util.zip.ZipInputStream
 
 class ParseLogFilesTest {
     @Test
+    @Tag("integration")
     @Integration
     fun parseLogsFromMongo_3_4() {
         executeParse("logs/full-logs/mongo-log-3_4.zip")
     }
 
     @Test
+    @Tag("integration")
     @Integration
     fun parseLogsFromMongo_4_0() {
         executeParse("logs/full-logs/mongo-log-4_0.zip")
     }
 
     @Test
+    @Tag("integration")
     @Integration
     fun parseProfileCollectionDumpFromMongo_3_4() {
         executeProfileParse("logs/full-logs/mongo-log-3_4.zip")

@@ -4,10 +4,12 @@ import com.beust.klaxon.JsonObject
 import org.bson.BsonDocument
 import org.bson.BsonString
 
-data class QueryCommand(val db: String, val collection: String, val filter: JsonObject, val sort: JsonObject)
+data class QueryCommand(val db: String, val collection: String, val filter: JsonObject, val sort: JsonObject) {
+    val namespace: String
+        get() = "$db.$collection"
+}
 
 class Query(doc: JsonObject) : ReadOperation(doc) {
-
     fun command() : QueryCommand {
         val command = when {
             doc.containsKey("command") -> doc.obj("command")!!

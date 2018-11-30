@@ -8,7 +8,9 @@ data class DeleteCommand(val db: String, val collection: String, val queries: Li
 
 class Delete(doc: JsonObject) : WriteOperation(doc) {
     fun command() : DeleteCommand {
-        if (doc.string("op") == "remove") {
+        if (doc.string("op") == "remove" && doc.containsKey("command")) {
+            return singleDeleteCommand(doc)
+        } else if (doc.string("op") == "remove") {
             return removeOp(doc)
         } else if (doc.string("op") == "command") {
             val command = doc.obj("command")!!
@@ -19,6 +21,16 @@ class Delete(doc: JsonObject) : WriteOperation(doc) {
         }
 
         throw Exception("cannot identify operation as a delete [${doc.toJsonString()}")
+    }
+
+    private fun singleDeleteCommand(doc: JsonObject): DeleteCommand {
+        val command = doc.obj("command")!!
+        val query = command.obj("q")!!
+
+        return DeleteCommand(
+            namespace().db,
+            namespace().collection,
+            listOf(query))
     }
 
     private fun modernDelete(docs: JsonArray<JsonObject>): DeleteCommand {
@@ -32,8 +44,13 @@ class Delete(doc: JsonObject) : WriteOperation(doc) {
     }
 
     private fun removeOp(doc: JsonObject): DeleteCommand {
+        val query = when (doc.containsKey("query")) {
+            true -> doc.obj("query")!!
+            else -> JsonObject()
+        }
+
         return DeleteCommand(namespace().db, namespace().collection, listOf(
-            doc.obj("command")!!.obj("q")!!
+            query
         ))
     }
 

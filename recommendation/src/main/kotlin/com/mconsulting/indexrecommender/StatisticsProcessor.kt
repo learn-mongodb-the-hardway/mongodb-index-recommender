@@ -167,7 +167,11 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
             is Query -> processShape(normalizeFilter(operation.command().filter), operation)
             is Aggregation -> processShape(normalizeFilter(operation.command().pipeline), operation)
             is Insert -> processInsert(operation)
-            is Update -> processShape(normalizeFilter(operation.command().query), operation)
+            is Update -> {
+                operation.command().queries.forEach { query ->
+                    processShape(normalizeFilter(query), operation)
+                }
+            }
             is Delete -> {
                 operation.command().queries.forEach { query ->
                     processShape(normalizeFilter(query), operation)

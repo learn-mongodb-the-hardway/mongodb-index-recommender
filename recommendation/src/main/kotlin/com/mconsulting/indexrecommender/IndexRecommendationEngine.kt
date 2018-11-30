@@ -20,6 +20,7 @@ import com.mconsulting.indexrecommender.profiling.NotSupportedOperation
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
 import com.mconsulting.indexrecommender.profiling.QueryCommand
+import com.mconsulting.indexrecommender.profiling.Update
 import com.mongodb.MongoClient
 import mu.KLogging
 import org.bson.BsonDocument
@@ -57,6 +58,7 @@ class IndexRecommendationEngine(
 
         when (operation) {
             is Query -> processQuery(operation)
+            is Update -> processUpdate(operation)
             is Aggregation -> processAggregation(operation)
             is NotSupportedOperation -> logger.warn { "Attempting to process a non supported operation" }
         }
@@ -260,6 +262,18 @@ class IndexRecommendationEngine(
         collection.addIndex(index)
     }
 
+    private fun processUpdate(update: Update) {
+        update.command().toQueryCommands().forEach { queryCommand ->
+            val indexes = processQueryCommand(queryCommand)
+
+            indexes.forEach { index ->
+                if (!candidateIndexes.contains(index)) {
+                    candidateIndexes += index
+                }
+            }
+        }
+    }
+
     private fun processQuery(query: Query) {
         val indexes = processQueryCommand(query.command())
 
@@ -293,10 +307,14 @@ class IndexRecommendationEngine(
         // Flatten the index into dot notation for the create index statements
         val flattenedQuery = generateProjection(queryCommand.filter)
 
-        // Check if w have a multikey index
-        if (isMultiKeyIndex(queryCommand)) {
-            addMultiKeyIndex(flattenedQuery, queryCommand, indexes)
-            return indexes
+        try {
+            // Check if w have a multikey index
+            if (isMultiKeyIndex(queryCommand)) {
+                addMultiKeyIndex(flattenedQuery, queryCommand, indexes)
+                return indexes
+            }
+        } catch (err: Exception) {
+            logger.warn { "Failed to sample Operation [${queryCommand.namespace}] - [${queryCommand.filter.toJsonString()}" }
         }
 
         // Check if it's a single field index
