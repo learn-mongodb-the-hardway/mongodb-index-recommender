@@ -396,7 +396,7 @@ class IndexRecommendationEngine(
         var path: MutableList<String> = mutableListOf()
 
         traverse(query.filter) { _, _path, entry ->
-            if (entry.key in listOf("\$geoWithin", "\$near", "\$geoIntersects", "\$nearSphere")) {
+            if (entry.key in listOf("\$geoWithin", "\$near", "\$geoIntersects", "\$nearSphere", "\$within")) {
                path.addAll(_path)
             }
         }
@@ -411,7 +411,7 @@ class IndexRecommendationEngine(
         var contains = false
 
         traverse(query.filter) { _, _, entry ->
-            if (entry.key in listOf("\$geoWithin", "\$near", "\$geoIntersects", "\$nearSphere")) {
+            if (entry.key in listOf("\$geoWithin", "\$near", "\$geoIntersects", "\$nearSphere", "\$within")) {
                 contains = true
             }
         }

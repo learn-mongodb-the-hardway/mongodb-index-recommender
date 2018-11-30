@@ -6,6 +6,7 @@ import com.mconsulting.indexrecommender.indexes.Field
 import com.mconsulting.indexrecommender.indexes.Index
 import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
+import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
 import com.mongodb.MongoClient
 import com.mongodb.MongoClientURI
 import com.mongodb.client.MongoDatabase
@@ -38,8 +39,8 @@ class IndexRecommendationEngineTest {
         val indexes = recommend(client, query)
 
         assertEquals(1, indexes.size)
-        assertEquals(SingleFieldIndex(
-            "loc_1", Field("loc", IndexDirection.UNKNOWN)
+        assertEquals(TwoDSphereIndex(
+            "loc_1", "loc"
         ), indexes[0])
     }
 
