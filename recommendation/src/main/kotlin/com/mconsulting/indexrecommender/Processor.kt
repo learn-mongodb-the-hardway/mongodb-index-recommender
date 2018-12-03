@@ -11,8 +11,8 @@ import mu.KLogging
 
 class Processor(
     val client: MongoClient,
-    val namespaces: List<Namespace> = mutableListOf(),
-    val collectionOptions: CollectionOptions = CollectionOptions()
+    private val namespaces: List<Namespace> = mutableListOf(),
+    private val collectionOptions: CollectionOptions = CollectionOptions()
 ) {
     private val ingressSources: MutableList<Ingress> = mutableListOf()
     private val dbs: MutableMap<String, Db> = mutableMapOf()
@@ -43,11 +43,23 @@ class Processor(
                         val collection = getCollection(operation.namespace)
                         collection.addLogEntry(operation)
                     }
-                    is NotSupported -> logger.warn { "Attempting to process a non supported operation" }
-                    is FailedOperation -> logger.warn { "Attempting to process a operation that threw an exception" }
+                    is NotSupported -> {
+                        if (!collectionOptions.quiet) {
+                            logger.warn { "Attempting to process a non supported operation" }
+                        }
+                    }
+                    is FailedOperation -> {
+                        if (!collectionOptions.quiet) {
+                            logger.warn("Skipping the processing of a MongoDB operation that threw an exception")
+                        }
+                    }
                     is Operation -> {
-                        val collection = getCollection(operation.namespace())
-                        collection.addOperation(operation)
+                        // Only process operations that happen on actual collections
+                        // Skipping operations such as eval
+                        if (operation.containsNameSpace()
+                            && operation.namespace().collection.isNotBlank()) {
+                            getCollection(operation.namespace()).addOperation(operation)
+                        }
                     }
                 }
             }

@@ -32,7 +32,13 @@ class Delete(doc: JsonObject) : WriteOperation(doc) {
 
     private fun singleDeleteCommand(doc: JsonObject): DeleteCommand {
         val command = doc.obj("command")!!
-        val query = command.obj("q")!!
+        val query = when (command.containsKey("\$truncated")) {
+            true -> {
+                logger.warn("Delete command filter is redacted [${doc.toJsonString()}]")
+                JsonObject()
+            }
+            false -> command.obj("q")!!
+        }
 
         return DeleteCommand(
             namespace().db,
@@ -56,7 +62,7 @@ class Delete(doc: JsonObject) : WriteOperation(doc) {
                 if (doc["query"]  is JsonObject) {
                     doc.obj("query")!!
                 } else {
-                    logger.warn("Delete command filter is redacted [${doc["query"]}]")
+                    logger.warn("Delete command filter is redacted [${doc.toJsonString()}]")
                     JsonObject()
                 }
             }

@@ -4,8 +4,20 @@ import com.beust.klaxon.JsonObject
 
 class FailedOperation(doc: JsonObject) : Operation(doc) {
 
-    fun exception() = getString("exception", doc)
+    fun exception() = {
+        if (doc.containsKey("exception")) {
+            getString("exception", doc)
+        } else {
+            getString("errName", doc)
+        }
+    }
 
-    fun exceptionCode() = getInt("exceptionCode", doc)
+    fun exceptionCode() = {
+        if (doc.containsKey("exceptionCode")) {
+            getInt("exceptionCode", doc)
+        } else {
+            getInt("errCode", doc)
+        }
+    }
 
 }

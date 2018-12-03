@@ -10,6 +10,8 @@ import org.joda.time.format.DateTimeFormatter
 import org.joda.time.format.ISODateTimeFormat
 
 abstract class Operation(val doc: JsonObject) {
+    fun containsNameSpace() = doc.containsKey("ns")
+
     fun namespace() = Namespace.parse(doc.string("ns")!!)
 
     fun millis() = getInt("millis", doc)
@@ -76,6 +78,11 @@ private fun readBsonLong(doc: JsonObject, field: String): Long {
     } else {
       throw Exception("the field $field in [${doc.toJsonString()}] does not exist on the JsonObject")
     }
+}
+
+fun getJsonObject(fieldName: String, doc: JsonObject) = when(val value = getJsonObjectMaybe(fieldName, doc)) {
+    null -> throw Exception("unexpected field type")
+    else -> value
 }
 
 fun getJsonObjectMaybe(fieldName: String, doc: JsonObject) = when (doc.containsKey(fieldName)) {

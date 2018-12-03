@@ -11,24 +11,23 @@ import org.bson.BsonDocument
 import org.bson.BsonInt32
 import java.io.StringReader
 
+data class ProfileCollectionIngressOptions(val quiet: Boolean = false)
+
 class ProfileCollectionIngress(
     val client: MongoClient,
-    val namespace: Namespace
+    val namespace: Namespace,
+    val options: ProfileCollectionIngressOptions = ProfileCollectionIngressOptions()
 ) : Ingress {
-    private var systemProfileCollection: MongoCollection<BsonDocument>
-
-    init {
-        systemProfileCollection = client
-            .getDatabase(namespace.db)
-            .getCollection("system.profile", BsonDocument::class.java)
-    }
+    private var systemProfileCollection: MongoCollection<BsonDocument> = client
+        .getDatabase(namespace.db)
+        .getCollection("system.profile", BsonDocument::class.java)
 
     override fun forEach(namespaces: List<Namespace>, func: (value: Any) -> Unit) {
         systemProfileCollection.find().sort(BsonDocument()
             .append("ts", BsonInt32(IndexDirection.ASCENDING.value()))).map {
             val json = it.toJson()
             val obj = Parser().parse(StringReader(json))
-            createOperation(obj as JsonObject)
+            createOperation(obj as JsonObject, options.quiet)
         }.forEach {
             if (it != null) {
                 func(it)

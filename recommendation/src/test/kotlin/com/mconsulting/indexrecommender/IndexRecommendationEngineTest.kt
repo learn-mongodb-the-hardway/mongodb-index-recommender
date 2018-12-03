@@ -33,6 +33,7 @@ class IndexRecommendationEngineTest {
             .replace("-Infinity", "-9007199254740991")
             .replace("+Infinity", "9007199254740991")
             .replace("NaN", "\"NaN\"")
+            .replace("\"\"NaN\"\"", "\"NaN\"")
 
         // Add the operation
         val operation = createOperation(Parser().parse(StringReader(finalQuery)) as JsonObject)!!
@@ -116,6 +117,38 @@ class IndexRecommendationEngineTest {
     @Test
     fun handleInsert() {
         val query = """{"op":"insert","ns":"test.d_constructors","query":{"insert":"d_constructors","documents":[{"_id":{"${'$'}oid":"5bf6d3ea323b833db3727a6b"},"d":{"${'$'}numberDecimal":"1"}},{"_id":{"${'$'}oid":"5bf6d3ea323b833db3727a6c"},"d":{"${'$'}numberDecimal":"1.00000000000000"}},{"_id":{"${'$'}oid":"5bf6d3ea323b833db3727a6d"},"d":{"${'$'}numberDecimal":"1"}},{"_id":{"${'$'}oid":"5bf6d3ea323b833db3727a6e"},"d":{"${'$'}numberDecimal":"1"}},{"_id":{"${'$'}oid":"5bf6d3ea323b833db3727a6f"},"d":{"${'$'}numberDecimal":"NaN"}},{"_id":{"${'$'}oid":"5bf6d3ea323b833db3727a70"},"d":{"${'$'}numberDecimal":"NaN"}}],"ordered":true},"ninserted":6,"keysInserted":6,"numYield":0,"locks":{"Global":{"acquireCount":{"r":{"${'$'}numberLong":"3"},"w":{"${'$'}numberLong":"3"}}},"Database":{"acquireCount":{"w":{"${'$'}numberLong":"2"},"W":{"${'$'}numberLong":"1"}}},"Collection":{"acquireCount":{"w":{"${'$'}numberLong":"2"}}}},"responseLength":29,"protocol":"op_command","millis":22,"ts":{"${'$'}date":"2018-11-22T16:06:02.172Z"},"client":"127.0.0.1","appName":"MongoDB Shell","allUsers":[],"user":""}"""
+        val indexes = recommend(client, query)
+
+        assertEquals(0, indexes.size)
+    }
+
+    @Test
+    fun handleGroup() {
+        val query = """{"op":"command","ns":"test.group1","command":{"group":{"ns":"group1","key":{"name.first":true},"${'$'}reduce":{"${'$'}code":"function (obj, prev) {\n        prev.count++;\n    }"},"initial":{"count":0.0},"finalize":"abc"}},"numYield":0,"locks":{"Global":{"acquireCount":{"r":{"${'$'}numberLong":"2"}}},"Database":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}},"Collection":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}}},"responseLength":219,"protocol":"op_command","millis":4,"planSummary":"COLLSCAN","ts":{"${'$'}date":"2018-11-22T15:59:30.773Z"},"client":"127.0.0.1","appName":"MongoDB Shell","allUsers":[],"user":""}"""
+        val indexes = recommend(client, query)
+
+        assertEquals(0, indexes.size)
+    }
+
+    @Test
+    fun handleEval3() {
+        val query = """{"op":"command","ns":"test","command":{"${'$'}eval":{"${'$'}code":"function () {\n        return 33;\n    }"}},"numYield":0,"locks":{"Global":{"acquireCount":{"r":{"${'$'}numberLong":"3"},"W":{"${'$'}numberLong":"1"}}},"Database":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}},"Collection":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}}},"responseLength":38,"protocol":"op_command","millis":23,"ts":{"${'$'}date":"2018-11-22T16:00:09.406Z"},"client":"127.0.0.1","appName":"MongoDB Shell","allUsers":[],"user":""}"""
+        val indexes = recommend(client, query)
+
+        assertEquals(0, indexes.size)
+    }
+
+    @Test
+    fun handleAggregate2() {
+        val query = """{"op":"command","ns":"test.local","command":{"aggregate":"local","pipeline":[{"${'$'}graphLookup":{"from":"foreign","startWith":{"${'$'}literal":0.0},"connectToField":0.0,"connectFromField":"b","as":"output"}}],"cursor":{"batchSize":0.0},"${'$'}db":"test"},"numYield":0,"locks":{"Global":{"acquireCount":{"r":{"${'$'}numberLong":"2"}}},"Database":{"acquireCount":{"r":{"${'$'}numberLong":"2"}}},"Collection":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}}},"ok":0.0,"errMsg":"expected string as argument for connectToField, found: 0.0","errName":"Location40103","errCode":40103,"responseLength":147,"protocol":"op_command","millis":0,"ts":{"${'$'}date":"2018-11-22T16:37:22.218Z"},"client":"127.0.0.1","appName":"MongoDB Shell","allUsers":[],"user":""}"""
+        val indexes = recommend(client, query)
+
+        assertEquals(0, indexes.size)
+    }
+
+    @Test
+    fun handleAggregate3() {
+        val query = """{"op":"command","ns":"test.from","command":{"aggregate":"lookUp","pipeline":[{"${'$'}lookup":{"let":{"var1":"${'$'}a"},"pipeline":[{"${'$'}project":{"x":"${'$'}${'$'}var1"}}],"from":"from","as":"same"}},{"${'$'}project":{"same":1.0}}],"cursor":{},"${'$'}db":"test"},"keysExamined":0,"docsExamined":3,"cursorExhausted":true,"numYield":0,"nreturned":3,"locks":{"Global":{"acquireCount":{"r":{"${'$'}numberLong":"9"}}},"Database":{"acquireCount":{"r":{"${'$'}numberLong":"9"}}},"Collection":{"acquireCount":{"r":{"${'$'}numberLong":"8"}}}},"responseLength":427,"protocol":"op_command","millis":0,"planSummary":"COLLSCAN","ts":{"${'$'}date":"2018-11-22T16:37:23.674Z"},"client":"127.0.0.1","appName":"MongoDB Shell","allUsers":[],"user":""}"""
         val indexes = recommend(client, query)
 
         assertEquals(0, indexes.size)

@@ -1,6 +1,7 @@
 package com.mconsulting.indexrecommender.profiling
 
 import com.beust.klaxon.JsonObject
+import mu.KLogging
 import org.bson.BsonDocument
 import org.bson.BsonString
 
@@ -17,7 +18,8 @@ class Query(doc: JsonObject) : ReadOperation(doc) {
                 if (doc["query"] is JsonObject) {
                     doc.obj("query")!!
                 } else {
-                    throw java.lang.Exception("Query command filter is redacted")
+                    logger.warn { "Query command filter is redacted, returning empty query" }
+                    JsonObject()
                 }
             }
             else -> throw Exception("unexpected query profile document format, could not find either the [\"command\", \"query\"] field")
@@ -45,4 +47,6 @@ class Query(doc: JsonObject) : ReadOperation(doc) {
     }
 
     fun numberDeleted() = doc.int("nDeleted")
+
+    companion object : KLogging()
 }

@@ -27,6 +27,7 @@ import com.mconsulting.indexrecommender.indexes.TwoDIndex
 import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
 import com.mconsulting.indexrecommender.ingress.LogFileIngress
 import com.mconsulting.indexrecommender.ingress.ProfileCollectionIngress
+import com.mconsulting.indexrecommender.ingress.ProfileCollectionIngressOptions
 import com.mongodb.MongoClient
 import com.xenomachina.argparser.ArgParser
 import com.xenomachina.argparser.HelpFormatter
@@ -102,7 +103,9 @@ object App : KLogging() {
         // Add profile collection ingress sources
         if (!config.extract.skipReadProfileCollection) {
             config.extract.databaseNames().forEach {
-                processor.addSource(ProfileCollectionIngress(client, Namespace(it, "")))
+                processor.addSource(ProfileCollectionIngress(client, Namespace(it, ""), ProfileCollectionIngressOptions(
+                    quiet = config.logging.quiet
+                )))
             }
         }
 

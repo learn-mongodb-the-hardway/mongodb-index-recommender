@@ -5,9 +5,9 @@ import com.mongodb.MongoClient
 class Db(
     val client: MongoClient,
     val namespace: Namespace,
-    val collectionOptions: CollectionOptions = CollectionOptions()
+    private val collectionOptions: CollectionOptions = CollectionOptions()
 ) {
-    val collections: MutableMap<String, Collection> = mutableMapOf()
+    private val collections: MutableMap<String, Collection> = mutableMapOf()
 
     fun getCollection(namespace: Namespace): Collection {
         if (collections.containsKey(namespace.collection)) {

@@ -2,6 +2,7 @@ package com.mconsulting.indexrecommender.profiling
 
 import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonObject
+import mu.KLogging
 import java.lang.Exception
 
 data class UpdateCommand(val db: String, val collection: String, val queries: List<JsonObject>) {
@@ -36,7 +37,8 @@ class Update(doc: JsonObject) : WriteOperation(doc) {
         if (command["q"] is JsonObject) {
             query = command.obj("q")!!
         } else {
-            throw java.lang.Exception("Update command filter is redacted")
+            logger.warn { "Update command filter is redacted, returning empty query" }
+            query = JsonObject()
         }
 
         return UpdateCommand(
@@ -51,7 +53,8 @@ class Update(doc: JsonObject) : WriteOperation(doc) {
                 if (it["q"] is JsonObject) {
                     it.obj("q")!!
                 } else {
-                    throw java.lang.Exception("Update command filter is redacted")
+                    logger.warn { "Update command filter is redacted, returning empty query" }
+                    JsonObject()
                 }
             }
 
@@ -67,7 +70,8 @@ class Update(doc: JsonObject) : WriteOperation(doc) {
                 if (doc["query"] is JsonObject) {
                     doc.obj("query")!!
                 } else {
-                    throw java.lang.Exception("Update command filter is redacted")
+                    logger.warn { "Update command filter is redacted, returning empty query" }
+                    JsonObject()
                 }
             }
             else -> JsonObject()
@@ -79,4 +83,6 @@ class Update(doc: JsonObject) : WriteOperation(doc) {
     }
 
     fun numberModified() = getInt("nModified", doc)
+
+    companion object : KLogging()
 }

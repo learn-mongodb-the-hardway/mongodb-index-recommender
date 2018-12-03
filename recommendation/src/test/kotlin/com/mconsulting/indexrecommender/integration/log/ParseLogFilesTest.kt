@@ -2,6 +2,7 @@ package com.mconsulting.indexrecommender.integration.log
 
 import com.beust.klaxon.JsonObject
 import com.beust.klaxon.Parser
+import com.mconsulting.indexrecommender.CollectionOptions
 import com.mconsulting.indexrecommender.Integration
 import com.mconsulting.indexrecommender.Namespace
 import com.mconsulting.indexrecommender.Processor
@@ -26,6 +27,8 @@ import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 
 class ParseLogFilesTest {
+    val quiet = false
+
     @Test
     @Tag("integration")
     @Integration
@@ -47,6 +50,13 @@ class ParseLogFilesTest {
         executeProfileParse("logs/full-logs/mongo-log-3_4.zip")
     }
 
+    @Test
+    @Tag("integration")
+    @Integration
+    fun parseProfileCollectionDumpFromMongo_4_0() {
+        executeProfileParse("logs/full-logs/mongo-log-4_0.zip")
+    }
+
     private fun executeProfileParse(file: String) {
         val inputStream = readResourceAsStream(file)
         val zipInputStream = ZipInputStream(inputStream)
@@ -56,7 +66,6 @@ class ParseLogFilesTest {
         do {
             if (entry.name.endsWith(".json")) {
                 parseJson(zipFile.getInputStream(entry).bufferedReader())
-//                parseJson(BufferedReader(StringReader("""{"op":"command","ns":"test","command":{"${'$'}eval":{"${'$'}code":"function () {\n        return 33;\n    }"}},"numYield":0,"locks":{"Global":{"acquireCount":{"r":{"${'$'}numberLong":"3"},"W":{"${'$'}numberLong":"1"}}},"Database":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}},"Collection":{"acquireCount":{"r":{"${'$'}numberLong":"1"}}}},"responseLength":38,"protocol":"op_command","millis":23,"ts":{"${'$'}date":"2018-11-22T16:00:09.406Z"},"client":"127.0.0.1","appName":"MongoDB Shell","allUsers":[],"user":""}""".trimIndent())))
             }
             entry = zipInputStream.nextEntry
         } while (entry != null)
@@ -68,27 +77,22 @@ class ParseLogFilesTest {
     private fun parseJson(bufferedReader: BufferedReader) {
         var index = 0
 
-        class BufferJSONIngress(val bufferedReader: BufferedReader) : Ingress {
+        class BufferJSONIngress(val reader: BufferedReader) : Ingress {
             override fun forEach(namespaces: List<Namespace>, func: (value: Any) -> Unit) {
                 while (true) {
-                    val originalLine = bufferedReader.readLine() ?: break
+                    val originalLine = reader.readLine() ?: break
                     // Read the line
                     var line = originalLine
                     line = line
                         .replace("-Infinity", "-9007199254740991")
                         .replace("+Infinity", "9007199254740991")
                         .replace("NaN", "\"NaN\"")
-                    // 24691
-                    // 231134
-//                        .replace(" -Infinity", " -9007199254740991")
-//                        .replace(" +Infinity", " 9007199254740991")
-//                        .replace(" NaN", " \"NaN\"")
-//                    println(line)
+                        .replace("\"\"NaN\"\"", "\"NaN\"")
                     // Parse the json
                     try {
                         val doc = Parser().parse(StringReader(line)) as JsonObject
                         // Create operation
-                        val operation = createOperation(doc)
+                        val operation = createOperation(doc, quiet)
                         // Call the function
                         func(operation!!)
                     } catch (err: Exception) {
@@ -102,7 +106,7 @@ class ParseLogFilesTest {
         }
 
         // Create a processor
-        val processor = Processor(client)
+        val processor = Processor(client, mutableListOf(), CollectionOptions(quiet = quiet))
         // Add the Ingres method
         processor.addSource(BufferJSONIngress(bufferedReader))
         // Run the processor

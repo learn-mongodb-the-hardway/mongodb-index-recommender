@@ -16,6 +16,7 @@ import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.AggregationCommand
 import com.mconsulting.indexrecommender.profiling.Delete
+import com.mconsulting.indexrecommender.profiling.Group
 import com.mconsulting.indexrecommender.profiling.NotSupported
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
@@ -25,7 +26,7 @@ import com.mongodb.MongoClient
 import mu.KLogging
 import org.bson.BsonDocument
 
-class IndexRecommendationOptions()
+data class IndexRecommendationOptions(val quiet: Boolean = false)
 
 fun JsonObject.remove(path: List<String>) {
     var pointer: Any? = this
@@ -59,9 +60,18 @@ class IndexRecommendationEngine(
         when (operation) {
             is Query -> processQuery(operation)
             is Update -> processUpdate(operation)
+            is Group -> processGroup(operation)
             is Delete -> processDelete(operation)
             is Aggregation -> processAggregation(operation)
             is NotSupported -> logger.warn { "Attempting to process a non supported operation" }
+        }
+    }
+
+    private fun processGroup(operation: Group) {
+        if (operation.cond != null) {
+            processQueryCommand(
+                QueryCommand(operation.namespace().db, operation.namespace().collection, operation.cond!!, JsonObject())
+            )
         }
     }
 
@@ -257,9 +267,11 @@ class IndexRecommendationEngine(
     }
 
     private fun extractMatchStatement(pipeline: JsonArray<JsonObject>): JsonObject {
-        return pipeline.first {
+        val result = pipeline.firstOrNull {
             it.containsKey("\$match")
-        }.obj("\$match")!!
+        }
+
+        return result?.obj("\$match") ?: JsonObject()
     }
 
     private fun processBasicLookup(document: JsonObject, aggregation: AggregationCommand) {
@@ -327,7 +339,9 @@ class IndexRecommendationEngine(
                 return indexes
             }
         } catch (err: Exception) {
-            logger.warn { "Failed to sample Operation [${queryCommand.namespace}] - [${queryCommand.filter.toJsonString()}" }
+            if (!options.quiet) {
+                logger.warn("Failed to sample Operation [${queryCommand.namespace}] - [${queryCommand.filter.toJsonString()}] - [${err.message}")
+            }
         }
 
         // Check if it's a single field index
@@ -453,12 +467,14 @@ class IndexRecommendationEngine(
     }
 
     private fun isMultiKeyIndex(query: QueryCommand) : Boolean {
+        val filter = filterNonCompliantTerms(query.filter)
+
         // Find the document specified
         val doc = client
             .getDatabase(query.db)
             .getCollection(query.collection, BsonDocument::class.java)
-            .find(BsonDocument.parse(query.filter.toJsonString()))
-            .projection(BsonDocument.parse(generateProjection(query.filter).toJsonString()))
+            .find(BsonDocument.parse(filter.toJsonString()))
+            .projection(BsonDocument.parse(generateProjection(filter).toJsonString()))
             .firstOrNull()
 
         // Establish the types for each field to check if we are multikey or not
@@ -472,6 +488,14 @@ class IndexRecommendationEngine(
 
         // Not a multikey index
         return false
+    }
+
+    private fun filterNonCompliantTerms(filter: JsonObject): JsonObject {
+        if (filter.containsKey("\$atomic")) {
+            filter.remove("\$atomic")
+        }
+
+        return filter
     }
 
     private fun addMultiKeyIndex(query: JsonObject, queryCommand: QueryCommand, candidateIndexes: MutableList<Index>) {
