@@ -31,7 +31,13 @@ class Update(doc: JsonObject) : WriteOperation(doc) {
 
     private fun singleUpdateCommand(doc: JsonObject): UpdateCommand {
         val command = doc.obj("command")!!
-        val query = command.obj("q")!!
+        val query: JsonObject
+
+        if (command["q"] is JsonObject) {
+            query = command.obj("q")!!
+        } else {
+            throw java.lang.Exception("Update command filter is redacted")
+        }
 
         return UpdateCommand(
             namespace().db,
@@ -41,7 +47,13 @@ class Update(doc: JsonObject) : WriteOperation(doc) {
 
     private fun modernUpdate(docs: JsonArray<JsonObject>): UpdateCommand {
         val jsonObjects = docs
-            .map { it.obj("q")!! }
+            .map {
+                if (it["q"] is JsonObject) {
+                    it.obj("q")!!
+                } else {
+                    throw java.lang.Exception("Update command filter is redacted")
+                }
+            }
 
         return UpdateCommand(
             namespace().db,
@@ -51,7 +63,13 @@ class Update(doc: JsonObject) : WriteOperation(doc) {
 
     private fun updateOp(doc: JsonObject): UpdateCommand {
         val query = when (doc.containsKey("query")) {
-            true -> doc.obj("query")!!
+            true -> {
+                if (doc["query"] is JsonObject) {
+                    doc.obj("query")!!
+                } else {
+                    throw java.lang.Exception("Update command filter is redacted")
+                }
+            }
             else -> JsonObject()
         }
 

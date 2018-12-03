@@ -8,9 +8,10 @@ import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.Count
 import com.mconsulting.indexrecommender.profiling.Delete
+import com.mconsulting.indexrecommender.profiling.FailedOperation
 import com.mconsulting.indexrecommender.profiling.GeoNear
 import com.mconsulting.indexrecommender.profiling.Insert
-import com.mconsulting.indexrecommender.profiling.NotSupportedOperation
+import com.mconsulting.indexrecommender.profiling.NotSupported
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
 import com.mconsulting.indexrecommender.profiling.Update
@@ -113,6 +114,11 @@ fun createOperation(doc: JsonObject): Operation? {
         "remove" -> Delete(doc)
         "update" -> Update(doc)
         "command" -> {
+            // Did we get an exception
+            if (doc.containsKey("exception")) {
+                return FailedOperation(doc)
+            }
+
             // Identify the operation
             // (we care only about operations that contain reads (query, agg, update, count etc.)
             val command = doc.obj("command")!!
@@ -123,13 +129,13 @@ fun createOperation(doc: JsonObject): Operation? {
                 command.containsKey("count") -> Count(doc)
                 else -> {
                     logger.warn { "Failed to create operation from [${doc.toJsonString()}]" }
-                    NotSupportedOperation(doc)
+                    NotSupported(doc)
                 }
             }
         }
         else -> {
             logger.warn { "Failed to create operation from [${doc.toJsonString()}]" }
-            NotSupportedOperation(doc)
+            NotSupported(doc)
         }
     }
 }

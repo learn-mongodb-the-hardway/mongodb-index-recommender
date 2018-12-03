@@ -1,7 +1,6 @@
 package com.mconsulting.indexrecommender.ingress
 
 import com.beust.klaxon.JsonObject
-import com.beust.klaxon.JsonReader
 import com.beust.klaxon.Parser
 import com.mconsulting.indexrecommender.Namespace
 import com.mconsulting.indexrecommender.createOperation

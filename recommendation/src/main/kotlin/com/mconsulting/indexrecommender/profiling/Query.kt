@@ -13,7 +13,13 @@ class Query(doc: JsonObject) : ReadOperation(doc) {
     fun command() : QueryCommand {
         val command = when {
             doc.containsKey("command") -> doc.obj("command")!!
-            doc.containsKey("query") -> doc.obj("query")!!
+            doc.containsKey("query") -> {
+                if (doc["query"] is JsonObject) {
+                    doc.obj("query")!!
+                } else {
+                    throw java.lang.Exception("Query command filter is redacted")
+                }
+            }
             else -> throw Exception("unexpected query profile document format, could not find either the [\"command\", \"query\"] field")
         }
 

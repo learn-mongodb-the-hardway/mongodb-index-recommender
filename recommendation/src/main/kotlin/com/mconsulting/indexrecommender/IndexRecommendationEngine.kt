@@ -2,7 +2,6 @@ package com.mconsulting.indexrecommender
 
 import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonObject
-import com.beust.klaxon.JsonValue
 import com.mconsulting.indexrecommender.indexes.CompoundIndex
 import com.mconsulting.indexrecommender.indexes.Field
 import com.mconsulting.indexrecommender.indexes.Index
@@ -16,7 +15,8 @@ import com.mconsulting.indexrecommender.log.CommandLogEntry
 import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.AggregationCommand
-import com.mconsulting.indexrecommender.profiling.NotSupportedOperation
+import com.mconsulting.indexrecommender.profiling.Delete
+import com.mconsulting.indexrecommender.profiling.NotSupported
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mconsulting.indexrecommender.profiling.Query
 import com.mconsulting.indexrecommender.profiling.QueryCommand
@@ -59,8 +59,21 @@ class IndexRecommendationEngine(
         when (operation) {
             is Query -> processQuery(operation)
             is Update -> processUpdate(operation)
+            is Delete -> processDelete(operation)
             is Aggregation -> processAggregation(operation)
-            is NotSupportedOperation -> logger.warn { "Attempting to process a non supported operation" }
+            is NotSupported -> logger.warn { "Attempting to process a non supported operation" }
+        }
+    }
+
+    private fun processDelete(delete: Delete) {
+        delete.command().toQueryCommands().forEach { deleteCommand ->
+            val indexes = processQueryCommand(deleteCommand)
+
+            indexes.forEach { index ->
+                if (!candidateIndexes.contains(index)) {
+                    candidateIndexes += index
+                }
+            }
         }
     }
 

@@ -3,7 +3,8 @@ package com.mconsulting.indexrecommender
 import com.mconsulting.indexrecommender.indexes.Index
 import com.mconsulting.indexrecommender.ingress.Ingress
 import com.mconsulting.indexrecommender.log.LogEntryBase
-import com.mconsulting.indexrecommender.profiling.NotSupportedOperation
+import com.mconsulting.indexrecommender.profiling.FailedOperation
+import com.mconsulting.indexrecommender.profiling.NotSupported
 import com.mconsulting.indexrecommender.profiling.Operation
 import com.mongodb.MongoClient
 import mu.KLogging
@@ -42,7 +43,8 @@ class Processor(
                         val collection = getCollection(operation.namespace)
                         collection.addLogEntry(operation)
                     }
-                    is NotSupportedOperation -> logger.warn { "Attempting to process a non supported operation" }
+                    is NotSupported -> logger.warn { "Attempting to process a non supported operation" }
+                    is FailedOperation -> logger.warn { "Attempting to process a operation that threw an exception" }
                     is Operation -> {
                         val collection = getCollection(operation.namespace())
                         collection.addOperation(operation)

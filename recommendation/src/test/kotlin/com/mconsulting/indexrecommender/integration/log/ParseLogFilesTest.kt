@@ -66,27 +66,37 @@ class ParseLogFilesTest {
     }
 
     private fun parseJson(bufferedReader: BufferedReader) {
+        var index = 0
+
         class BufferJSONIngress(val bufferedReader: BufferedReader) : Ingress {
             override fun forEach(namespaces: List<Namespace>, func: (value: Any) -> Unit) {
                 while (true) {
+                    val originalLine = bufferedReader.readLine() ?: break
                     // Read the line
-                    var line = bufferedReader.readLine() ?: break
+                    var line = originalLine
                     line = line
                         .replace("-Infinity", "-9007199254740991")
                         .replace("+Infinity", "9007199254740991")
                         .replace("NaN", "\"NaN\"")
+                    // 24691
+                    // 231134
+//                        .replace(" -Infinity", " -9007199254740991")
+//                        .replace(" +Infinity", " 9007199254740991")
+//                        .replace(" NaN", " \"NaN\"")
 //                    println(line)
                     // Parse the json
-                    val doc = Parser().parse(StringReader(line)) as JsonObject
-                    // Create operation
-                    val operation = createOperation(doc)
                     try {
+                        val doc = Parser().parse(StringReader(line)) as JsonObject
+                        // Create operation
+                        val operation = createOperation(doc)
                         // Call the function
                         func(operation!!)
                     } catch (err: Exception) {
-                        println(line)
+                        println("[$index]$originalLine")
                         throw err
                     }
+
+                    index += 1
                 }
             }
         }
@@ -126,7 +136,7 @@ class ParseLogFilesTest {
         while (parser.hasNext()) {
 //            try {
                 val entry = parser.next()
-//            } catch (err: Exception) {
+//            } catch (err: FailedOperation) {
 //                failedIndex += 1
 //                println(err.stackTrace.toString())
 //                println("[$index] - ${parser.line}")

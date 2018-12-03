@@ -2,9 +2,16 @@ package com.mconsulting.indexrecommender.profiling
 
 import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonObject
+import mu.KLogging
 import java.lang.Exception
 
-data class DeleteCommand(val db: String, val collection: String, val queries: List<JsonObject>)
+data class DeleteCommand(val db: String, val collection: String, val queries: List<JsonObject>) {
+    fun toQueryCommands(): List<QueryCommand> {
+        return queries.map {
+            QueryCommand(db, collection, it, JsonObject())
+        }
+    }
+}
 
 class Delete(doc: JsonObject) : WriteOperation(doc) {
     fun command() : DeleteCommand {
@@ -45,7 +52,14 @@ class Delete(doc: JsonObject) : WriteOperation(doc) {
 
     private fun removeOp(doc: JsonObject): DeleteCommand {
         val query = when (doc.containsKey("query")) {
-            true -> doc.obj("query")!!
+            true -> {
+                if (doc["query"]  is JsonObject) {
+                    doc.obj("query")!!
+                } else {
+                    logger.warn("Delete command filter is redacted [${doc["query"]}]")
+                    JsonObject()
+                }
+            }
             else -> JsonObject()
         }
 
@@ -55,4 +69,6 @@ class Delete(doc: JsonObject) : WriteOperation(doc) {
     }
 
     fun numberDeleted() = getInt("ndeleted", doc)
+
+    companion object : KLogging()
 }
