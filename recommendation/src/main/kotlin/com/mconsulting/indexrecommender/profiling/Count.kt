@@ -3,10 +3,8 @@ package com.mconsulting.indexrecommender.profiling
 import com.beust.klaxon.JsonObject
 
 class Count(doc: JsonObject) : Operation(doc) {
-    val collection: String
-        get() = getString("count", doc)
-    val query: JsonObject?
-        get() = getJsonObjectMaybe("query", doc)
+    val query: JsonObject
+        get() = getJsonObjectMaybe("query", doc) ?: JsonObject()
     val limit: Int?
         get() = getIntMaybe("limit", doc)
     val skip: Int?

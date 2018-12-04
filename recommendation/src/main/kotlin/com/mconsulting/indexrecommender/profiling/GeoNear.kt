@@ -5,8 +5,6 @@ import com.beust.klaxon.JsonObject
 
 // {"geoNear":"geo_near_random2","near":[-65.1009848893434,-36.22633492201567],"num":48.0,"spherical":1.0}
 class GeoNear(doc: JsonObject) : Operation(doc) {
-    val collection: String
-        get() = getString("geoNear", doc)
     val near: JsonBase
         get() = getJsonBase("near", doc)
     val spherical: Boolean

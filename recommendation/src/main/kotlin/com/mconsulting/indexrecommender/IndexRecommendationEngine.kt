@@ -15,7 +15,10 @@ import com.mconsulting.indexrecommender.log.CommandLogEntry
 import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.AggregationCommand
+import com.mconsulting.indexrecommender.profiling.Count
 import com.mconsulting.indexrecommender.profiling.Delete
+import com.mconsulting.indexrecommender.profiling.Distinct
+import com.mconsulting.indexrecommender.profiling.FindAndModify
 import com.mconsulting.indexrecommender.profiling.Group
 import com.mconsulting.indexrecommender.profiling.NotSupported
 import com.mconsulting.indexrecommender.profiling.Operation
@@ -53,6 +56,7 @@ class IndexRecommendationEngine(
     val options: IndexRecommendationOptions = IndexRecommendationOptions()) {
 
     private val candidateIndexes = mutableListOf<Index>()
+    private val indexCoalesceEngine = IndexCoalesceEngine()
 
     fun process(operation: Operation) {
         if (logger.isDebugEnabled) logger.debug { "Processing operation [${operation.doc.toJsonString()}" }
@@ -61,10 +65,31 @@ class IndexRecommendationEngine(
             is Query -> processQuery(operation)
             is Update -> processUpdate(operation)
             is Group -> processGroup(operation)
+            is FindAndModify -> processFindAndModify(operation)
             is Delete -> processDelete(operation)
+            is Distinct -> processDistinct(operation)
             is Aggregation -> processAggregation(operation)
+            is Count -> processCount(operation)
             is NotSupported -> logger.warn { "Attempting to process a non supported operation" }
         }
+    }
+
+    private fun processFindAndModify(operation: FindAndModify) {
+        processQueryCommand(
+            QueryCommand(operation.namespace().db, operation.namespace().collection, operation.query, JsonObject())
+        )
+    }
+
+    private fun processDistinct(operation: Distinct) {
+        processQueryCommand(
+            QueryCommand(operation.namespace().db, operation.namespace().collection, operation.query, JsonObject())
+        )
+    }
+
+    private fun processCount(operation: Count) {
+        processQueryCommand(
+            QueryCommand(operation.namespace().db, operation.namespace().collection, operation.query, JsonObject())
+        )
     }
 
     private fun processGroup(operation: Group) {
@@ -463,7 +488,7 @@ class IndexRecommendationEngine(
     }
 
     fun recommend() : List<Index> {
-        return coalesce(candidateIndexes)
+        return indexCoalesceEngine.coalesce(candidateIndexes).indexes
     }
 
     private fun isMultiKeyIndex(query: QueryCommand) : Boolean {
@@ -564,10 +589,6 @@ class IndexRecommendationEngine(
         return query.entries.map {
             "${it.key}_${getIndexDirection(queryCommand, it.key).value()}"
         }.joinToString("_")
-    }
-
-    private fun coalesce(candidateIndexes: MutableList<Index>): List<Index> {
-        return candidateIndexes.toList()
     }
 
     fun addIndex(index: Index) {

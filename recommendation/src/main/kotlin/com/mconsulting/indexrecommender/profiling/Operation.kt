@@ -1,5 +1,6 @@
 package com.mconsulting.indexrecommender.profiling
 
+import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonBase
 import com.beust.klaxon.JsonObject
 import com.mconsulting.indexrecommender.Namespace
@@ -78,6 +79,11 @@ private fun readBsonLong(doc: JsonObject, field: String): Long {
     } else {
       throw Exception("the field $field in [${doc.toJsonString()}] does not exist on the JsonObject")
     }
+}
+
+fun <T> getJsonArrayMaybe(fieldName: String, doc: JsonObject): JsonArray<T>? = when (doc.containsKey(fieldName)) {
+    true -> doc.array(fieldName)!!
+    false -> null
 }
 
 fun getJsonObject(fieldName: String, doc: JsonObject) = when(val value = getJsonObjectMaybe(fieldName, doc)) {
