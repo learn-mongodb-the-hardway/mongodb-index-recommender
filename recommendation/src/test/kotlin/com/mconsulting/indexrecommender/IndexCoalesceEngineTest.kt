@@ -27,11 +27,44 @@ class IndexCoalesceEngineTest {
             CompoundIndex("b", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING)
-            )
-        )), indexes.indexes)
+            ))
+        ), indexes.indexes)
 
         assertEquals(listOf(
-            SingleFieldIndex("a", Field("a", IndexDirection.ASCENDING)
-        )), indexes.removedIndexes)
+            SingleFieldIndex("a", Field("a", IndexDirection.ASCENDING))
+        ), indexes.removedIndexes)
+    }
+
+    @Test
+    fun shouldCorrectlyRemoveCompoundFieldIndex() {
+        val indexes = coalesceEngine.coalesce(listOf(
+            CompoundIndex("b", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.DESCENDING)
+            )),
+            CompoundIndex("b", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.DESCENDING),
+                Field("c", IndexDirection.DESCENDING)
+            ))
+        ))
+
+        assertEquals(1, indexes.indexes.size)
+        assertEquals(1, indexes.removedIndexes.size)
+
+        assertEquals(listOf(
+            CompoundIndex("b", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.DESCENDING),
+                Field("c", IndexDirection.DESCENDING)
+            ))
+        ), indexes.indexes)
+
+        assertEquals(listOf(
+            CompoundIndex("b", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.DESCENDING)
+            ))
+        ), indexes.removedIndexes)
     }
 }
