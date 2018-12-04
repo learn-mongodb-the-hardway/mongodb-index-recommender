@@ -111,11 +111,27 @@ class TwoDIndex(name: String, val key: String, partialFilterExpression: BsonDocu
 
 data class TextField(val path: List<String>, val weight: Int = 1)
 
-class TextIndex(name: String, val fields: List<TextField>, partialFilterExpression: BsonDocument? = null) : Index(name, partialFilterExpression = partialFilterExpression) {
+open class TextIndex(name: String, val fields: List<TextField>, partialFilterExpression: BsonDocument? = null) : Index(name, partialFilterExpression = partialFilterExpression) {
     override fun equals(other: Any?): Boolean {
         if (other == null) return false
         if (other !is TextIndex) return false
         if (other.fields.size != this.fields.size) return false
+        for (field in this.fields) {
+            if (!other.fields.contains(field)) return false
+        }
+
+        return true
+    }
+}
+
+class CompoundTextIndex(name: String, val compoundFields: List<Field>, textIndexFields: List<TextField>, partialFilterExpression: BsonDocument? = null) : TextIndex(name, textIndexFields, partialFilterExpression) {
+    override fun equals(other: Any?): Boolean {
+        if (other == null) return false
+        if (other !is CompoundTextIndex) return false
+        if (other.fields.size != this.fields.size) return false
+        for (field in this.compoundFields) {
+            if (!other.compoundFields.contains(field)) return false
+        }
         for (field in this.fields) {
             if (!other.fields.contains(field)) return false
         }
@@ -142,6 +158,11 @@ class IndexParser(val client: MongoClient?, private val options: IndexParserOpti
 
         // Check if we have a text index
         if (isTextIndex(document)) {
+            // Check if the index is CompoundTextIndex or normal TextIndex
+            if (isCompoundTextIndex(document)) {
+                return createCompoundTextIndex(document, partialFilterExpression)
+            }
+
             return createTextIndex(document, partialFilterExpression)
         }
 
@@ -189,6 +210,27 @@ class IndexParser(val client: MongoClient?, private val options: IndexParserOpti
         }
 
         throw Exception("does not support the index type in [${document.toJson()}]")
+    }
+
+    private fun createCompoundTextIndex(document: BsonDocument, partialFilterExpression: BsonDocument?): Index {
+        // Do we have more than two key entries (_fts, _ftsx)
+        val fields = document.getDocument("key")!!.entries.map {
+            Field(it.key, when (it.value) {
+                is BsonInt32 -> IndexDirection.intValueOf((it.value as BsonInt32).value)
+                else -> IndexDirection.UNKNOWN
+            })
+        }
+
+        return CompoundTextIndex(
+            document.getString("name").value,
+            fields,
+            document.getDocument("weights").map {
+                TextField(listOf(it.key), it.value.asInt32().value)
+            }, partialFilterExpression)
+    }
+
+    private fun isCompoundTextIndex(document: BsonDocument): Boolean {
+        return document.getDocument("key")!!.size > 2
     }
 
     private fun createTTLIndex(document: BsonDocument, partialFilterExpression: BsonDocument?): Index {

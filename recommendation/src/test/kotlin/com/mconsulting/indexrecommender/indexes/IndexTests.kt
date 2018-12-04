@@ -19,8 +19,7 @@ import kotlin.test.assertNull
 
 class IndexTests {
     private fun createIndex(doc: BsonDocument) : Index {
-        val parser = IndexParser(client, IndexParserOptions(true))
-        return parser.createIndex(doc)
+        return IndexParser(client, IndexParserOptions(true)).createIndex(doc)
     }
 
     @Test
@@ -95,7 +94,21 @@ class IndexTests {
 
     @Test
     fun compoundTextIndex() {
-        // TODO What to do with compound field + text index combo
+        val index = createIndex(readJsonAsBsonDocument("indexes/text_compound_index.json")) as CompoundTextIndex
+        assertEquals("a_1_c_1_b_text_d_text", index.name)
+        assertEquals(listOf(
+            TextField(listOf("b"), 1),
+            TextField(listOf("d"), 1)
+        ), index.fields)
+        assertEquals(listOf(
+            Field("a", IndexDirection.ASCENDING),
+            Field("c", IndexDirection.ASCENDING),
+            Field("_fts", IndexDirection.UNKNOWN),
+            Field("_ftsx", IndexDirection.ASCENDING)
+        ), index.compoundFields)
+        assertEquals(false, index.sparse)
+        assertEquals(false, index.unique)
+        assertNull(index.partialFilterExpression)
     }
 
     @Test

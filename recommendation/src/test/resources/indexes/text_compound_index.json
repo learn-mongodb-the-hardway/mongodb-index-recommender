@@ -1,0 +1,18 @@
+{
+  "v" : 2,
+  "key" : {
+    "a" : 1,
+    "c" : 1,
+    "_fts" : "text",
+    "_ftsx" : 1
+  },
+  "name" : "a_1_c_1_b_text_d_text",
+  "ns" : "digitalvault_integration.users",
+  "weights" : {
+    "b" : 1,
+    "d" : 1
+  },
+  "default_language" : "english",
+  "language_override" : "language",
+  "textIndexVersion" : 3
+}
