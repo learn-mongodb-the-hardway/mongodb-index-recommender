@@ -94,6 +94,11 @@ class IndexTests {
     }
 
     @Test
+    fun compoundTextIndex() {
+        // TODO What to do with compound field + text index combo
+    }
+
+    @Test
     fun twoDIndex() {
         val index = createIndex(readJsonAsBsonDocument("indexes/two_d_index.json")) as TwoDIndex
         assertEquals("coordinates_2d", index.name)
