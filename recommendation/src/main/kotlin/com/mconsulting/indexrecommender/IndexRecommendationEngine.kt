@@ -401,8 +401,6 @@ class IndexRecommendationEngine(
                 filteredOutDoc.remove(_path + entry.key)
                 // Remove from the sort
                 filteredSortDoc.remove(_path + entry.key)
-                // Add to the BsonDocument that will be used for naming
-//                queryFilterNames.put("${(_path + entry.key).joinToString(".")}", 1)
             }
         }
 

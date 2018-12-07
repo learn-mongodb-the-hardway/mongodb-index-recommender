@@ -4,6 +4,7 @@ import com.beust.klaxon.JsonObject
 import com.mconsulting.indexrecommender.indexes.Index
 import com.mconsulting.indexrecommender.indexes.IndexParser
 import com.mconsulting.indexrecommender.indexes.IndexParserOptions
+import com.mconsulting.indexrecommender.indexes.IndexStatistics
 import com.mconsulting.indexrecommender.log.LogEntry
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mconsulting.indexrecommender.profiling.ApplyOps
@@ -47,6 +48,8 @@ import com.mongodb.client.MongoDatabase
 import mu.KLogging
 import mu.KotlinLogging
 import org.bson.BsonDocument
+import org.bson.BsonElement
+import java.util.*
 
 data class CollectionOptions(
     val allowExplainExecution: Boolean = true,
@@ -96,9 +99,32 @@ class Collection(
     }
 
     private fun processExistingIndexes() {
+        // Read existing MongoDB Collection statistics information
+        val indexStatistics = mutableListOf<BsonDocument>()
+
+        collection.aggregate(listOf(
+            BsonDocument(listOf(
+                BsonElement("\$indexStats", BsonDocument())
+            ))
+        )).into(indexStatistics)
+
         // Read the existing indexes
         existingIndexes = collection.listIndexes(BsonDocument::class.java).map {
-            indexParser.createIndex(it)
+            val index = indexParser.createIndex(it)
+
+            // Do we have an index statistic
+            val indexStatistic = indexStatistics.firstOrNull {
+                it.getString("name")!!.value == index.name
+            }
+
+            if (indexStatistic != null) {
+                val accesses = indexStatistic.getDocument("accesses")
+                val ops = accesses.getInt64("ops").value
+                val since = Date(accesses.getDateTime("since").value)
+                index.indexStatistics = IndexStatistics(ops, since)
+            }
+
+            index
         }.toList()
 
         // Feed the existing indexes to the recommendation engine

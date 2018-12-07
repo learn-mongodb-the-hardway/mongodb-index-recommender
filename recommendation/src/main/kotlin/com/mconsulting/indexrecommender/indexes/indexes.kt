@@ -6,13 +6,16 @@ import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.BsonString
 import org.bson.Document
-import org.bson.json.JsonWriterSettings
+import java.util.*
+
+data class IndexStatistics(val ops: Long, val since: Date)
 
 abstract class Index(
     val name: String,
     val sparse: Boolean = false,
     val unique: Boolean = false,
-    val partialFilterExpression: BsonDocument? = null)
+    val partialFilterExpression: BsonDocument? = null,
+    var indexStatistics: IndexStatistics? = null)
 
 enum class IndexDirection {
     ASCENDING, DESCENDING, UNKNOWN;
