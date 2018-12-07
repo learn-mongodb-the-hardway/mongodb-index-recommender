@@ -89,6 +89,47 @@ class SingleAndCompoundIndexCoalesceEngineTest {
     }
 
     @Test
+    fun shouldCorrectlyRemoveDuplicateCompoundFieldIndex() {
+        val indexes = coalesceEngine.coalesce(listOf(
+            CompoundIndex("b", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.DESCENDING)
+            )),
+            CompoundIndex("c", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.ASCENDING)
+            )),
+            CompoundIndex("b", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.DESCENDING),
+                Field("c", IndexDirection.DESCENDING)
+            ))
+        ))
+
+        assertEquals(1, indexes.indexes.size)
+        assertEquals(2, indexes.removedIndexes.size)
+
+        assertEquals(listOf(
+            CompoundIndex("b", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.DESCENDING),
+                Field("c", IndexDirection.DESCENDING)
+            ))
+        ), indexes.indexes)
+
+        assertEquals(listOf(
+            CompoundIndex("b", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.DESCENDING)
+            )),
+            CompoundIndex("b", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.ASCENDING)
+            ))
+        ), indexes.removedIndexes)
+    }
+
+    @Test
     fun shouldCorrectlyKeepCompoundFieldIndex() {
         val indexes = coalesceEngine.coalesce(listOf(
             CompoundIndex("b", listOf(
