@@ -62,24 +62,6 @@ class IndexCoalesceEngine {
             // Go over all the compound text indexes
             if (compoundTextIndexes.isNotEmpty()) {
                 mergedFields += mergeCompoundIndexes(compoundTextIndexes, indexes)
-//
-//                // We need to merge any missing text fields
-//                mergedFields += compoundTextIndexes.map {
-//                    it.fields.filter { !mergedFields.contains(it) }
-//                }.flatten()
-//
-//                // Create a candidate compound index and add it if it does
-//                // not already exist, we are in fact splitting indexes here
-//                // due to there only being possible to have one text index per collection
-//                compoundTextIndexes.forEach {
-//                    val compoundIndex = CompoundIndex(it.compoundFields.map {
-//                        "${it.name}_${it.direction.value()}"
-//                    }.joinToString("_"), it.compoundFields)
-//
-//                    if (!indexes.contains(compoundIndex)) {
-//                        indexes += compoundIndex
-//                    }
-//                }
             }
 
             // Merge any compound text indexes, splitting them and merging them
@@ -128,16 +110,22 @@ class IndexCoalesceEngine {
     }
 
     private fun processSingleFieldIndexes(singleFieldIndexes: List<SingleFieldIndex>, compoundFieldIndexes: List<MultiFieldIndex>, removedIndexes: MutableList<Index>, indexes: MutableList<Index>) {
-        singleFieldIndexes.forEach { singleFieldIndex ->
-            for (index in compoundFieldIndexes) {
-                if (index.fields.first() == singleFieldIndex.field && !singleFieldIndex.unique) {
-                    removedIndexes += singleFieldIndex
-                    break
-                }
-            }
+        // Get the distinct fields
+        val singleIndexes = singleFieldIndexes.distinctBy {
+            it.field.name
+        }
 
-            if (!removedIndexes.contains(singleFieldIndex)) {
-                indexes += singleFieldIndex
+        // Add any indexes that are not covered by a composite index
+        indexes += singleIndexes.filter { singleFieldIndex ->
+            compoundFieldIndexes.firstOrNull { multiFieldIndex ->
+                multiFieldIndex.fields.first().name == singleFieldIndex.name
+            } == null
+        }
+
+        // Add any removed indexes to the list of removed Indexes
+        singleFieldIndexes.forEach {
+            if (!indexes.contains(it)) {
+                removedIndexes += it
             }
         }
     }

@@ -3,8 +3,11 @@ package com.mconsulting.indexrecommender.indexes
 import com.mconsulting.indexrecommender.queryplans.QueryPlan
 import com.mongodb.MongoClient
 import org.bson.BsonDocument
+import org.bson.BsonDouble
 import org.bson.BsonInt32
+import org.bson.BsonInt64
 import org.bson.BsonString
+import org.bson.BsonValue
 import org.bson.Document
 import java.util.*
 
@@ -39,7 +42,14 @@ enum class IndexDirection {
     }
 }
 
-data class Field(val name: String, val direction: IndexDirection)
+data class Field(val name: String, val direction: IndexDirection) {
+    override fun equals(other: Any?): Boolean {
+        if (other == null) return false
+        if (other !is Field) return false
+        if (other.name != name) return false
+        return true
+    }
+}
 
 class IdIndex(name: String, partialFilterExpression: BsonDocument? = null) : Index(name = name, unique = true, partialFilterExpression = partialFilterExpression) {
     override fun equals(other: Any?): Boolean {
@@ -219,7 +229,7 @@ class IndexParser(val client: MongoClient?, private val options: IndexParserOpti
         // Do we have more than two key entries (_fts, _ftsx)
         val fields = document.getDocument("key")!!.entries.map {
             Field(it.key, when (it.value) {
-                is BsonInt32 -> IndexDirection.intValueOf((it.value as BsonInt32).value)
+                is BsonInt32 -> IndexDirection.intValueOf(getInt32(it.value))
                 else -> IndexDirection.UNKNOWN
             })
         }
@@ -228,7 +238,7 @@ class IndexParser(val client: MongoClient?, private val options: IndexParserOpti
             document.getString("name").value,
             fields,
             document.getDocument("weights").map {
-                TextField(listOf(it.key), it.value.asInt32().value)
+                TextField(listOf(it.key), getInt32(it.value))
             }, partialFilterExpression)
     }
 
@@ -242,7 +252,7 @@ class IndexParser(val client: MongoClient?, private val options: IndexParserOpti
 
         return TTLIndex(
             document.getString("name").value,
-            Field(key, IndexDirection.intValueOf(keyDocument.getInt32(key).value)),
+            Field(key, IndexDirection.intValueOf(getInt32(keyDocument[key]))),
             document.getInt32("expireAfterSeconds").value,
             partialFilterExpression)
     }
@@ -251,23 +261,33 @@ class IndexParser(val client: MongoClient?, private val options: IndexParserOpti
         return document.containsKey("expireAfterSeconds")
     }
 
+    private fun getInt32(value: BsonValue?) : Int {
+        if (value == null) return 0
+        return when (value) {
+            is BsonInt32 -> value.value
+            is BsonInt64 -> value.value.toInt()
+            is BsonDouble -> value.value.toInt()
+            else -> 0
+        }
+    }
+
     private fun createSingleCompoundOrMultiKeyIndex(document: BsonDocument, queryPlan: QueryPlan?, name: BsonString, key: BsonDocument, sparse: Boolean, unique: Boolean, partialFilterExpression: BsonDocument?): Index {
         if (queryPlan != null
             && queryPlan.isMultiKey()
             && queryPlan.indexName() == name.value) {
             return MultikeyIndex(
                 document.getString("name").value,
-                key.entries.map { Field(it.key, IndexDirection.intValueOf((it.value as BsonInt32).value)) },
+                key.entries.map { Field(it.key, IndexDirection.intValueOf(getInt32(it.value))) },
                 sparse, unique, partialFilterExpression)
         }
 
         return when (key.size) {
             1 -> SingleFieldIndex(document.getString("name").value, Field(
                 key.firstKey,
-                IndexDirection.intValueOf(key.getInt32(key.firstKey).value)),
+                IndexDirection.intValueOf(getInt32(key[key.firstKey]))),
                 sparse, unique, partialFilterExpression)
             else -> CompoundIndex(document.getString("name").value,
-                key.entries.map { Field(it.key, IndexDirection.intValueOf((it.value as BsonInt32).value)) },
+                key.entries.map { Field(it.key, IndexDirection.intValueOf(getInt32(it.value))) },
                 sparse, unique, partialFilterExpression)
         }
     }

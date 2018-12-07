@@ -37,6 +37,25 @@ class SingleAndCompoundIndexCoalesceEngineTest {
     }
 
     @Test
+    fun shouldCorrectlyMergeTwoSingleFieldEvenWhenDirectionIsOpposite() {
+        val indexes = coalesceEngine.coalesce(listOf(
+            SingleFieldIndex("a", Field("a", IndexDirection.ASCENDING)),
+            SingleFieldIndex("a", Field("a", IndexDirection.DESCENDING))
+        ))
+
+        assertEquals(1, indexes.indexes.size)
+        assertEquals(1, indexes.removedIndexes.size)
+
+        assertEquals(listOf(
+            SingleFieldIndex("a", Field("a", IndexDirection.ASCENDING))
+        ), indexes.indexes)
+
+        assertEquals(listOf(
+            SingleFieldIndex("a", Field("a", IndexDirection.DESCENDING))
+        ), indexes.removedIndexes)
+    }
+
+    @Test
     fun shouldCorrectlyRemoveCompoundFieldIndex() {
         val indexes = coalesceEngine.coalesce(listOf(
             CompoundIndex("b", listOf(
