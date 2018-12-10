@@ -144,8 +144,11 @@ object App : KLogging() {
                 writer.writeln()
                 writer.indent()
 
-                collection.indexes.forEach { index ->
-                    writer.writeln("[${indexTypeName(index)}]:")
+                collection.indexes.sortedBy { it.indexStatistics == null }.forEach { index ->
+                    writer.writeln(when (index.indexStatistics) {
+                        null -> "<${indexTypeName(index)}>:"
+                        else -> "[${indexTypeName(index)}]:"
+                    })
                     writer.indent()
 
                     writer.writeln("name: ${index.name}")
@@ -166,6 +169,8 @@ object App : KLogging() {
                     if (index.indexStatistics != null) {
                         writer.writeln("count: ${index.indexStatistics!!.ops}")
                         writer.writeln("since: ${index.indexStatistics!!.since}")
+                    } else {
+                        writer.writeln("count: ${index.statistics.map { it.count }.sum()}")
                     }
 
                     writer.unIndent()
