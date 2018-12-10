@@ -24,7 +24,7 @@ class IndexRecommendationEngineTest {
         val namespace = Namespace(dbName, collectionName)
         val db = Db(client, namespace)
         val collection = Collection(client, namespace, db)
-        return IndexRecommendationEngine(client, collection)
+        return IndexRecommendationEngine(client, StatisticsProcessor(), collection)
     }
 
     private fun recommend(client: MongoClient, query: String) : List<Index> {

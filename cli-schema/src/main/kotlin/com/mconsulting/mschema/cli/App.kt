@@ -157,6 +157,18 @@ object App : KLogging() {
 
                     writer.writeln("unique: ${index.unique}")
                     writer.writeln("sparse: ${index.sparse}")
+                    writer.writeln("statistics:")
+
+                    // Write out any index statistics
+                    writer.indent()
+
+                    // If we have MongoDB statistics print them out
+                    if (index.indexStatistics != null) {
+                        writer.writeln("count: ${index.indexStatistics!!.ops}")
+                        writer.writeln("since: ${index.indexStatistics!!.since}")
+                    }
+
+                    writer.unIndent()
 
                     writer.unIndent()
                     writer.writeln()
@@ -164,6 +176,9 @@ object App : KLogging() {
 
                 writer.unIndent()
             }
+
+            writer.flush()
+            writer.close()
 
             if (config.extract.outputDirectory.name == "-1") {
                 println(stringWriter.buffer.toString())

@@ -1,5 +1,6 @@
 package com.mconsulting.indexrecommender.indexes
 
+import com.mconsulting.indexrecommender.ShapeStatistics
 import com.mconsulting.indexrecommender.queryplans.QueryPlan
 import com.mongodb.MongoClient
 import org.bson.BsonDocument
@@ -18,7 +19,9 @@ abstract class Index(
     val sparse: Boolean = false,
     val unique: Boolean = false,
     val partialFilterExpression: BsonDocument? = null,
-    var indexStatistics: IndexStatistics? = null)
+    var indexStatistics: IndexStatistics? = null) {
+    var statistics: List<ShapeStatistics> = listOf()
+}
 
 enum class IndexDirection {
     ASCENDING, DESCENDING, UNKNOWN;

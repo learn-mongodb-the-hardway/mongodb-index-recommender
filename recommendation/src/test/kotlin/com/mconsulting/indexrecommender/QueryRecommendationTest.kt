@@ -25,7 +25,7 @@ class QueryRecommendationTest {
         val operation = Query(readJsonAsJsonDocument("operations/top_level_single_field_query.json"))
 
         // Create index recommendation engine and process operation
-        val recommender = IndexRecommendationEngine(client)
+        val recommender = IndexRecommendationEngine(client, StatisticsProcessor())
         recommender.process(operation)
 
         // Return the recommendation
@@ -44,7 +44,7 @@ class QueryRecommendationTest {
         val operation = Query(readJsonAsJsonDocument("operations/top_level_single_field_query_with_sort.json"))
 
         // Create index recommendation engine and process operation
-        val recommender = IndexRecommendationEngine(client)
+        val recommender = IndexRecommendationEngine(client, StatisticsProcessor())
         recommender.process(operation)
 
         // Return the recommendation
@@ -66,7 +66,7 @@ class QueryRecommendationTest {
         val operation = Query(readJsonAsJsonDocument("operations/top_level_two_field_query.json"))
 
         // Create index recommendation engine and process operation
-        val recommender = IndexRecommendationEngine(client)
+        val recommender = IndexRecommendationEngine(client, StatisticsProcessor())
         recommender.process(operation)
 
         // Return the recommendation
@@ -88,7 +88,7 @@ class QueryRecommendationTest {
         val operation = Query(readJsonAsJsonDocument("operations/top_level_two_field_query_with_sort.json"))
 
         // Create index recommendation engine and process operation
-        val recommender = IndexRecommendationEngine(client)
+        val recommender = IndexRecommendationEngine(client, StatisticsProcessor())
         recommender.process(operation)
 
         // Return the recommendation
@@ -113,7 +113,7 @@ class QueryRecommendationTest {
         val operation = Query(readJsonAsJsonDocument("operations/multi_key_query.json"))
 
         // Create index recommendation engine and process operation
-        val recommender = IndexRecommendationEngine(client)
+        val recommender = IndexRecommendationEngine(client, StatisticsProcessor())
         recommender.process(operation)
 
         // Return the recommendation

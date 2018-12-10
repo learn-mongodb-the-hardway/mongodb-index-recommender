@@ -88,7 +88,7 @@ class Collection(
     ))
 
     // Recommendation engine
-    private var recommendationEngine: IndexRecommendationEngine = IndexRecommendationEngine(client, this, IndexRecommendationOptions(
+    private var recommendationEngine: IndexRecommendationEngine = IndexRecommendationEngine(client, statisticsProcessor, this, IndexRecommendationOptions(
         quiet = options.quiet
     ))
 
@@ -143,12 +143,10 @@ class Collection(
 
     fun addLogEntry(logEntry: LogEntry) {
         recommendationEngine.process(logEntry)
-        statisticsProcessor.process(logEntry)
     }
 
     fun addOperation(operation: Operation) {
         recommendationEngine.process(operation)
-        statisticsProcessor.process(operation)
     }
 
     fun addIndex(index: Index) {

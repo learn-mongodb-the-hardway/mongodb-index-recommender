@@ -5,5 +5,5 @@ theme = "hugo-theme-learn"
 
 [params]
 ordersectionsby = "weight"
-jarname = "mongo-relational-cli-schema-1.0-SNAPSHOT-all.jar"
-title = "Schema Extraction Tool"
+jarname = "mongo-index-recommender-cli-schema-1.0-SNAPSHOT.jar"
+title = "Index Recommendation Tool"

@@ -162,21 +162,22 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
     val shapes: MutableList<ShapeStatistics> = mutableListOf()
     var inserts: ShapeStatistics? = null
 
-    fun process(operation: Operation) {
-        when (operation) {
-            is Query -> processShape(normalizeFilter(operation.command().filter), operation)
-            is Aggregation -> processShape(normalizeFilter(operation.command().pipeline), operation)
-            is Insert -> processInsert(operation)
+    fun process(operation: Operation): List<ShapeStatistics> {
+        return when (operation) {
+            is Query -> listOf(processShape(normalizeFilter(operation.command().filter), operation))
+            is Aggregation -> listOf(processShape(normalizeFilter(operation.command().pipeline), operation))
+            is Insert -> listOf(processInsert(operation))
             is Update -> {
-                operation.command().queries.forEach { query ->
+                operation.command().queries.map { query ->
                     processShape(normalizeFilter(query), operation)
                 }
             }
             is Delete -> {
-                operation.command().queries.forEach { query ->
+                operation.command().queries.map { query ->
                     processShape(normalizeFilter(query), operation)
                 }
             }
+            else -> listOf()
         }
     }
 
@@ -194,7 +195,7 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
         }
     }
 
-    private fun processInsert(operation: Insert) {
+    private fun processInsert(operation: Insert) : ShapeStatistics {
         // Create a statistics shape
         val shapeStatistics = ShapeStatistics(
             operation = MongoOperation.INSERT,
@@ -210,6 +211,8 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
         } else {
             inserts!!.merge(shapeStatistics)
         }
+
+        return shapeStatistics
     }
 
     private fun processShape(shape: JsonBase, logEntry: LogEntry) {
@@ -237,7 +240,7 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
         }
     }
 
-    private fun processShape(shape: JsonBase, operation: Operation) {
+    private fun processShape(shape: JsonBase, operation: Operation) : ShapeStatistics {
         val responseLength = when (operation) {
             is ReadOperation -> operation.responseLength()
             else -> 0
@@ -259,6 +262,8 @@ class StatisticsProcessor(val options: StatisticsProcessorOptions = StatisticsPr
         } else {
             shapes.find { it == shapeStatistics }!!.merge(shapeStatistics)
         }
+
+        return shapes.find { it == shapeStatistics }!!
     }
 
     fun done(): List<ShapeStatistics> {

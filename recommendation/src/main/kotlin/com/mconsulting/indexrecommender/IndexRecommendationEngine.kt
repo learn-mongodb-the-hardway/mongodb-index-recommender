@@ -52,6 +52,7 @@ fun JsonObject.remove(path: List<String>) {
 
 class IndexRecommendationEngine(
     val client: MongoClient,
+    private val statisticsProcessor: StatisticsProcessor,
     val collection: Collection? = null,
     val options: IndexRecommendationOptions = IndexRecommendationOptions()) {
 
@@ -61,8 +62,9 @@ class IndexRecommendationEngine(
     fun process(operation: Operation) {
         if (logger.isDebugEnabled) logger.debug { "Processing operation [${operation.doc.toJsonString()}" }
 
-        when (operation) {
-            is Query -> processQuery(operation)
+        // Get all indexes modified
+        val indexes = when (operation) {
+            is Query ->  processQuery(operation)
             is Update -> processUpdate(operation)
             is Group -> processGroup(operation)
             is FindAndModify -> processFindAndModify(operation)
@@ -70,52 +72,84 @@ class IndexRecommendationEngine(
             is Distinct -> processDistinct(operation)
             is Aggregation -> processAggregation(operation)
             is Count -> processCount(operation)
-            is NotSupported -> logger.warn { "Attempting to process a non supported operation" }
+            is NotSupported -> {
+                logger.warn { "Attempting to process a non supported operation" }
+                listOf()
+            }
+            else -> listOf()
         }
-    }
 
-    private fun processFindAndModify(operation: FindAndModify) {
-        processQueryCommand(
-            QueryCommand(operation.namespace().db, operation.namespace().collection, operation.query, JsonObject())
-        )
-    }
+        // Get all statistic shapes
+        val shapes = statisticsProcessor.process(operation)
 
-    private fun processDistinct(operation: Distinct) {
-        processQueryCommand(
-            QueryCommand(operation.namespace().db, operation.namespace().collection, operation.query, JsonObject())
-        )
-    }
-
-    private fun processCount(operation: Count) {
-        processQueryCommand(
-            QueryCommand(operation.namespace().db, operation.namespace().collection, operation.query, JsonObject())
-        )
-    }
-
-    private fun processGroup(operation: Group) {
-        if (operation.cond != null) {
-            processQueryCommand(
-                QueryCommand(operation.namespace().db, operation.namespace().collection, operation.cond!!, JsonObject())
-            )
-        }
-    }
-
-    private fun processDelete(delete: Delete) {
-        delete.command().toQueryCommands().forEach { deleteCommand ->
-            val indexes = processQueryCommand(deleteCommand)
-
-            indexes.forEach { index ->
-                if (!candidateIndexes.contains(index)) {
-                    candidateIndexes += index
+        // Go over all the indexes and merge shapes
+        indexes.forEachIndexed { i, index ->
+            if (shapes.size > i) {
+                if (!index.statistics.contains(shapes[i])) {
+                    index.statistics += shapes[i]
                 }
             }
         }
+    }
+
+    private fun processFindAndModify(operation: FindAndModify): List<Index> {
+        val modifiedIndexes = mutableListOf<Index>()
+
+        processIndexes(processQueryCommand(
+            QueryCommand(operation.namespace().db, operation.namespace().collection, operation.query, JsonObject())
+        ), modifiedIndexes)
+
+        return modifiedIndexes
+    }
+
+    private fun processDistinct(operation: Distinct): List<Index> {
+        val modifiedIndexes = mutableListOf<Index>()
+
+        processIndexes(processQueryCommand(
+            QueryCommand(operation.namespace().db, operation.namespace().collection, operation.query, JsonObject())
+        ), modifiedIndexes)
+
+        return modifiedIndexes
+    }
+
+    private fun processCount(operation: Count): List<Index> {
+        val modifiedIndexes = mutableListOf<Index>()
+
+        processIndexes(processQueryCommand(
+            QueryCommand(operation.namespace().db, operation.namespace().collection, operation.query, JsonObject())
+        ), modifiedIndexes)
+
+        return modifiedIndexes
+    }
+
+    private fun processGroup(operation: Group) : List<Index> {
+        val modifiedIndexes = mutableListOf<Index>()
+
+        if (operation.cond != null) {
+            processIndexes(processQueryCommand(
+                QueryCommand(operation.namespace().db, operation.namespace().collection, operation.cond!!, JsonObject())
+            ), modifiedIndexes)
+        }
+
+        return modifiedIndexes
+    }
+
+    private fun processDelete(delete: Delete) : List<Index> {
+        val modifiedIndexes = mutableListOf<Index>()
+
+        delete.command().toQueryCommands().forEach { deleteCommand ->
+            processIndexes(processQueryCommand(deleteCommand), modifiedIndexes)
+        }
+
+        return modifiedIndexes
     }
 
     fun process(logEntry: LogEntry) {
         when (logEntry) {
             is CommandLogEntry -> processCommandLogEntry(logEntry)
         }
+
+        statisticsProcessor.process(logEntry)
     }
 
     private fun processCommandLogEntry(logEntry: CommandLogEntry) {
@@ -129,12 +163,12 @@ class IndexRecommendationEngine(
         }
     }
 
-    private fun processAggregation(aggregation: Aggregation) {
-        processAggregationCommand(aggregation.command()).forEach {
-            if (!candidateIndexes.contains(it)) {
-                candidateIndexes += it
-            }
-        }
+    private fun processAggregation(aggregation: Aggregation) : List<Index> {
+        val modifiedIndexes = mutableListOf<Index>()
+
+        processIndexes(processAggregationCommand(aggregation.command()), modifiedIndexes)
+
+        return modifiedIndexes
     }
 
     private fun processAggregationCommand(aggregationCommand: AggregationCommand) : List<Index> {
@@ -312,24 +346,32 @@ class IndexRecommendationEngine(
         collection.addIndex(index)
     }
 
-    private fun processUpdate(update: Update) {
-        update.command().toQueryCommands().forEach { queryCommand ->
-            val indexes = processQueryCommand(queryCommand)
+    private fun processUpdate(update: Update) : List<Index> {
+        val modifiedIndexes = mutableListOf<Index>()
 
-            indexes.forEach { index ->
-                if (!candidateIndexes.contains(index)) {
-                    candidateIndexes += index
-                }
-            }
+        update.command().toQueryCommands().forEach { queryCommand ->
+            processIndexes(processQueryCommand(queryCommand), modifiedIndexes)
         }
+
+        return modifiedIndexes
     }
 
-    private fun processQuery(query: Query) {
+    private fun processQuery(query: Query) : List<Index> {
         val indexes = processQueryCommand(query.command())
+        val modifiedIndexes = mutableListOf<Index>()
 
-        indexes.forEach {
-            if (!candidateIndexes.contains(it)) {
-                candidateIndexes += it
+        processIndexes(indexes, modifiedIndexes)
+
+        return modifiedIndexes
+    }
+
+    private fun processIndexes(indexes: List<Index>, modifiedIndexes: MutableList<Index>) {
+        indexes.forEach { index ->
+            if (!candidateIndexes.contains(index)) {
+                candidateIndexes += index
+                modifiedIndexes += index
+            } else if (candidateIndexes.contains(index)) {
+                modifiedIndexes += candidateIndexes.first { index == it }
             }
         }
     }
@@ -485,6 +527,7 @@ class IndexRecommendationEngine(
         }
     }
 
+    // Coalesce the indexes (removing any un-needed indexes
     fun recommend() : List<Index> {
         return indexCoalesceEngine.coalesce(candidateIndexes).indexes
     }

@@ -14,8 +14,8 @@ class SingleAndCompoundIndexCoalesceEngineTest {
     @Test
     fun shouldCorrectlyRemoveSingleFieldIndex() {
         val indexes = coalesceEngine.coalesce(listOf(
-            SingleFieldIndex("a", Field("a", IndexDirection.ASCENDING)),
-            CompoundIndex("b", listOf(
+            SingleFieldIndex("a_1", Field("a", IndexDirection.ASCENDING)),
+            CompoundIndex("b_1", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING)
             ))
@@ -25,7 +25,7 @@ class SingleAndCompoundIndexCoalesceEngineTest {
         assertEquals(1, indexes.removedIndexes.size)
 
         assertEquals(listOf(
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_1", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING)
             ))
@@ -39,30 +39,30 @@ class SingleAndCompoundIndexCoalesceEngineTest {
     @Test
     fun shouldCorrectlyMergeTwoSingleFieldEvenWhenDirectionIsOpposite() {
         val indexes = coalesceEngine.coalesce(listOf(
-            SingleFieldIndex("a", Field("a", IndexDirection.ASCENDING)),
-            SingleFieldIndex("a", Field("a", IndexDirection.DESCENDING))
+            SingleFieldIndex("a_1", Field("a", IndexDirection.ASCENDING)),
+            SingleFieldIndex("a_2", Field("a", IndexDirection.DESCENDING))
         ))
 
         assertEquals(1, indexes.indexes.size)
         assertEquals(1, indexes.removedIndexes.size)
 
         assertEquals(listOf(
-            SingleFieldIndex("a", Field("a", IndexDirection.ASCENDING))
+            SingleFieldIndex("a_1", Field("a", IndexDirection.ASCENDING))
         ), indexes.indexes)
 
         assertEquals(listOf(
-            SingleFieldIndex("a", Field("a", IndexDirection.DESCENDING))
+            SingleFieldIndex("a_2", Field("a", IndexDirection.DESCENDING))
         ), indexes.removedIndexes)
     }
 
     @Test
     fun shouldCorrectlyRemoveCompoundFieldIndex() {
         val indexes = coalesceEngine.coalesce(listOf(
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_1", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING)
             )),
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_2", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING),
                 Field("c", IndexDirection.DESCENDING)
@@ -73,7 +73,7 @@ class SingleAndCompoundIndexCoalesceEngineTest {
         assertEquals(1, indexes.removedIndexes.size)
 
         assertEquals(listOf(
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_1", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING),
                 Field("c", IndexDirection.DESCENDING)
@@ -81,7 +81,7 @@ class SingleAndCompoundIndexCoalesceEngineTest {
         ), indexes.indexes)
 
         assertEquals(listOf(
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_2", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING)
             ))
@@ -91,15 +91,15 @@ class SingleAndCompoundIndexCoalesceEngineTest {
     @Test
     fun shouldCorrectlyRemoveDuplicateCompoundFieldIndex() {
         val indexes = coalesceEngine.coalesce(listOf(
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_1", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING)
             )),
-            CompoundIndex("c", listOf(
+            CompoundIndex("c_1", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.ASCENDING)
             )),
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_2", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING),
                 Field("c", IndexDirection.DESCENDING)
@@ -110,7 +110,7 @@ class SingleAndCompoundIndexCoalesceEngineTest {
         assertEquals(2, indexes.removedIndexes.size)
 
         assertEquals(listOf(
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_2", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING),
                 Field("c", IndexDirection.DESCENDING)
@@ -118,11 +118,11 @@ class SingleAndCompoundIndexCoalesceEngineTest {
         ), indexes.indexes)
 
         assertEquals(listOf(
-            CompoundIndex("b", listOf(
+            CompoundIndex("c_1", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING)
             )),
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_1", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.ASCENDING)
             ))
@@ -132,11 +132,11 @@ class SingleAndCompoundIndexCoalesceEngineTest {
     @Test
     fun shouldCorrectlyKeepCompoundFieldIndex() {
         val indexes = coalesceEngine.coalesce(listOf(
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_1", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING)
             )),
-            MultikeyIndex("b", listOf(
+            MultikeyIndex("b_2", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING),
                 Field("c.d", IndexDirection.DESCENDING)
@@ -147,7 +147,7 @@ class SingleAndCompoundIndexCoalesceEngineTest {
         assertEquals(1, indexes.removedIndexes.size)
 
         assertEquals(listOf(
-            MultikeyIndex("b", listOf(
+            MultikeyIndex("b_2", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING),
                 Field("c.d", IndexDirection.DESCENDING)
@@ -155,7 +155,7 @@ class SingleAndCompoundIndexCoalesceEngineTest {
         ), indexes.indexes)
 
         assertEquals(listOf(
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_1", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING)
             ))
@@ -165,11 +165,11 @@ class SingleAndCompoundIndexCoalesceEngineTest {
     @Test
     fun shouldNotMergeCompoundIndexesDueToUniqueConstraint() {
         val indexes = coalesceEngine.coalesce(listOf(
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_1", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING)
             ), false, true),
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_2", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING),
                 Field("c", IndexDirection.DESCENDING)
@@ -180,11 +180,11 @@ class SingleAndCompoundIndexCoalesceEngineTest {
         assertEquals(0, indexes.removedIndexes.size)
 
         assertEquals(listOf(
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_1", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING)
             )),
-            CompoundIndex("b", listOf(
+            CompoundIndex("b_2", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING),
                 Field("c", IndexDirection.DESCENDING)
@@ -195,8 +195,8 @@ class SingleAndCompoundIndexCoalesceEngineTest {
     @Test
     fun shouldNotMergeSingleFieldIndexesDueToUniqueConstraint() {
         val indexes = coalesceEngine.coalesce(listOf(
-            SingleFieldIndex("b", Field("a", IndexDirection.ASCENDING), false, true),
-            CompoundIndex("b", listOf(
+            SingleFieldIndex("b_1", Field("a", IndexDirection.ASCENDING), false, true),
+            CompoundIndex("b_2", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING),
                 Field("c", IndexDirection.DESCENDING)
@@ -207,8 +207,8 @@ class SingleAndCompoundIndexCoalesceEngineTest {
         assertEquals(0, indexes.removedIndexes.size)
 
         assertEquals(listOf(
-            SingleFieldIndex("b", Field("a", IndexDirection.ASCENDING), false, true),
-            CompoundIndex("b", listOf(
+            SingleFieldIndex("b_1", Field("a", IndexDirection.ASCENDING), false, true),
+            CompoundIndex("b_2", listOf(
                 Field("a", IndexDirection.ASCENDING),
                 Field("b", IndexDirection.DESCENDING),
                 Field("c", IndexDirection.DESCENDING)

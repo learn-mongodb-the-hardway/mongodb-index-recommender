@@ -1,14 +1,21 @@
-# MongoDB Schema Extraction Tool
+# MongoDB Index Recommendation Tool
 
-The Schema Extraction and application tool is a tool to help you work with MongoDB Schema validation.
+The MongoDB Index Recommendation Tool lets you analyze your existing MongoDB indexes as well as analyze your query operations from the `system.profile` or
+MongoDB log files to create an optimized list of indexes for each collection.
 
 ## Features
 
-* `Extract Collection Schema:` Extract `MongoDB Json Schemas` for your MongoDB Collections and write them to files.
-    * Sample whole or a random sample of MongoDB collections.
-    * Write Schemas to file.
-    
-* `Apply MongoDB Json Schema:` Apply a `MongoDB Json Schema` to an existing MongoDB Collection.
+* `Optimize Indexes:` 
+    * Consume Existing Indexes from your MongoDB collection
+    * Process `system.profile` and/or MongoDB logs and extract candidate indexes based on your read operations including
+        - Query operations
+        - Update operations
+        - Deletes operations
+        - Aggregation operations
+        - Count operations
+        - Group operations
+        - Distinct operations
+    * Optimize indexes by coalescing the existing indexes and candidate indexes into a minimized list of indexes. 
 
 ## History
 ```bash

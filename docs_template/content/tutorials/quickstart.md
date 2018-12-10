@@ -4,14 +4,15 @@ date: 2018-10-16T10:53:09+02:00
 draft: false
 ---
 
-Welcome to the QuickStart guide. In this guide we are going to cover how to use the tool to extract
-a schema from a MongoDB database and review then apply the validation schema to MongoDB. We are going to
-follow the following steps in the tutorial.
+Welcome to the QuickStart guide. In this guide we are going to cover how to use the tool to extract a list of optimized indexes
+for a MongoDB collection. We are going to showcase how the tool can extract index candidates from the `system.
+profile` collection, merge it with existing collection indexes and optimize the indexes.
 
 1. Preload some dummy data into a running MongoDB instance.
-2. Run the tool against MongoDB to extract the Schema of the collections.
-3. Apply the Schemas to the existing collections.
-4. Validate that the schemas are present on the collections.
+    - Create an existing index.
+2. Run the tool against MongoDB to extract Recommended list of indexes for the collection.
+3. Apply the Index recommendations to the collection.
+4. Validate that the indexes are present on the collections.
 
 ## Pre-Requisities
 
@@ -37,6 +38,25 @@ Next lets switch to the `quickstart` database that we will use in this example.
 > use quickstart
 ```
 
+If we already have the `quickstart` database and the collections `users` and `sights` we need to drop the collections.
+
+```shell
+> db.users.drop();
+> db.sights.drop();
+```
+
+Next we are going to turn on database profiling support so we can capture all the database queries.
+
+```shell
+> db.setProfilingLevel(2, { slowms: 0 })
+```
+
+Next create a basic index on the `users` collection.
+
+```shell
+> db.users.createIndex({ name: 1 });
+```
+
 Now lets insert a dummy document for each of the collections `sights` and `users`.
 
 ```bash
@@ -49,23 +69,41 @@ Now lets insert a dummy document for each of the collections `sights` and `users
 > db.sights.insertOne({_id: 1, user_id: 1, address: { street: 'smiths road 16', city: 'london', country: 'uk' }, name: "Peters house" })
 ```
 
-We now have two simple collections primed with some sample data that we can use to generate the
-MongoDB Json Schemas.
+Next prime the `system.profile` collection by executing some query operations.
 
-## Running the Schema Tool Extractor
+```bash
+> db.users.find({name: 'peter'});
+> db.users.aggregate([{ $match: { name: 'peter', city: "london" } }, { $lookup: { from: "sights", localField: "_id", foreignField: "user_id", as: "sights" }} ])
+```
 
-In this step we are going to run the Schema Extractor Tool to generate the MongoDB Collection Schema
-description.
+Finally turn of profiling.
+
+```shell
+> db.setProfilingLevel(0, { slowms: 100 })
+```
+
+We now have two simple collections primed with some sample data and operations to run the index recommendation tool.
+
+## Running the Index Recommendation Tool
+
+In this step we are going to run the Index Recommendation Tool to generate the MongoDB index recommendations based on the
+previously entered information.
 
 This tool makes the assumption that you have a `Java 8` or higher installed to be able to run the
 tool from the commandline. You need to be able to run the `java` command on the command line to
 execute the tool.
 
-Let's run the tool to extract the schemas
+Let's run the tool to extract the index recommendations
 
 ```bash
-java -jar ./{{% jarname %}} --extract --uri mongodb://localhost:27017 --namespace quickstart.users:1000 --namespace quickstart.sights:1000 --format mongodb-schema-v4 --output-directory ./
+java -jar ./{{% jarname %}} --extract --uri mongodb://localhost:27017 --namespace quickstart.users --namespace quickstart.sights --format txt
 ```
+
+
+
+
+
+
 
 This will create a schema file for each of the collections.
 
