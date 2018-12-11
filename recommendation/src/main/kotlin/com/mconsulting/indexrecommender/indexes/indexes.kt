@@ -20,7 +20,10 @@ abstract class Index(
     val unique: Boolean = false,
     val partialFilterExpression: BsonDocument? = null,
     var indexStatistics: IndexStatistics? = null) {
-    var statistics: List<ShapeStatistics> = listOf()
+    val statistics: MutableList<ShapeStatistics> = mutableListOf()
+    val removedIndexes: MutableList<Index> = mutableListOf()
+
+    fun isExistingIndex() : Boolean = indexStatistics != null
 }
 
 enum class IndexDirection {

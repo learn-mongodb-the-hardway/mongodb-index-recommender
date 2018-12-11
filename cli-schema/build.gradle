@@ -20,6 +20,8 @@ dependencies {
     compile "com.xenomachina:kotlin-argparser:$kotlinArgparserVersion"
     compile "ch.qos.logback:logback-classic:$logbackVersion"
 
+    implementation 'com.beust:klaxon:3.0.1'
+
     runtime fileTree(dir: 'libs', include: ['*.jar'])
 }
 

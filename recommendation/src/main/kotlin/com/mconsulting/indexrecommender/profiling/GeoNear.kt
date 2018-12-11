@@ -2,6 +2,13 @@ package com.mconsulting.indexrecommender.profiling
 
 import com.beust.klaxon.JsonBase
 import com.beust.klaxon.JsonObject
+import com.mconsulting.indexrecommender.getBoolean
+import com.mconsulting.indexrecommender.getBooleanMaybe
+import com.mconsulting.indexrecommender.getDoubleMaybe
+import com.mconsulting.indexrecommender.getIntMaybe
+import com.mconsulting.indexrecommender.getJsonBase
+import com.mconsulting.indexrecommender.getJsonObjectMaybe
+import com.mconsulting.indexrecommender.getStringMaybe
 
 // {"geoNear":"geo_near_random2","near":[-65.1009848893434,-36.22633492201567],"num":48.0,"spherical":1.0}
 class GeoNear(doc: JsonObject) : Operation(doc) {

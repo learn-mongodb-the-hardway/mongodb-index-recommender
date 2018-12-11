@@ -2,6 +2,7 @@ package com.mconsulting.indexrecommender.profiling
 
 import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonObject
+import com.mconsulting.indexrecommender.getInt
 import mu.KLogging
 import java.lang.Exception
 

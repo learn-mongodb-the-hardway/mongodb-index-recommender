@@ -110,8 +110,7 @@ class ParseLogFilesTest {
         // Add the Ingres method
         processor.addSource(BufferJSONIngress(bufferedReader))
         // Run the processor
-        val results = processor.process()
-        println()
+        processor.process()
     }
 
     fun executeParse(file: String) {
@@ -138,32 +137,12 @@ class ParseLogFilesTest {
         var failedIndex = 0
 
         while (parser.hasNext()) {
-//            try {
-                val entry = parser.next()
-//            } catch (err: FailedOperation) {
-//                failedIndex += 1
-//                println(err.stackTrace.toString())
-//                println("[$index] - ${parser.line}")
-//                throw err
-//            }
-
-//            if (index == 10000) {
-//                break
-//            }
-
+            parser.next()
             index += 1
         }
 
         println("========= total statements: $index")
         println("========= total failed statements: $failedIndex")
-
-//        var line = stream.readLine()
-//
-//        do {
-//            println(line)
-//
-//            line = stream.readLine()
-//        } while (line != null)
     }
 
     companion object {

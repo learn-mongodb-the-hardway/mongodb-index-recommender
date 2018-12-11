@@ -2,6 +2,11 @@ package com.mconsulting.indexrecommender.profiling
 
 import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonObject
+import com.mconsulting.indexrecommender.getBooleanMaybe
+import com.mconsulting.indexrecommender.getIntMaybe
+import com.mconsulting.indexrecommender.getJsonArrayMaybe
+import com.mconsulting.indexrecommender.getJsonObject
+import com.mconsulting.indexrecommender.getJsonObjectMaybe
 
 class FindAndModify(doc: JsonObject) : Operation(doc) {
     val query: JsonObject

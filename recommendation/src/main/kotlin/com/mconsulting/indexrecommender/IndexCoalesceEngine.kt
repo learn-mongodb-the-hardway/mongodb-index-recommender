@@ -50,6 +50,7 @@ class IndexCoalesceEngine {
 
     private fun processTextIndexes(textIndexes: List<TextIndex>, compoundTextIndexes: List<CompoundTextIndex>, removedIndexes: MutableList<Index>, indexes: MutableList<Index>) {
         val shapes = mutableListOf<ShapeStatistics>()
+        val localRemovedIndexes = mutableListOf<Index>()
 
         // Do we have any text indexes
         if (textIndexes.isNotEmpty()) {
@@ -59,32 +60,45 @@ class IndexCoalesceEngine {
             // Merged the basic text index fields
             textIndexQueue.forEach {
                 mergedFields += it.fields.filter { !mergedFields.contains(it) }
-                removedIndexes += it
+                localRemovedIndexes += it
                 shapes += it.statistics
             }
 
             // Go over all the compound text indexes
             if (compoundTextIndexes.isNotEmpty()) {
-                mergedFields += mergeCompoundIndexes(compoundTextIndexes, indexes, shapes)
+                mergedFields += mergeCompoundTextIndexes(compoundTextIndexes, indexes, localRemovedIndexes, shapes)
             }
+
+            // Merge removed indexes
+            removedIndexes += localRemovedIndexes
 
             // Merge any compound text indexes, splitting them and merging them
             val index = TextIndex(createIndexName(mergedFields.toList()), mergedFields.toList())
-            index.statistics = shapes
+            index.statistics += shapes
+            index.removedIndexes += localRemovedIndexes
             indexes += index
             return
         }
 
         // Do we have more than one compound index, merge them
         if (compoundTextIndexes.size > 1) {
-            val mergedFields = mergeCompoundIndexes(compoundTextIndexes, indexes, shapes)
+            val mergedFields = mergeCompoundTextIndexes(compoundTextIndexes, indexes, localRemovedIndexes, shapes)
             val index = TextIndex(createIndexName(mergedFields.toList()), mergedFields.toList())
-            index.statistics = shapes
+            index.statistics += shapes
+            index.removedIndexes += localRemovedIndexes
             indexes += index
         }
+
+        // Merge removed indexes
+        removedIndexes += localRemovedIndexes
     }
 
-    private fun mergeCompoundIndexes(compoundTextIndexes: List<CompoundTextIndex>, indexes: MutableList<Index>, shapes: MutableList<ShapeStatistics>): List<TextField> {
+    private fun mergeCompoundTextIndexes(
+        compoundTextIndexes: List<CompoundTextIndex>,
+        indexes: MutableList<Index>,
+        removedIndexes: MutableList<Index>,
+        shapes: MutableList<ShapeStatistics>): List<TextField> {
+
         val mergedFields = mutableListOf<TextField>()
         // We need to merge any missing text fields
         mergedFields += compoundTextIndexes.map {
@@ -108,12 +122,22 @@ class IndexCoalesceEngine {
                     else -> 1
                 }}"
             }.joinToString("_"), filteredFields)
+            // Add the compound index to the list of removed indexes
+            compoundIndex.removedIndexes += textIndex
 
             if (!indexes.contains(compoundIndex)) {
                 indexes += compoundIndex
             }
         }
 
+        // Add all the compoundTextIndexes to the list of removed indexes (as they got merged)
+        compoundTextIndexes.forEach {
+            if (!removedIndexes.contains(it)) {
+                removedIndexes += it
+            }
+        }
+
+        // Return the merged fields
         return mergedFields
     }
 
@@ -129,8 +153,7 @@ class IndexCoalesceEngine {
 
         // Add any indexes that are not covered by a composite index
         indexes += singleIndexes.filter { singleFieldIndex ->
-            compoundFieldIndexes.firstOrNull { multiFieldIndex ->
-
+            val index = compoundFieldIndexes.firstOrNull { multiFieldIndex ->
                 // Merge any statistics when we are removing fields
                 if (multiFieldIndex.fields.first().name == singleFieldIndex.name) {
                     singleFieldIndex.statistics.forEach { shape ->
@@ -143,7 +166,14 @@ class IndexCoalesceEngine {
                 }
 
                 multiFieldIndex.fields.first().name == singleFieldIndex.field.name && !singleFieldIndex.unique
-            } == null
+            }
+
+            // Add the single field index we are removing
+            if (index != null) {
+                index.removedIndexes += singleFieldIndex
+            }
+
+            index == null
         }
 
         // Add any removed indexes to the list of removed Indexes
@@ -169,6 +199,8 @@ class IndexCoalesceEngine {
                 if (index != otherIndex && index.fields.size <= otherIndex.fields.size) {
                     if (index.fields == otherIndex.fields.subList(0, index.fields.size) && !index.unique) {
                         removedIndexes += index
+                        otherIndex.removedIndexes += index
+
                         // Merge statistics
                         index.statistics.forEach { shape ->
                             if (!otherIndex.statistics.contains(shape)) {

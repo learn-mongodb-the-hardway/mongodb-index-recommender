@@ -1,12 +1,12 @@
 {
   "op" : "query",
-  "ns" : "digitalvault_integration.users",
+  "ns" : "mindex_recommendation_tests.gamers",
   "command" : {
-    "find" : "users",
+    "find" : "gamers",
     "filter" : {
       "games.id" : 1
     },
-    "$db" : "digitalvault_integration"
+    "$db" : "mindex_recommendation_tests"
   },
   "keysExamined" : 0,
   "docsExamined" : 6,

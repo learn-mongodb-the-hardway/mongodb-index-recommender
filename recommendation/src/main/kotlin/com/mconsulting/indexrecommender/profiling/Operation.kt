@@ -4,6 +4,9 @@ import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonBase
 import com.beust.klaxon.JsonObject
 import com.mconsulting.indexrecommender.Namespace
+import com.mconsulting.indexrecommender.getInt
+import com.mconsulting.indexrecommender.getString
+import com.mconsulting.indexrecommender.readBsonDate
 import org.bson.BsonDocument
 import org.bson.BsonString
 import org.joda.time.format.DateTimeFormat
@@ -39,112 +42,3 @@ abstract class ReadOperation(doc: JsonObject) : Operation(doc) {
 }
 
 abstract class WriteOperation(doc: JsonObject) : Operation(doc)
-
-val formatter: DateTimeFormatter = ISODateTimeFormat.dateTime()
-
-private fun readBsonDate(doc: JsonObject, field: String): Long {
-    if (!doc.containsKey(field)) throw Exception("the field $field in [${doc.toJsonString()}] does not exist")
-    val obj = doc.obj(field)!!
-    // Do we have a date entry
-    return when {
-        obj.containsKey("\$date") && obj["\$date"] is String -> formatter.parseDateTime(obj.string("\$date")).millis
-        obj.containsKey("\$date") -> readBsonLong(obj, "\$date")
-        else -> throw Exception("the field $field in [${doc.toJsonString()}] is not a BsonDate")
-    }
-}
-
-private fun readBsonLong(doc: JsonObject, field: String): Long {
-    if (doc.containsKey(field)) {
-        return when (doc[field]) {
-            is JsonObject -> {
-                val obj = doc.obj(field)!!
-
-                // We found a number long
-                if (!obj.containsKey("\$numberLong")) {
-                    throw Exception("the field $field in [${doc.toJsonString()}] is not a Long or could not be converted to Long")
-                }
-
-                obj.string("\$numberLong")!!.toLong()
-            }
-            is Int -> {
-                doc.int(field)!!.toLong()
-            }
-            is Long -> {
-                doc.long(field)!!
-            }
-            else -> {
-                throw Exception("the field $field in [${doc.toJsonString()}] is not a Long or could not be converted to Long")
-            }
-        }
-    } else {
-      throw Exception("the field $field in [${doc.toJsonString()}] does not exist on the JsonObject")
-    }
-}
-
-fun <T> getJsonArrayMaybe(fieldName: String, doc: JsonObject): JsonArray<T>? = when (doc.containsKey(fieldName)) {
-    true -> doc.array(fieldName)!!
-    false -> null
-}
-
-fun getJsonObject(fieldName: String, doc: JsonObject) = when(val value = getJsonObjectMaybe(fieldName, doc)) {
-    null -> throw Exception("unexpected field type")
-    else -> value
-}
-
-fun getJsonObjectMaybe(fieldName: String, doc: JsonObject) = when (doc.containsKey(fieldName)) {
-    true -> doc.obj(fieldName)!!
-    false -> null
-}
-
-fun getStringMaybe(fieldName: String, doc: JsonObject) = when (doc.containsKey(fieldName)) {
-    true -> doc.string(fieldName)!!
-    false -> null
-}
-
-fun getString(fieldName: String, doc: JsonObject) = when(val value = getStringMaybe(fieldName, doc)) {
-    null -> throw Exception("unexpected field type")
-    else -> value
-}
-
-fun getJsonBase(fieldName: String, doc: JsonObject) = doc[fieldName]!! as JsonBase
-
-fun getInt(fieldName: String, doc: JsonObject) = when(val value = getIntMaybe(fieldName, doc)) {
-    null -> throw Exception("unexpected field type")
-    else -> value
-}
-
-fun getIntMaybe(fieldName: String, doc: JsonObject) = when (doc.containsKey(fieldName)) {
-    true -> {
-        when (doc[fieldName]) {
-            is Double -> doc.double(fieldName)!!.toInt()
-            is Int -> doc.int(fieldName)!!
-            is Long -> doc.long(fieldName)!!.toInt()
-            else -> throw Exception("unexpected field type")
-        }
-    }
-    false -> null
-}
-
-fun getDoubleMaybe(fieldName: String, doc: JsonObject) = when (doc.containsKey(fieldName)) {
-    true -> {
-        when (doc[fieldName]) {
-            is Double -> doc.double(fieldName)!!
-            is Int -> doc.int(fieldName)!!.toDouble()
-            is Long -> doc.long(fieldName)!!.toDouble()
-            else -> throw Exception("unexpected field type")
-        }
-    }
-    false -> null
-}
-
-fun getBoolean(fieldName: String, doc: JsonObject) = when(val value = getBooleanMaybe(fieldName, doc)) {
-    null -> throw Exception("unexpected field type")
-    else -> value
-}
-
-fun getBooleanMaybe(fieldName: String, doc: JsonObject) = when (doc[fieldName]) {
-    is Boolean -> doc[fieldName] as Boolean
-    is Double -> doc.double(fieldName) == 1.0
-    is Int -> doc.int(fieldName) == 1
-    else -> null
-}

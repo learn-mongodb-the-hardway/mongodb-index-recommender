@@ -1,6 +1,8 @@
 package com.mconsulting.indexrecommender.profiling
 
 import com.beust.klaxon.JsonObject
+import com.mconsulting.indexrecommender.getIntMaybe
+import com.mconsulting.indexrecommender.getJsonObjectMaybe
 
 class Count(doc: JsonObject) : Operation(doc) {
     val query: JsonObject

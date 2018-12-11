@@ -28,6 +28,7 @@ import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
 import com.mconsulting.indexrecommender.ingress.LogFileIngress
 import com.mconsulting.indexrecommender.ingress.ProfileCollectionIngress
 import com.mconsulting.indexrecommender.ingress.ProfileCollectionIngressOptions
+import com.mconsulting.mschema.cli.output.TextFormatter
 import com.mongodb.MongoClient
 import com.xenomachina.argparser.ArgParser
 import com.xenomachina.argparser.HelpFormatter
@@ -119,158 +120,32 @@ object App : KLogging() {
 
         // Create the output
         when (config.extract.outputFormat) {
-            OutputFormat.TXT -> outputTextFormat(indexResults, config)
-            OutputFormat.JSON -> outputJSONFormat(indexResults, config)
+            OutputFormat.TXT -> outputTextFormat(indexResults, config.extract.outputDirectory.name)
+            OutputFormat.JSON -> outputJSONFormat(indexResults, config.extract.outputDirectory.name)
         }
     }
 
-    private fun outputJSONFormat(indexResults: IndexResults, config: Config) {
+    private fun outputJSONFormat(indexResults: IndexResults, outputDirectory: String) {
     }
 
-    private fun outputTextFormat(indexResults: IndexResults, config: Config) {
-        indexResults.dbIndexResults.forEach { db ->
-            val stringWriter = StringWriter()
-            val writer = when(config.extract.outputDirectory.name) {
-                "-1" -> IndentationWriter(stringWriter)
-                else -> IndentationWriter(FileWriter(File(config.extract.outputDirectory, "${db.namespace.db}.txt")))
+    private fun outputTextFormat(indexResults: IndexResults, outputDirectory: String) {
+        // Create writer
+        indexResults.dbIndexResults.forEach { dbIndexResult ->
+            val writer = when(outputDirectory != "-1") {
+                true -> IndentationWriter(FileWriter(File(outputDirectory, "${dbIndexResult.namespace.db}_${Date().time}.txt")))
+                false -> IndentationWriter(StringWriter())
             }
 
-            writer.writeln("db: ${db.namespace.db}")
-            writer.writeln()
-            writer.indent()
+            TextFormatter(writer).render(indexResults)
 
-            db.collectionIndexResults.forEach { collection ->
-                writer.writeln("collection: ${collection.namespace.collection}")
-                writer.writeln()
-                writer.indent()
-
-                collection.indexes.sortedBy { it.indexStatistics == null }.forEach { index ->
-                    writer.writeln(when (index.indexStatistics) {
-                        null -> "<${indexTypeName(index)}>:"
-                        else -> "[${indexTypeName(index)}]:"
-                    })
-                    writer.indent()
-
-                    writer.writeln("name: ${index.name}")
-                    writeIndexSpecific(writer, index)
-
-                    if (index.partialFilterExpression != null) {
-                        writer.writeln("partialExpression: ${index.partialFilterExpression!!.toJson()}")
-                    }
-
-                    writer.writeln("unique: ${index.unique}")
-                    writer.writeln("sparse: ${index.sparse}")
-                    writer.writeln("statistics:")
-
-                    // Write out any index statistics
-                    writer.indent()
-
-                    // If we have MongoDB statistics print them out
-                    if (index.indexStatistics != null) {
-                        writer.writeln("count: ${index.indexStatistics!!.ops}")
-                        writer.writeln("since: ${index.indexStatistics!!.since}")
-                    } else {
-                        writer.writeln("count: ${index.statistics.map { it.count }.sum()}")
-                    }
-
-                    writer.unIndent()
-
-                    writer.unIndent()
-                    writer.writeln()
-                }
-
-                writer.unIndent()
-            }
-
+            // Flush and close
             writer.flush()
             writer.close()
 
-            if (config.extract.outputDirectory.name == "-1") {
-                println(stringWriter.buffer.toString())
+            // Output string
+            if (outputDirectory == "-1") {
+                println(writer.toString())
             }
-        }
-    }
-
-    private fun writeIndexSpecific(writer: IndentationWriter, index: Index) {
-        when (index) {
-            is SingleFieldIndex -> {
-                writer.writeln("field:")
-                writer.indent()
-
-                writer.writeln("key: ${index.field.name}")
-                writer.writeln("direction: ${index.field.direction}")
-
-                writer.unIndent()
-            }
-            is CompoundIndex -> {
-                writer.writeln("fields:")
-                writer.indent()
-
-                index.fields.forEach {
-                    writer.writeln("field:")
-                    writer.indent()
-
-                    writer.writeln("key: ${it.name}")
-                    writer.writeln("direction: ${it.direction}")
-
-                    writer.unIndent()
-                }
-
-                writer.unIndent()
-            }
-            is HashedIndex -> writer.writeln("field: ${index.field}")
-            is TwoDSphereIndex -> writer.writeln("field: ${index.key}")
-            is TwoDIndex -> writer.writeln("field: ${index.key}")
-            is MultikeyIndex -> {
-                writer.writeln("fields:")
-                writer.indent()
-
-                index.fields.forEach {
-                    writer.writeln("field:")
-                    writer.indent()
-
-                    writer.writeln("key: ${it.name}")
-                    writer.writeln("direction: ${it.direction}")
-
-                    writer.unIndent()
-                }
-
-                writer.unIndent()
-            }
-            is TextIndex -> {
-                writer.writeln("fields:")
-                writer.indent()
-
-                index.fields.forEach {
-                    writer.writeln("field:")
-                    writer.indent()
-
-                    writer.writeln("key: ${it.path}")
-                    writer.writeln("weight: ${it.weight}")
-
-                    writer.unIndent()
-                }
-
-                writer.unIndent()
-            }
-            is TTLIndex -> {
-
-            }
-        }
-    }
-
-    private fun indexTypeName(index: Index): String {
-        return when (index) {
-            is SingleFieldIndex -> "Single Key"
-            is CompoundIndex -> "Compound Key"
-            is HashedIndex -> "Hashed"
-            is MultikeyIndex -> "Multi Key"
-            is IdIndex -> "Id"
-            is TwoDSphereIndex -> "2d Sphere"
-            is TwoDIndex -> "2d"
-            is TextIndex -> "Text"
-            is TTLIndex -> "Time To Live"
-            else -> "Unknown"
         }
     }
 
@@ -315,7 +190,7 @@ object App : KLogging() {
         val appender = if (logging.logPath != null) {
             createFileAppender(encoder, loggerContext, logging)
         } else {
-            createConsoleAppender(encoder, loggerContext, logging)
+            createConsoleAppender(encoder, loggerContext)
         }
 
         logger.addAppender(appender)
@@ -339,7 +214,7 @@ object App : KLogging() {
         })
     }
 
-    private fun createConsoleAppender(encoder: Encoder<ILoggingEvent>, loggerContext: LoggerContext, logging: LoggingConfig): Appender<ILoggingEvent> {
+    private fun createConsoleAppender(encoder: Encoder<ILoggingEvent>, loggerContext: LoggerContext): Appender<ILoggingEvent> {
         val appender = ConsoleAppender<ILoggingEvent>()
         appender.target = "System.err"
         appender.encoder = encoder
@@ -361,10 +236,11 @@ object App : KLogging() {
 }
 
 internal object AppHelpFormatter : HelpFormatter {
-    override fun format(progName: String?, columns: Int, values: List<HelpFormatter.Value>): String {
+
+    override fun format(programName: String?, columns: Int, values: List<HelpFormatter.Value>): String {
         val builder = StringBuilder()
 
-        builder.appendln("usage: $progName [OPTIONS]")
+        builder.appendln("usage: $programName [OPTIONS]")
 
         values
             .filter { !it.isPositional }

@@ -1,6 +1,9 @@
 package com.mconsulting.indexrecommender.profiling
 
 import com.beust.klaxon.JsonObject
+import com.mconsulting.indexrecommender.getJsonObject
+import com.mconsulting.indexrecommender.getJsonObjectMaybe
+import com.mconsulting.indexrecommender.getString
 
 class Group(doc: JsonObject) : Operation(doc) {
     val collection: String

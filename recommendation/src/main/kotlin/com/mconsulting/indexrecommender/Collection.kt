@@ -49,6 +49,7 @@ import mu.KLogging
 import mu.KotlinLogging
 import org.bson.BsonDocument
 import org.bson.BsonElement
+import org.bson.BsonString
 import java.util.*
 
 data class CollectionOptions(
@@ -60,7 +61,8 @@ data class CollectionOptions(
 data class CollectionIndexResults(
     val namespace: Namespace,
     val indexes: List<Index>,
-    val shapeStatistics: List<ShapeStatistics>
+    val shapeStatistics: List<ShapeStatistics>,
+    val collectionStats: CollectionStats
 ) {
     fun getIndex(name: String): Index? {
         return indexes.firstOrNull { it.name == name }
@@ -77,6 +79,7 @@ class Collection(
     val db: Db,
     options: CollectionOptions = CollectionOptions()) {
 
+    val collectionStats: CollectionStats
     private var database: MongoDatabase = client.getDatabase(namespace.db)
     private var collection: MongoCollection<BsonDocument>
     private var existingIndexes: List<Index> = listOf()
@@ -94,6 +97,13 @@ class Collection(
 
     init {
         collection = database.getCollection(namespace.collection, BsonDocument::class.java)
+
+        // Read the collection stats
+        collectionStats = when (database.listCollectionNames().contains(namespace.collection)) {
+            true -> CollectionStats(database.runCommand(BsonDocument().append("collStats", BsonString(namespace.collection)), BsonDocument::class.java))
+            false -> CollectionStats(BsonDocument())
+        }
+
         // Process any existing indexes
         processExistingIndexes()
     }
@@ -137,7 +147,8 @@ class Collection(
         return CollectionIndexResults(
             namespace = namespace,
             indexes = recommendationEngine.recommend(),
-            shapeStatistics = statisticsProcessor.done()
+            shapeStatistics = statisticsProcessor.done(),
+            collectionStats = collectionStats
         )
     }
 

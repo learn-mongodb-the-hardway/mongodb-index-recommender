@@ -48,7 +48,7 @@ class CreateOperationTest {
 
         assertNotNull(operation)
         assertTrue(operation is Query)
-        assertEquals(Namespace.parse("digitalvault_integration.users"), operation.namespace())
+        assertEquals(Namespace.parse("mindex_recommendation_tests.gamers"), operation.namespace())
     }
 
     @Test
