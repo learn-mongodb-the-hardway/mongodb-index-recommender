@@ -2,7 +2,6 @@ package com.mconsulting.indexrecommender
 
 import com.mconsulting.indexrecommender.indexes.CompoundIndex
 import com.mconsulting.indexrecommender.indexes.Field
-import com.mconsulting.indexrecommender.indexes.IdIndex
 import com.mconsulting.indexrecommender.indexes.IndexDirection
 import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
 import com.mconsulting.indexrecommender.log.LogEntry
@@ -10,9 +9,7 @@ import com.mconsulting.indexrecommender.log.LogParser
 import com.mconsulting.indexrecommender.profiling.Aggregation
 import com.mongodb.MongoClient
 import com.mongodb.MongoClientURI
-import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
-import org.bson.Document
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test

@@ -243,7 +243,7 @@ class LogParser(reader: BufferedReader, val options: LogParserOptions = LogParse
 
     private fun parseWrite(dateTime: DateTime, severityLevel: SeverityLevels, tokenizer: StringTokenizer): LogEntry {
         // Read the connection information
-        val connection = tokenizer.nextToken()
+        tokenizer.nextToken()
         // Skip the next token
         val commandName = tokenizer.nextToken().trim()
         // Read the namespace

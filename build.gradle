@@ -67,7 +67,8 @@ subprojects {
     }
 
     dependencies {
-        compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
+        compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+        compile "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
         compile "io.github.microutils:kotlin-logging:$kotlinLoggingVersion"
         compile "org.mongodb:mongodb-driver:$mongodbDriverVersion"
 

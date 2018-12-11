@@ -10,8 +10,8 @@ import com.vdurmont.semver4j.Semver
 import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.Document
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals

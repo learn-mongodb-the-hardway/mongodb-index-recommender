@@ -2,8 +2,6 @@ package com.mconsulting.indexrecommender.profiling
 
 import com.beust.klaxon.JsonObject
 import mu.KLogging
-import org.bson.BsonDocument
-import org.bson.BsonString
 
 data class QueryCommand(val db: String, val collection: String, val filter: JsonObject, val sort: JsonObject) {
     val namespace: String

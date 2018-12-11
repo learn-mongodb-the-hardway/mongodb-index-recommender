@@ -15,19 +15,11 @@ import com.mconsulting.indexrecommender.CollectionOptions
 import com.mconsulting.indexrecommender.IndexResults
 import com.mconsulting.indexrecommender.Namespace
 import com.mconsulting.indexrecommender.Processor
-import com.mconsulting.indexrecommender.indexes.CompoundIndex
-import com.mconsulting.indexrecommender.indexes.HashedIndex
-import com.mconsulting.indexrecommender.indexes.IdIndex
-import com.mconsulting.indexrecommender.indexes.Index
-import com.mconsulting.indexrecommender.indexes.MultikeyIndex
-import com.mconsulting.indexrecommender.indexes.SingleFieldIndex
-import com.mconsulting.indexrecommender.indexes.TTLIndex
-import com.mconsulting.indexrecommender.indexes.TextIndex
-import com.mconsulting.indexrecommender.indexes.TwoDIndex
-import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
 import com.mconsulting.indexrecommender.ingress.LogFileIngress
 import com.mconsulting.indexrecommender.ingress.ProfileCollectionIngress
 import com.mconsulting.indexrecommender.ingress.ProfileCollectionIngressOptions
+import com.mconsulting.mschema.cli.output.Formatter
+import com.mconsulting.mschema.cli.output.JsonFormatter
 import com.mconsulting.mschema.cli.output.TextFormatter
 import com.mongodb.MongoClient
 import com.xenomachina.argparser.ArgParser
@@ -35,25 +27,23 @@ import com.xenomachina.argparser.HelpFormatter
 import com.xenomachina.argparser.ShowHelpException
 import com.xenomachina.argparser.SystemExitException
 import mu.KLogging
-import org.bson.BsonDocument
 import org.slf4j.Marker
 import java.io.File
 import java.io.FileWriter
 import java.io.OutputStreamWriter
 import java.io.StringWriter
 import java.io.Writer
-import java.text.SimpleDateFormat
 import java.util.*
 
-fun Date.toISO8601() : String {
-    val tz = TimeZone.getTimeZone("UTC");
-    val df = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'"); // Quoted "Z" to indicate UTC, no timezone offset
-    df.setTimeZone(tz);
-    return df.format(this);
-}
+//fun Date.toISO8601() : String {
+//    val tz = TimeZone.getTimeZone("UTC");
+//    val df = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'"); // Quoted "Z" to indicate UTC, no timezone offset
+//    df.setTimeZone(tz);
+//    return df.format(this);
+//}
 
 object App : KLogging() {
-    val dateFormat = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss")
+//    val dateFormat = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss")
 
     private val props by lazy {
         Properties().apply {
@@ -61,7 +51,7 @@ object App : KLogging() {
         }
     }
 
-    val name by lazy {
+    private val name by lazy {
         props["name"]?.toString() ?: "unknown"
     }
 
@@ -120,23 +110,20 @@ object App : KLogging() {
 
         // Create the output
         when (config.extract.outputFormat) {
-            OutputFormat.TXT -> outputTextFormat(indexResults, config.extract.outputDirectory.name)
-            OutputFormat.JSON -> outputJSONFormat(indexResults, config.extract.outputDirectory.name)
+            OutputFormat.TXT -> output(TextFormatter(), indexResults, config.extract.outputDirectory.name, "txt")
+            OutputFormat.JSON -> output(JsonFormatter(), indexResults, config.extract.outputDirectory.name, "json")
         }
     }
 
-    private fun outputJSONFormat(indexResults: IndexResults, outputDirectory: String) {
-    }
-
-    private fun outputTextFormat(indexResults: IndexResults, outputDirectory: String) {
+    private fun output(formatter: Formatter, indexResults: IndexResults, outputDirectory: String, extension: String) {
         // Create writer
         indexResults.dbIndexResults.forEach { dbIndexResult ->
             val writer = when(outputDirectory != "-1") {
-                true -> IndentationWriter(FileWriter(File(outputDirectory, "${dbIndexResult.namespace.db}_${Date().time}.txt")))
+                true -> IndentationWriter(FileWriter(File(outputDirectory, "${dbIndexResult.namespace.db}_${Date().time}.$extension")))
                 false -> IndentationWriter(StringWriter())
             }
 
-            TextFormatter(writer).render(indexResults)
+            formatter.render(dbIndexResult, writer)
 
             // Flush and close
             writer.flush()

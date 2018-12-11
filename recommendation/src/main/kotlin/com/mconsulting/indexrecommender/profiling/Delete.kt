@@ -4,7 +4,6 @@ import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonObject
 import com.mconsulting.indexrecommender.getInt
 import mu.KLogging
-import java.lang.Exception
 
 data class DeleteCommand(val db: String, val collection: String, val queries: List<JsonObject>) {
     fun toQueryCommands(): List<QueryCommand> {

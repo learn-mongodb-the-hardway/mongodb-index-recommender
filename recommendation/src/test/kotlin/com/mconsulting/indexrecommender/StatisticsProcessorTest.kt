@@ -8,7 +8,6 @@ import com.mconsulting.indexrecommender.profiling.Delete
 import com.mconsulting.indexrecommender.profiling.Insert
 import com.mconsulting.indexrecommender.profiling.Query
 import com.mconsulting.indexrecommender.profiling.Update
-import org.bson.BsonArray
 import org.bson.BsonDateTime
 import org.bson.Document
 import org.junit.jupiter.api.Test

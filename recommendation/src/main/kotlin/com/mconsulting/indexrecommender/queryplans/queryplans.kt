@@ -1,7 +1,6 @@
 package com.mconsulting.indexrecommender.queryplans
 
 import org.bson.BsonDocument
-import org.bson.BsonString
 
 enum class Stage {
     IXSCAN, DISTINCT_SCAN, SORT_KEY_GENERATOR

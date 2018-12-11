@@ -1,123 +1,78 @@
 package com.mconsulting.mschema.cli.output
 
-import com.mconsulting.indexrecommender.IndexResults
+import com.beust.klaxon.JsonArray
+import com.beust.klaxon.JsonObject
+import com.mconsulting.indexrecommender.DbIndexResult
 import com.mconsulting.mschema.cli.IndentationWriter
 import com.mconsulting.mschema.cli.writeln
+import org.bson.BsonArray
+import org.bson.BsonBoolean
+import org.bson.BsonDateTime
+import org.bson.BsonDocument
+import org.bson.BsonElement
+import org.bson.BsonInt32
+import org.bson.BsonInt64
+import org.bson.BsonString
+import org.bson.json.JsonWriterSettings
 
-class JsonFormatter(private val writer: IndentationWriter) : Formatter() {
-    fun render(indexResults: IndexResults) {
-        indexResults.dbIndexResults.forEach { db ->
-            writer.writeln("db: ${db.namespace.db}")
-            writer.writeln()
-            writer.indent()
+class JsonFormatter : Formatter() {
+    override fun render(db: DbIndexResult, writer: IndentationWriter) {
+        val collections = BsonArray(db.collectionIndexResults.map { collection ->
+            BsonDocument()
+                .append("collection", BsonString(collection.namespace.collection))
+                .append("statistics", BsonDocument(listOf(
+                    BsonElement("document_count", BsonInt64(collection.collectionStats.count)),
+                    BsonElement("index_count", BsonInt32(collection.indexes.size))
+                )))
+                .append("indexes", BsonArray(collection.indexes.map { index ->
+                    val indexDocument = BsonDocument()
+                        .append("name", BsonString(index.name))
+                        .append("index_type", BsonString(indexTypeName(index)))
+                        .append("filter", writeIndexSpecificJson(index))
+                        .append("existing_index", BsonBoolean(index.isExistingIndex()))
+                        .append("unique", BsonBoolean(index.sparse))
+                        .append("sparse", BsonBoolean(index.sparse))
+                        .append("statistics", when (index.isExistingIndex()) {
+                            true -> BsonDocument()
+                                .append("count", BsonInt64(index.indexStatistics!!.ops))
+                                .append("since", BsonDateTime(index.indexStatistics!!.since.time))
+                            false -> BsonDocument()
+                                .append("count", BsonInt64(index.statistics.map { it.count }.sum()))
+                        })
+                        .append("shapes", BsonArray(index.statistics.map {
+                            BsonDocument()
+                                .append("filter", BsonDocument.parse(when (it.shape) {
+                                    is JsonObject -> JsonObject(mapOf(
+                                        "query" to it.shape
+                                    ))
+                                    is JsonArray<*> -> JsonObject(mapOf(
+                                        "aggregation" to it.shape
+                                    ))
+                                    else -> JsonObject()
+                                }.toJsonString()))
+                                .append("count", BsonInt64(it.count))
+                        }))
+                        .append("removed_indexes", BsonArray(index.removedIndexes.map { removedIndex ->
+                            BsonDocument()
+                                .append("name", BsonString(removedIndex.name))
+                                .append("index_type", BsonString(indexTypeName(removedIndex)))
+                        }))
 
-            db.collectionIndexResults.forEach { collection ->
-                writer.writeln("collection: ${collection.namespace.collection}")
-                writer.writeln()
-
-                writer.indent()
-
-                writer.writeln("statistics:")
-                writer.writeln()
-
-                writer.indent()
-
-                writer.writeln("document count: ${collection.collectionStats.count}")
-                writer.writeln("index count: ${collection.indexes.size}")
-
-                writer.unIndent()
-
-                writer.writeln()
-                writer.writeln("indexes:")
-                writer.writeln()
-
-                writer.indent()
-
-                collection.indexes.sortedBy { it.indexStatistics == null }.forEach { index ->
-                    writer.writeln(when (index.indexStatistics) {
-                        null -> "<${indexTypeName(index)}>:"
-                        else -> "[${indexTypeName(index)}]:"
-                    })
-                    writer.indent()
-
-                    writer.writeln("name: ${index.name}")
-                    writeIndexSpecific(writer, index)
-
+                    // Add partial expression if available
                     if (index.partialFilterExpression != null) {
-                        writer.writeln("partialExpression: ${index.partialFilterExpression!!.toJson()}")
+                        indexDocument.append("partial_expression", BsonDocument.parse(index.partialFilterExpression!!.toJson()))
                     }
 
-                    writer.writeln("unique: ${index.unique}")
-                    writer.writeln("sparse: ${index.sparse}")
-                    writer.writeln("statistics:")
+                    indexDocument
+                }))
+        })
 
-                    // Write out any index statistics
-                    writer.indent()
+        // Add the collections
+        val dbDocument = BsonDocument()
+            .append("db", BsonString(db.namespace.db))
+            .append("collections", collections)
 
-                    // If we have MongoDB statistics print them out
-                    if (index.isExistingIndex()) {
-                        writer.writeln("count: ${index.indexStatistics!!.ops}")
-                        writer.writeln("since: ${index.indexStatistics!!.since}")
-                    } else {
-                        writer.writeln("count: ${index.statistics.map { it.count }.sum()}")
-                    }
-
-                    writer.unIndent()
-
-                    // Do we have any shape statistics, render them
-                    if (index.statistics.isNotEmpty()) {
-                        writer.writeln("shapes:")
-
-                        writer.indent()
-
-                        index.statistics.forEach {
-                            writer.writeln("shape:")
-
-                            writer.indent()
-
-                            writer.writeln("filter: ${it.shape.toJsonString()}")
-                            writer.writeln("count: ${it.count}")
-
-                            writer.unIndent()
-                        }
-
-                        writer.unIndent()
-                    }
-
-                    // List any indexes removed
-                    if (index.removedIndexes.isNotEmpty()) {
-                        writer.writeln("removed indexes:")
-
-                        writer.indent()
-
-                        index.removedIndexes.forEach { removedIndex ->
-                            writer.writeln(when (removedIndex.indexStatistics) {
-                                null -> "<${indexTypeName(removedIndex)}>:"
-                                else -> "[${indexTypeName(removedIndex)}]:"
-                            })
-
-                            writer.indent()
-
-                            writer.writeln("name: ${removedIndex.name}")
-                            writeIndexSpecific(writer, removedIndex)
-
-                            writer.unIndent()
-                        }
-
-                        writer.unIndent()
-                    }
-
-                    writer.unIndent()
-                    writer.writeln()
-                }
-
-                writer.unIndent()
-
-                writer.unIndent()
-            }
-
-            writer.flush()
-            writer.close()
-        }
+        // Write the output
+        writer.writeln(dbDocument.toJson(JsonWriterSettings.builder().indent(true).build()))
     }
 }

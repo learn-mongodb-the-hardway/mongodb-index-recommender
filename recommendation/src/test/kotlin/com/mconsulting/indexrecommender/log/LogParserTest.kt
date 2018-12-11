@@ -3,12 +3,6 @@ package com.mconsulting.indexrecommender.log
 import com.beust.klaxon.JsonObject
 import com.beust.klaxon.Parser
 import com.mconsulting.indexrecommender.readResourceAsReader
-import org.bson.BsonDocument
-import org.bson.BsonInt64
-import org.bson.BsonJavaScript
-import org.bson.BsonNull
-import org.bson.BsonString
-import org.bson.BsonUndefined
 import org.junit.jupiter.api.Test
 import java.io.BufferedReader
 import java.io.StringReader

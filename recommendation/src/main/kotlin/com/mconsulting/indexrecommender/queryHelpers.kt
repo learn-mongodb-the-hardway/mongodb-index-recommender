@@ -170,10 +170,10 @@ fun translateScriptObject(obj: ScriptObjectMirror) : JsonObject {
                         }
                     })
                 } else if (isRegularExpression(value)) {
-                    val value = mapToRegularExpression(value)
+                    val regexValue = mapToRegularExpression(value)
                     JsonObject(mapOf(
-                        "\$regex" to value.pattern,
-                        "\$options" to value.options
+                        "\$regex" to regexValue.pattern,
+                        "\$options" to regexValue.options
                     ))
                 } else {
                     translateScriptObject(value)

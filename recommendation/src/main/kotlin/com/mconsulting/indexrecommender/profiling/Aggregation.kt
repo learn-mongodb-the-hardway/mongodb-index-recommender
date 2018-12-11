@@ -2,8 +2,6 @@ package com.mconsulting.indexrecommender.profiling
 
 import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonObject
-import org.bson.BsonArray
-import org.bson.BsonDocument
 
 data class AggregationCommand(val db: String, val collection: String, val pipeline: JsonArray<*>)
 

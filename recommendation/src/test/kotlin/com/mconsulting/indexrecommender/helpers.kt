@@ -11,7 +11,6 @@ import org.bson.codecs.configuration.CodecRegistries
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import org.junit.jupiter.api.Tag
-import org.junit.jupiter.api.extension.ExtendWith
 import java.io.InputStreamReader
 
 fun readResourceAsString(resource: String) =

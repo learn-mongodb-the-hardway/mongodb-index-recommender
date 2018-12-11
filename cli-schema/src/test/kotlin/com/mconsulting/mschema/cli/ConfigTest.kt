@@ -1,10 +1,6 @@
 package com.mconsulting.mschema.cli
 
 //import com.mconsulting.mrelational.schema.extractor.Namespace
-import com.xenomachina.argparser.ArgParser
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
-import kotlin.test.assertEquals
 
 class ConfigTest {
 

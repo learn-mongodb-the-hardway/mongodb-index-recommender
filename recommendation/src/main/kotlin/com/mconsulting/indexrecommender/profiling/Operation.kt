@@ -1,17 +1,10 @@
 package com.mconsulting.indexrecommender.profiling
 
-import com.beust.klaxon.JsonArray
-import com.beust.klaxon.JsonBase
 import com.beust.klaxon.JsonObject
 import com.mconsulting.indexrecommender.Namespace
 import com.mconsulting.indexrecommender.getInt
 import com.mconsulting.indexrecommender.getString
 import com.mconsulting.indexrecommender.readBsonDate
-import org.bson.BsonDocument
-import org.bson.BsonString
-import org.joda.time.format.DateTimeFormat
-import org.joda.time.format.DateTimeFormatter
-import org.joda.time.format.ISODateTimeFormat
 
 abstract class Operation(val doc: JsonObject) {
     fun containsNameSpace() = doc.containsKey("ns")

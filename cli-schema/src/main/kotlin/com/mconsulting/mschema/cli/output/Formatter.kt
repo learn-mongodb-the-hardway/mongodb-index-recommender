@@ -1,5 +1,6 @@
 package com.mconsulting.mschema.cli.output
 
+import com.mconsulting.indexrecommender.DbIndexResult
 import com.mconsulting.indexrecommender.indexes.CompoundIndex
 import com.mconsulting.indexrecommender.indexes.HashedIndex
 import com.mconsulting.indexrecommender.indexes.IdIndex
@@ -12,8 +13,54 @@ import com.mconsulting.indexrecommender.indexes.TwoDIndex
 import com.mconsulting.indexrecommender.indexes.TwoDSphereIndex
 import com.mconsulting.mschema.cli.IndentationWriter
 import com.mconsulting.mschema.cli.writeln
+import org.bson.BsonArray
+import org.bson.BsonDocument
+import org.bson.BsonInt32
+import org.bson.BsonString
 
 abstract class Formatter {
+    abstract fun render(indexResult: DbIndexResult, writer: IndentationWriter)
+
+    protected fun writeIndexSpecificJson(index: Index) : BsonDocument {
+        val document = BsonDocument()
+
+        when (index) {
+            is SingleFieldIndex -> {
+                document.append("field", BsonString(index.field.name))
+                document.append("direction", BsonString(index.field.direction.toString()))
+            }
+            is CompoundIndex -> {
+                document.append("fields", BsonArray(index.fields.map {
+                    BsonDocument()
+                        .append("field", BsonString(it.name))
+                        .append("direction", BsonString(it.direction.toString()))
+                }))
+            }
+            is HashedIndex -> BsonDocument().append("field", BsonString(index.field))
+            is TwoDSphereIndex -> BsonDocument().append("field", BsonString(index.key))
+            is TwoDIndex -> BsonDocument().append("field", BsonString(index.key))
+            is MultikeyIndex -> {
+                document.append("fields", BsonArray(index.fields.map {
+                    BsonDocument()
+                        .append("field", BsonString(it.name))
+                        .append("direction", BsonString(it.direction.toString()))
+                }))
+            }
+            is TextIndex -> {
+                document.append("fields", BsonArray(index.fields.map {
+                    BsonDocument()
+                        .append("field", BsonString(it.path.joinToString(".")))
+                        .append("weight", BsonInt32(it.weight))
+                }))
+            }
+            is TTLIndex -> {
+
+            }
+        }
+
+        return document
+    }
+
     protected fun writeIndexSpecific(writer: IndentationWriter, index: Index) {
         when (index) {
             is SingleFieldIndex -> {
