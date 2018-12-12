@@ -115,8 +115,5 @@ class TextFormatter : Formatter() {
 
             writer.unIndent()
         }
-
-        writer.flush()
-        writer.close()
     }
 }

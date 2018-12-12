@@ -96,9 +96,19 @@ execute the tool.
 Let's run the tool to extract the index recommendations
 
 ```bash
-java -jar ./{{% jarname %}} --extract --uri mongodb://localhost:27017 --namespace quickstart.users --namespace quickstart.sights --format txt
+java -jar ./{{% jarname %}} --extract --uri mongodb://localhost:27017 --namespace quickstart.users --namespace quickstart.sights --format txt --output-directory ./
 ```
 
+This will run the index recommendation engine and output the recommended indexes to a file for each db. In our case
+we will get two files written to disk. The first file contains a textual summary of the indexes recommended and ends with `.txt`.
+The other file ends in `.js` and contains a `mongo shell` script that will apply the index recommendations.
+
+```
+./quickstart_1544608465048.txt
+./quickstart_1544608465048.js
+```
+
+That contain a textual representation of the indexes and the 
 
 
 

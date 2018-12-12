@@ -19,6 +19,7 @@ import com.mconsulting.indexrecommender.ingress.LogFileIngress
 import com.mconsulting.indexrecommender.ingress.ProfileCollectionIngress
 import com.mconsulting.indexrecommender.ingress.ProfileCollectionIngressOptions
 import com.mconsulting.mschema.cli.output.Formatter
+import com.mconsulting.mschema.cli.output.JsFormatter
 import com.mconsulting.mschema.cli.output.JsonFormatter
 import com.mconsulting.mschema.cli.output.TextFormatter
 import com.mongodb.MongoClient
@@ -110,8 +111,15 @@ object App : KLogging() {
 
         // Create the output
         when (config.extract.outputFormat) {
-            OutputFormat.TXT -> output(TextFormatter(), indexResults, config.extract.outputDirectory.name, "txt")
-            OutputFormat.JSON -> output(JsonFormatter(), indexResults, config.extract.outputDirectory.name, "json")
+            OutputFormat.TXT -> {
+                output(TextFormatter(), indexResults, config.extract.outputDirectory.name, "txt")
+                output(JsFormatter(), indexResults, config.extract.outputDirectory.name, "js")
+            }
+
+            OutputFormat.JSON -> {
+                output(JsonFormatter(), indexResults, config.extract.outputDirectory.name, "json")
+                output(JsFormatter(), indexResults, config.extract.outputDirectory.name, "js")
+            }
         }
     }
 
