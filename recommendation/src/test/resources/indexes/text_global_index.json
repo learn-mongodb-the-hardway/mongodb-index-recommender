@@ -1,0 +1,16 @@
+{
+  "v" : 2,
+  "key" : {
+    "a" : 1,
+    "_fts" : "text",
+    "_ftsx" : 1
+  },
+  "name" : "a_1_$**_text",
+  "ns" : "mindex_recommendation_tests.t",
+  "weights" : {
+    "$**" : 1
+  },
+  "default_language" : "english",
+  "language_override" : "language",
+  "textIndexVersion" : 3
+}

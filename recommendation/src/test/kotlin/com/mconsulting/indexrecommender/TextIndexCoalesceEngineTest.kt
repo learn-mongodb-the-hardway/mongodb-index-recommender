@@ -147,90 +147,53 @@ class TextIndexCoalesceEngineTest {
         ), indexes.removedIndexes)
     }
 
-//    @Test
-//    fun shouldCorrectlyKeepCompoundFieldIndex() {
-//        val indexes = coalesceEngine.coalesce(listOf(
-//            CompoundIndex("b", listOf(
-//                Field("a", IndexDirection.ASCENDING),
-//                Field("b", IndexDirection.DESCENDING)
-//            )),
-//            MultikeyIndex("b", listOf(
-//                Field("a", IndexDirection.ASCENDING),
-//                Field("b", IndexDirection.DESCENDING),
-//                Field("c.d", IndexDirection.DESCENDING)
-//            ))
-//        ))
-//
-//        assertEquals(1, indexes.indexes.size)
-//        assertEquals(1, indexes.removedIndexes.size)
-//
-//        assertEquals(listOf(
-//            MultikeyIndex("b", listOf(
-//                Field("a", IndexDirection.ASCENDING),
-//                Field("b", IndexDirection.DESCENDING),
-//                Field("c.d", IndexDirection.DESCENDING)
-//            ))
-//        ), indexes.indexes)
-//
-//        assertEquals(listOf(
-//            CompoundIndex("b", listOf(
-//                Field("a", IndexDirection.ASCENDING),
-//                Field("b", IndexDirection.DESCENDING)
-//            ))
-//        ), indexes.removedIndexes)
-//    }
-//
-//    @Test
-//    fun shouldNotMergeCompoundIndexesDueToUniqueConstraint() {
-//        val indexes = coalesceEngine.coalesce(listOf(
-//            CompoundIndex("b", listOf(
-//                Field("a", IndexDirection.ASCENDING),
-//                Field("b", IndexDirection.DESCENDING)
-//            ), false, true),
-//            CompoundIndex("b", listOf(
-//                Field("a", IndexDirection.ASCENDING),
-//                Field("b", IndexDirection.DESCENDING),
-//                Field("c", IndexDirection.DESCENDING)
-//            ))
-//        ))
-//
-//        assertEquals(2, indexes.indexes.size)
-//        assertEquals(0, indexes.removedIndexes.size)
-//
-//        assertEquals(listOf(
-//            CompoundIndex("b", listOf(
-//                Field("a", IndexDirection.ASCENDING),
-//                Field("b", IndexDirection.DESCENDING)
-//            )),
-//            CompoundIndex("b", listOf(
-//                Field("a", IndexDirection.ASCENDING),
-//                Field("b", IndexDirection.DESCENDING),
-//                Field("c", IndexDirection.DESCENDING)
-//            ))
-//        ), indexes.indexes)
-//    }
-//
-//    @Test
-//    fun shouldNotMergeSingleFieldIndexesDueToUniqueConstraint() {
-//        val indexes = coalesceEngine.coalesce(listOf(
-//            SingleFieldIndex("b", Field("a", IndexDirection.ASCENDING), false, true),
-//            CompoundIndex("b", listOf(
-//                Field("a", IndexDirection.ASCENDING),
-//                Field("b", IndexDirection.DESCENDING),
-//                Field("c", IndexDirection.DESCENDING)
-//            ))
-//        ))
-//
-//        assertEquals(2, indexes.indexes.size)
-//        assertEquals(0, indexes.removedIndexes.size)
-//
-//        assertEquals(listOf(
-//            SingleFieldIndex("b", Field("a", IndexDirection.ASCENDING), false, true),
-//            CompoundIndex("b", listOf(
-//                Field("a", IndexDirection.ASCENDING),
-//                Field("b", IndexDirection.DESCENDING),
-//                Field("c", IndexDirection.DESCENDING)
-//            ))
-//        ), indexes.indexes)
-//    }
+    @Test
+    fun shouldCorrectlyMergeTextIndexesWhenGlobalIndexExists() {
+        val indexes = coalesceEngine.coalesce(listOf(
+            TextIndex("a", listOf(
+                TextField(listOf("c"), 1)
+            )),
+            CompoundTextIndex("b", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.DESCENDING),
+                Field("_fts", IndexDirection.UNKNOWN),
+                Field("_ftsx", IndexDirection.ASCENDING)
+            ), listOf(
+                TextField(listOf("d"), 10)
+            )),
+            TextIndex("global", listOf(
+                TextField(listOf("$**"), 1)
+            ))
+        ))
+
+        assertEquals(2, indexes.indexes.size)
+        assertEquals(3, indexes.removedIndexes.size)
+
+        assertEquals(listOf(
+            CompoundIndex("a_1_b_-1", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.DESCENDING)
+            )),
+            TextIndex("\$**_1", listOf(
+                TextField(listOf("\$**"), 1)
+            ))
+        ), indexes.indexes)
+
+        assertEquals(listOf(
+            TextIndex("a", listOf(
+                TextField(listOf("c"), 1)
+            )),
+            CompoundTextIndex("b", listOf(
+                Field("a", IndexDirection.ASCENDING),
+                Field("b", IndexDirection.DESCENDING),
+                Field("_fts", IndexDirection.UNKNOWN),
+                Field("_ftsx", IndexDirection.ASCENDING)
+            ), listOf(
+                TextField(listOf("d"), 10)
+            )),
+            TextIndex("global", listOf(
+                TextField(listOf("$**"), 1)
+            ))
+        ), indexes.removedIndexes)
+    }
 }

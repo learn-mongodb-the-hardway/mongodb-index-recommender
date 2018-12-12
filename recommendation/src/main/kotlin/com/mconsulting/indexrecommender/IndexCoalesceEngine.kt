@@ -72,8 +72,19 @@ class IndexCoalesceEngine {
             // Merge removed indexes
             removedIndexes += localRemovedIndexes
 
+            // Locate field
+            val globalField = mergedFields.firstOrNull {
+                it.path.joinToString(".") == "$**"
+            }
+
+            // Final fields
+            val finalFields = when (globalField) {
+                null -> mergedFields
+                else -> mutableSetOf(TextField(listOf("$**"), globalField.weight))
+            }
+
             // Merge any compound text indexes, splitting them and merging them
-            val index = TextIndex(createIndexName(mergedFields.toList()), mergedFields.toList())
+            val index = TextIndex(createIndexName(finalFields.toList()), finalFields.toList())
             index.statistics += shapes
             index.removedIndexes += localRemovedIndexes
             indexes += index
@@ -83,7 +94,19 @@ class IndexCoalesceEngine {
         // Do we have more than one compound index, merge them
         if (compoundTextIndexes.size > 1) {
             val mergedFields = mergeCompoundTextIndexes(compoundTextIndexes, indexes, localRemovedIndexes, shapes)
-            val index = TextIndex(createIndexName(mergedFields.toList()), mergedFields.toList())
+
+            // Locate field
+            val globalField = mergedFields.firstOrNull {
+                it.path.joinToString(".") == "$**"
+            }
+
+            // Final fields
+            val finalFields = when (globalField) {
+                null -> mergedFields
+                else -> mutableSetOf(TextField(listOf("$**"), globalField.weight))
+            }
+
+            val index = TextIndex(createIndexName(finalFields.toList()), finalFields.toList())
             index.statistics += shapes
             index.removedIndexes += localRemovedIndexes
             indexes += index

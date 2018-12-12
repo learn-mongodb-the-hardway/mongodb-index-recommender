@@ -112,6 +112,23 @@ class IndexTests {
     }
 
     @Test
+    fun compoundGlobalTextIndex() {
+        val index = createIndex(readJsonAsBsonDocument("indexes/text_global_index.json")) as CompoundTextIndex
+        assertEquals("a_1_\$**_text", index.name)
+        assertEquals(listOf(
+            TextField(listOf("$**"), 1)
+        ), index.fields)
+        assertEquals(listOf(
+            Field("a", IndexDirection.ASCENDING),
+            Field("_fts", IndexDirection.UNKNOWN),
+            Field("_ftsx", IndexDirection.ASCENDING)
+        ), index.compoundFields)
+        assertEquals(false, index.sparse)
+        assertEquals(false, index.unique)
+        assertNull(index.partialFilterExpression)
+    }
+
+    @Test
     fun twoDIndex() {
         val index = createIndex(readJsonAsBsonDocument("indexes/two_d_index.json")) as TwoDIndex
         assertEquals("coordinates_2d", index.name)
