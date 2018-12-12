@@ -100,7 +100,7 @@ fun getLongDefault(fieldName: String, doc: Any, default: Long = 0) = when(val va
     else -> value
 }
 
-fun getLong(fieldName: String, doc: JsonObject) = when(val value = getLongMaybe(fieldName, doc)) {
+fun getLong(fieldName: String, doc: Any) = when(val value = getLongMaybe(fieldName, doc)) {
     null -> throw Exception("unexpected field type")
     else -> value
 }
