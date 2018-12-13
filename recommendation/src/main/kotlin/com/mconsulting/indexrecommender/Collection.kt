@@ -146,7 +146,10 @@ class Collection(
     fun done() : CollectionIndexResults {
         return CollectionIndexResults(
             namespace = namespace,
-            indexes = recommendationEngine.recommend(),
+            indexes = recommendationEngine.recommend().map {
+                it.collectionStats = collectionStats
+                it
+            },
             shapeStatistics = statisticsProcessor.done(),
             collectionStats = collectionStats
         )

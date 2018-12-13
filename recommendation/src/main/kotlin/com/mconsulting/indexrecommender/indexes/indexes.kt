@@ -1,5 +1,6 @@
 package com.mconsulting.indexrecommender.indexes
 
+import com.mconsulting.indexrecommender.CollectionStats
 import com.mconsulting.indexrecommender.ShapeStatistics
 import com.mconsulting.indexrecommender.queryplans.QueryPlan
 import com.mongodb.MongoClient
@@ -20,9 +21,13 @@ abstract class Index(
     val unique: Boolean = false,
     val partialFilterExpression: BsonDocument? = null,
     var indexStatistics: IndexStatistics? = null) {
+
+    // Properties
     val statistics: MutableList<ShapeStatistics> = mutableListOf()
     val removedIndexes: MutableList<Index> = mutableListOf()
+    var collectionStats: CollectionStats = CollectionStats(BsonDocument())
 
+    // Establish if the index is an existing MongoDB collection index
     fun isExistingIndex() : Boolean = indexStatistics != null
 }
 
