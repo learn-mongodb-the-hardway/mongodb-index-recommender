@@ -121,7 +121,7 @@ class TextFormatter : Formatter() {
                         writer.indent()
 
                         writer.writeln("name: ${removedIndex.name}")
-                        writeIndexSpecific(writer, index)
+                        writeIndexSpecific(writer, removedIndex)
 
                         writer.unIndent()
                     }
