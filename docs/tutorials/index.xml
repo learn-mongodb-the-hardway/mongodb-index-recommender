@@ -17,7 +17,7 @@
       <pubDate>Mon, 17 Dec 2018 10:53:09 +0200</pubDate>
       
       <guid>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/tutorials/quickstart/</guid>
-      <description>Welcome to the QuickStart guide. In this guide we are going to cover how to use the tool to extract a list of optimized indexes for a MongoDB collection. We are going to showcase how the tool can extract index candidates from the system. profile collection, merge it with existing collection indexes and optimize the indexes.
+      <description>Welcome to the QuickStart guide. In this guide we are going to cover how to use the tool to extract a list of optimized indexes for a MongoDB collection. We are going to showcase how the tool can extract index candidates from the system.profile collection, merge it with existing collection indexes and optimize the indexes.
  Preload some dummy data into a running MongoDB instance.  Create an existing index.</description>
     </item>
     
