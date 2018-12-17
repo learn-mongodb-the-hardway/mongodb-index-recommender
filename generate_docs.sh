@@ -1,0 +1,1 @@
+hugo -s ./docs_template -b $1 -d ../docs

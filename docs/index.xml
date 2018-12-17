@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>MongoDB Tools</title>
+    <link>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/</link>
+    <description>Recent content on MongoDB Tools</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Tue, 23 Oct 2018 09:34:11 +0200</lastBuildDate>
+    
+	<atom:link href="https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Commandline Options</title>
+      <link>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/documentation/options/</link>
+      <pubDate>Tue, 23 Oct 2018 09:34:11 +0200</pubDate>
+      
+      <guid>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/documentation/options/</guid>
+      <description>This section documents the command line options and how they work.
+General Options The general options control the main functions of the tool.
+   Option Multiple Description     -h, &amp;ndash;help - Display command line help information   &amp;ndash;skip-queries-shape-explain-plan-execution - Skip attempt to use detected queries shapes to detect additional information   &amp;ndash;skip-read-profile-collection - Skip attempting to queries the profile collection   &amp;ndash;version - Display the command line version information     Notes</description>
+    </item>
+    
+    <item>
+      <title>Commandline Examples</title>
+      <link>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/documentation/examples/</link>
+      <pubDate>Tue, 23 Oct 2018 09:34:11 +0200</pubDate>
+      
+      <guid>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/documentation/examples/</guid>
+      <description>Perform Index Recommendation on Two collections In this simple example we are going to extract two simple collection Schemas.
+java -jar .\mongo-index-recommender-cli-schema-1.0-SNAPSHOT.jar mongodb://localhost:27017 --namespace appdb.users --namespace appdb.items --output-directory ./ --format txt  Let&amp;rsquo;s break down the command line. This will connect to the MongoDB server at the host localhost and port 27017. It specifies that the output format will be txt which is the Index Recommendation Engine Textual Format. Finally we will write the index recommendation .</description>
+    </item>
+    
+    <item>
+      <title>Frequently Asked Questions</title>
+      <link>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/documentation/faq/</link>
+      <pubDate>Mon, 17 Dec 2018 10:53:09 +0200</pubDate>
+      
+      <guid>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/documentation/faq/</guid>
+      <description>Important Information This section contains additional information needed to succesfully use the tool.
+My MongoDB Log Entries are being Redacted MongoDB only logs up to 10000 bytes per log line captured by default. This means queries using large $in blocks might be redacted and cannot successfully be parsed by the Index recommendation engine.
+If you find this is the case for your logged statements you can increase the size by starting mongod with the following extra parameter maxLogSizeKB where the value is the max number of KiloBytes a single log line can be before it gets truncated.</description>
+    </item>
+    
+    <item>
+      <title>QuickStart</title>
+      <link>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/tutorials/quickstart/</link>
+      <pubDate>Mon, 17 Dec 2018 10:53:09 +0200</pubDate>
+      
+      <guid>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/tutorials/quickstart/</guid>
+      <description>Welcome to the QuickStart guide. In this guide we are going to cover how to use the tool to extract a list of optimized indexes for a MongoDB collection. We are going to showcase how the tool can extract index candidates from the system. profile collection, merge it with existing collection indexes and optimize the indexes.
+ Preload some dummy data into a running MongoDB instance.  Create an existing index.</description>
+    </item>
+    
+    <item>
+      <title></title>
+      <link>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/history/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/history/</guid>
+      <description> 1.0.0  Extract existing Indexes from MongoDB collections Process system.profile collection and extract candidate indexes. Process MongoDB logs and extract candidate indexes. Coalesce all candidate indexes into a minimal list of optimized indexes.  </description>
+    </item>
+    
+  </channel>
+</rss>
