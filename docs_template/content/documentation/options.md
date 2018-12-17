@@ -13,10 +13,10 @@ The general options control the main functions of the tool.
 
 | Option | Multiple | Description |
 | ---- | ---- | --- |
-| -h, --help | - | Display command line help information |
-| --skip-queries-shape-explain-plan-execution | - | Skip attempt to use detected queries shapes to detect additional information |
-| --skip-read-profile-collection | - | Skip attempting to queries the profile collection |
-| --version | - | Display the command line version information |
+| `-h`, `--help` | - | Display command line help information |
+| `--skip-queries-shape-explain-plan-execution` | - | Skip attempt to use detected queries shapes to detect additional information |
+| `--skip-read-profile-collection` | - | Skip attempting to queries the profile collection |
+| `--version` | - | Display the command line version information |
 
 > Notes
 >
@@ -34,9 +34,9 @@ Allows for setting the logging options for the tool.
 
 | Options | Multiple | Description |
 | --- | --- | --- |
-| --logpath <LOGPATH> | - | The path of the file we wish to log too |
-| --quiet | - | Turn off all logging |
-| -v, --verbosity | Yes | Set the verbosity of the logging |
+| `--logpath` <LOGPATH> | - | The path of the file we wish to log too |
+| `--quiet` | - | Turn off all logging |
+| `-v`, `--verbosity` | Yes | Set the verbosity of the logging |
 
 ## Connection Options
 
@@ -44,7 +44,7 @@ The connection options are options for the MongoDB connectivity.
 
 | Options | Multiple | Description |
 | --- | --- | --- |
-| --uri <URI> | - | [The MongoDB Connection URI](https://docs.mongodb.com/manual/reference/connection-string/) |
+| `--uri` <URI> | - | [The MongoDB Connection URI](https://docs.mongodb.com/manual/reference/connection-string/) |
 
 ## Extract Options
 
@@ -52,10 +52,10 @@ Outlines all options available when extracting schemas from MongoDB.
 
 | Options | Multiple | Values | Description |
 | --- | --- | --- | --- |
-| --format <FORMAT>` | - | `txt`, `json` | Set the output format of the Schema extraction, ex: [--output txt] |
-| --mongolog <MONGOLOG> | Yes | - | One or more MongoDB logs to parse for analysis. |
-| --namespace <NAMESPACE> | Yes | - | Add a namespace to analyse indexes for, format <db.collection>, ex: `db1.coll` |
-| --output-directory <OUTPUT_DIRECTORY> | - | - | Output directory for the extracted schemas, ex: `--output-directory ./` |
+| `--format` <FORMAT>` | - | `txt`, `json` | Set the output format of the Schema extraction, ex: [--output txt] |
+| `--mongolog` <MONGOLOG> | Yes | - | One or more MongoDB logs to parse for analysis. |
+| `--namespace` <NAMESPACE> | Yes | - | Add a namespace to analyse indexes for, format <db.collection>, ex: `db1.coll` |
+| `--output-directory` <OUTPUT_DIRECTORY> | - | - | Output directory for the extracted schemas, ex: `--output-directory ./` |
 
 ## Statistics Options
 
@@ -63,4 +63,4 @@ Outlines the all options available collection statistics.
 
 | Options | Multiple | Values | Description |
 | --- | --- | --- | --- |
-| --bucket-resolution <BUCKET_RESOLUTION> | - | `millisecond`, `second`, `minute`, `hour`, `day` | The statistics gathering resolution (millisecond, second, minute, hour, day) |
+| `--bucket-resolution` <BUCKET_RESOLUTION> | - | `millisecond`, `second`, `minute`, `hour`, `day` | The statistics gathering resolution (millisecond, second, minute, hour, day) |

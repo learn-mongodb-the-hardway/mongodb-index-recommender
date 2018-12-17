@@ -12,18 +12,18 @@
     <title>Commandline Options :: MongoDB Tools</title>
 
     
-    <link href="/mongodb-index-recommender/css/nucleus.css?1545057817" rel="stylesheet">
-    <link href="/mongodb-index-recommender/css/fontawesome-all.min.css?1545057817" rel="stylesheet">
-    <link href="/mongodb-index-recommender/css/hybrid.css?1545057817" rel="stylesheet">
-    <link href="/mongodb-index-recommender/css/featherlight.min.css?1545057817" rel="stylesheet">
-    <link href="/mongodb-index-recommender/css/perfect-scrollbar.min.css?1545057817" rel="stylesheet">
-    <link href="/mongodb-index-recommender/css/auto-complete.css?1545057817" rel="stylesheet">
-    <link href="/mongodb-index-recommender/css/theme.css?1545057817" rel="stylesheet">
-    <link href="/mongodb-index-recommender/css/theme-blue.css?1545057817" rel="stylesheet">
-    <link href="/mongodb-index-recommender/css/hugo-theme.css?1545057817" rel="stylesheet">
+    <link href="/mongodb-index-recommender/css/nucleus.css?1545063025" rel="stylesheet">
+    <link href="/mongodb-index-recommender/css/fontawesome-all.min.css?1545063025" rel="stylesheet">
+    <link href="/mongodb-index-recommender/css/hybrid.css?1545063025" rel="stylesheet">
+    <link href="/mongodb-index-recommender/css/featherlight.min.css?1545063025" rel="stylesheet">
+    <link href="/mongodb-index-recommender/css/perfect-scrollbar.min.css?1545063025" rel="stylesheet">
+    <link href="/mongodb-index-recommender/css/auto-complete.css?1545063025" rel="stylesheet">
+    <link href="/mongodb-index-recommender/css/theme.css?1545063025" rel="stylesheet">
+    <link href="/mongodb-index-recommender/css/theme-blue.css?1545063025" rel="stylesheet">
+    <link href="/mongodb-index-recommender/css/hugo-theme.css?1545063025" rel="stylesheet">
     
 
-    <script src="/mongodb-index-recommender/js/jquery-2.x.min.js?1545057817"></script>
+    <script src="/mongodb-index-recommender/js/jquery-2.x.min.js?1545063025"></script>
 
     <style type="text/css">
       :root #header + #content > #left > #rlblock_left{
@@ -65,14 +65,14 @@
     <span data-search-clear=""><i class="fas fa-close"></i></span>
 </div>
 
-<script type="text/javascript" src="/mongodb-index-recommender/js/lunr.min.js?1545057817"></script>
-<script type="text/javascript" src="/mongodb-index-recommender/js/auto-complete.js?1545057817"></script>
+<script type="text/javascript" src="/mongodb-index-recommender/js/lunr.min.js?1545063025"></script>
+<script type="text/javascript" src="/mongodb-index-recommender/js/auto-complete.js?1545063025"></script>
 <script type="text/javascript">
     
         var baseurl = '\/mongodb-index-recommender';
     
 </script>
-<script type="text/javascript" src="/mongodb-index-recommender/js/search.js?1545057817"></script>
+<script type="text/javascript" src="/mongodb-index-recommender/js/search.js?1545063025"></script>
 
     
   </div>
@@ -329,25 +329,25 @@
 
 <tbody>
 <tr>
-<td>-h, &ndash;help</td>
+<td><code>-h</code>, <code>--help</code></td>
 <td>-</td>
 <td>Display command line help information</td>
 </tr>
 
 <tr>
-<td>&ndash;skip-queries-shape-explain-plan-execution</td>
+<td><code>--skip-queries-shape-explain-plan-execution</code></td>
 <td>-</td>
 <td>Skip attempt to use detected queries shapes to detect additional information</td>
 </tr>
 
 <tr>
-<td>&ndash;skip-read-profile-collection</td>
+<td><code>--skip-read-profile-collection</code></td>
 <td>-</td>
 <td>Skip attempting to queries the profile collection</td>
 </tr>
 
 <tr>
-<td>&ndash;version</td>
+<td><code>--version</code></td>
 <td>-</td>
 <td>Display the command line version information</td>
 </tr>
@@ -381,19 +381,19 @@ for the recommendation engine.</p>
 
 <tbody>
 <tr>
-<td>&ndash;logpath <LOGPATH></td>
+<td><code>--logpath</code> <LOGPATH></td>
 <td>-</td>
 <td>The path of the file we wish to log too</td>
 </tr>
 
 <tr>
-<td>&ndash;quiet</td>
+<td><code>--quiet</code></td>
 <td>-</td>
 <td>Turn off all logging</td>
 </tr>
 
 <tr>
-<td>-v, &ndash;verbosity</td>
+<td><code>-v</code>, <code>--verbosity</code></td>
 <td>Yes</td>
 <td>Set the verbosity of the logging</td>
 </tr>
@@ -415,7 +415,7 @@ for the recommendation engine.</p>
 
 <tbody>
 <tr>
-<td>&ndash;uri <URI></td>
+<td><code>--uri</code> <URI></td>
 <td>-</td>
 <td><a href="https://docs.mongodb.com/manual/reference/connection-string/">The MongoDB Connection URI</a></td>
 </tr>
@@ -438,28 +438,28 @@ for the recommendation engine.</p>
 
 <tbody>
 <tr>
-<td>&ndash;format <FORMAT>`</td>
+<td><code>--format</code> <FORMAT>`</td>
 <td>-</td>
 <td><code>txt</code>, <code>json</code></td>
 <td>Set the output format of the Schema extraction, ex: [&ndash;output txt]</td>
 </tr>
 
 <tr>
-<td>&ndash;mongolog <MONGOLOG></td>
+<td><code>--mongolog</code> <MONGOLOG></td>
 <td>Yes</td>
 <td>-</td>
 <td>One or more MongoDB logs to parse for analysis.</td>
 </tr>
 
 <tr>
-<td>&ndash;namespace <NAMESPACE></td>
+<td><code>--namespace</code> <NAMESPACE></td>
 <td>Yes</td>
 <td>-</td>
 <td>Add a namespace to analyse indexes for, format <db.collection>, ex: <code>db1.coll</code></td>
 </tr>
 
 <tr>
-<td>&ndash;output-directory <OUTPUT_DIRECTORY></td>
+<td><code>--output-directory</code> <OUTPUT_DIRECTORY></td>
 <td>-</td>
 <td>-</td>
 <td>Output directory for the extracted schemas, ex: <code>--output-directory ./</code></td>
@@ -483,7 +483,7 @@ for the recommendation engine.</p>
 
 <tbody>
 <tr>
-<td>&ndash;bucket-resolution <BUCKET_RESOLUTION></td>
+<td><code>--bucket-resolution</code> <BUCKET_RESOLUTION></td>
 <td>-</td>
 <td><code>millisecond</code>, <code>second</code>, <code>minute</code>, <code>hour</code>, <code>day</code></td>
 <td>The statistics gathering resolution (millisecond, second, minute, hour, day)</td>
@@ -643,20 +643,20 @@ for the recommendation engine.</p>
     <div style="left: -1000px; overflow: scroll; position: absolute; top: -1000px; border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;">
       <div style="border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;"></div>
     </div>
-    <script src="/mongodb-index-recommender/js/clipboard.min.js?1545057817"></script>
-    <script src="/mongodb-index-recommender/js/perfect-scrollbar.min.js?1545057817"></script>
-    <script src="/mongodb-index-recommender/js/perfect-scrollbar.jquery.min.js?1545057817"></script>
-    <script src="/mongodb-index-recommender/js/jquery.sticky.js?1545057817"></script>
-    <script src="/mongodb-index-recommender/js/featherlight.min.js?1545057817"></script>
-    <script src="/mongodb-index-recommender/js/html5shiv-printshiv.min.js?1545057817"></script>
-    <script src="/mongodb-index-recommender/js/highlight.pack.js?1545057817"></script>
+    <script src="/mongodb-index-recommender/js/clipboard.min.js?1545063025"></script>
+    <script src="/mongodb-index-recommender/js/perfect-scrollbar.min.js?1545063025"></script>
+    <script src="/mongodb-index-recommender/js/perfect-scrollbar.jquery.min.js?1545063025"></script>
+    <script src="/mongodb-index-recommender/js/jquery.sticky.js?1545063025"></script>
+    <script src="/mongodb-index-recommender/js/featherlight.min.js?1545063025"></script>
+    <script src="/mongodb-index-recommender/js/html5shiv-printshiv.min.js?1545063025"></script>
+    <script src="/mongodb-index-recommender/js/highlight.pack.js?1545063025"></script>
     <script>hljs.initHighlightingOnLoad();</script>
-    <script src="/mongodb-index-recommender/js/modernizr.custom.71422.js?1545057817"></script>
-    <script src="/mongodb-index-recommender/js/learn.js?1545057817"></script>
-    <script src="/mongodb-index-recommender/js/hugo-learn.js?1545057817"></script>
+    <script src="/mongodb-index-recommender/js/modernizr.custom.71422.js?1545063025"></script>
+    <script src="/mongodb-index-recommender/js/learn.js?1545063025"></script>
+    <script src="/mongodb-index-recommender/js/hugo-learn.js?1545063025"></script>
 
-    <link href="/mongodb-index-recommender/mermaid/mermaid.css?1545057817" type="text/css" rel="stylesheet" />
-    <script src="/mongodb-index-recommender/mermaid/mermaid.js?1545057817"></script>
+    <link href="/mongodb-index-recommender/mermaid/mermaid.css?1545063025" type="text/css" rel="stylesheet" />
+    <script src="/mongodb-index-recommender/mermaid/mermaid.js?1545063025"></script>
     <script>
         mermaid.initialize({ startOnLoad: true });
     </script>

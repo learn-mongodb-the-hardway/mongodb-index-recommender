@@ -19,7 +19,7 @@
       <guid>https://learn-mongodb-the-hardway.github.io/mongodb-index-recommender/documentation/options/</guid>
       <description>This section documents the command line options and how they work.
 General Options The general options control the main functions of the tool.
-   Option Multiple Description     -h, &amp;ndash;help - Display command line help information   &amp;ndash;skip-queries-shape-explain-plan-execution - Skip attempt to use detected queries shapes to detect additional information   &amp;ndash;skip-read-profile-collection - Skip attempting to queries the profile collection   &amp;ndash;version - Display the command line version information     Notes</description>
+   Option Multiple Description     -h, --help - Display command line help information   --skip-queries-shape-explain-plan-execution - Skip attempt to use detected queries shapes to detect additional information   --skip-read-profile-collection - Skip attempting to queries the profile collection   --version - Display the command line version information     Notes</description>
     </item>
     
     <item>
