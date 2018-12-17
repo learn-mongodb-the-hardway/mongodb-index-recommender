@@ -1,8 +1,6 @@
-# mongodb-index-recommender (WIP)
+# MongoDB Index Recommendation Tool
 
 [![Build Status][travis-img]][travis-url]
-
-# MongoDB Index Recommendation Tool
 
 | Page | Link |
 | --- | --- |
