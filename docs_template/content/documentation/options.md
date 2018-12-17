@@ -18,6 +18,16 @@ The general options control the main functions of the tool.
 | --skip-read-profile-collection | - | Skip attempting to queries the profile collection |
 | --version | - | Display the command line version information |
 
+> Notes
+>
+> The `--skip-queries-shape-explain-plan-execution` disables the index recommendation engines
+> attempts to grab the `query explain plan` for an existing compound index shape from `MongoDB` to be able to determine
+> if the index is a multikey index.
+>
+> The `--skip-read-profile-collection` disables the index recommendation engine's attempt to
+> read the `system.profile` collection to extract query shapes to create candidate indexes
+> for the recommendation engine.
+
 ## Logging Options
 
 Allows for setting the logging options for the tool.

@@ -1,6 +1,6 @@
 ---
 title: "QuickStart"
-date: 2018-10-16T10:53:09+02:00
+date: 2018-12-17T10:53:09+02:00
 draft: false
 ---
 
@@ -373,7 +373,15 @@ This returns a the following list of indexes for the `users` collection.
 ]
 ```
 
+as we can see both the `Primary Key` index on `_id` and the `Compound Index` are both correctly created.
 
+Next lets view the indexes for the collection `sights`.
+
+```bash
+> db.sights.getIndexes()
+```
+
+This returns a the following list of indexes for the `sights` collection.
 
 ```json
 [
@@ -398,5 +406,6 @@ This returns a the following list of indexes for the `users` collection.
 ]
 ```
 
-as we can see both of the indexes for the `users`
+as we can see both the `Primary Key` index on `_id` and the `Single Field Index` are both correctly created.
 
+This ends this quickstart tutorial.
