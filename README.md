@@ -12,17 +12,16 @@ MongoDB log files to create an optimized list of indexes for each collection.
 
 ## Features
 
-* `Optimize Indexes:`
-    * Consume Existing Indexes from your MongoDB collection
-    * Process `system.profile` and/or MongoDB logs and extract candidate indexes based on your read operations including
-        - Query operations
-        - Update operations
-        - Deletes operations
-        - Aggregation operations
-        - Count operations
-        - Group operations
-        - Distinct operations
-    * Optimize indexes by coalescing the existing indexes and candidate indexes into a minimized list of indexes.
+* Consume Existing Indexes from your MongoDB collection
+* Process `system.profile` and/or MongoDB logs and extract candidate indexes based on your read operations including
+    - Query operations
+    - Update operations
+    - Deletes operations
+    - Aggregation operations
+    - Count operations
+    - Group operations
+    - Distinct operations
+* Optimize indexes by coalescing the existing indexes and candidate indexes into a minimized list of indexes.
 
 [travis-img]: https://travis-ci.org/learn-mongodb-the-hardway/mongodb-index-recommender.svg?branch=master
 [travis-url]: https://travis-ci.org/learn-mongodb-the-hardway/mongodb-index-recommender?branch=master

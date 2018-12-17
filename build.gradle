@@ -130,7 +130,7 @@ dependencies {
 githubRelease {
     token = project.findProperty('githubReleaseToken') ?: ''
     owner = 'learn-mongodb-the-hardway'
-    repo = 'mongodb-schema-tool'
+    repo = 'mongodb-index-recommender'
     name = version
     draft = true
     prerelease = true
@@ -159,6 +159,21 @@ task generateDocs(type:Exec) {
 
     //on linux
     commandLine "./generate_docs.sh", githubRepo
+
+    //store the output instead of printing to the console:
+    standardOutput = new ByteArrayOutputStream()
+
+    //extension method stopTomcat.output() can be used to obtain the output:
+    ext.output = {
+        return standardOutput.toString()
+    }
+}
+
+task generateDocsWin(type:Exec) {
+    workingDir './'
+
+    //on windows:
+    commandLine "cmd", "/c", "hugo -s ./docs_template -b $githubRepo -d ../docs"
 
     //store the output instead of printing to the console:
     standardOutput = new ByteArrayOutputStream()
