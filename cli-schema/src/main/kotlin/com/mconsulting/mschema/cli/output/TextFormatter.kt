@@ -34,7 +34,7 @@ class TextFormatter : Formatter() {
             writer.indent()
 
             writer.writeln("document count: ${collection.collectionStats.count}")
-            writer.writeln("index count: ${collection.indexes.size}")
+            writer.writeln("index count: ${collection.collectionStats.numberOfIndexes}")
             writer.writeln("read/write ratio: ${collection.collectionStats.readWriteRatio}")
             writer.writeln("ops:")
 
@@ -144,31 +144,33 @@ class TextFormatter : Formatter() {
 
         // Low collection document count mean possibly less benefit from indexes
         if (collection.collectionStats.count < noteCollectionDocumentCountCutoff) {
-            writer.writeln("""[number of documents < ${noteCollectionDocumentCountCutoff}]: The number of documents is ${collection.collectionStats.count} is relatively low meaning""")
+            writer.writeln("""[number of documents < ${noteCollectionDocumentCountCutoff}]: The number of documents in the collection is ${collection.collectionStats.count},""")
             writer.indent()
-            writer.writeln("that it's possible that using indexes might not provide a performance improvement")
-            writer.writeln("over collection scans, especially if the collection fits in memory")
+            writer.writeln("which is relatively low, meaning that it's possible that using indexes might not provide")
+            writer.writeln("much of a performance improvement over collection scans, especially if the collection")
+            writer.writeln("fits in memory")
             writer.unIndent()
             notesWrittenCount += 1
-        }
-
-        // High read ratio -> more benefit of indexes
-        if (collection.collectionStats.readWriteRatio > noteCollectionReadWriteRatioCutoff) {
-            if (notesWrittenCount > 0) writer.writeln()
-            writer.writeln("""[read/write ratio > ${noteCollectionReadWriteRatioCutoff}]: The read/write ratio is ${collection.collectionStats.readWriteRatio} is relatively high """)
-            writer.indent()
-            writer.writeln("meaning that the collection is mostly read from")
-            writer.unIndent()
-            notesWrittenCount += 1
+        } else {
+            // High read ratio -> more benefit of indexes
+            if (collection.collectionStats.readWriteRatio > noteCollectionReadWriteRatioCutoff) {
+                if (notesWrittenCount > 0) writer.writeln()
+                writer.writeln("""[read/write ratio > ${noteCollectionReadWriteRatioCutoff}]: The read/write ratio is ${collection.collectionStats.readWriteRatio}""")
+                writer.indent()
+                writer.writeln("which is relatively high meaning that the collection is read heavy which would potentially")
+                writer.writeln("benefit from reads being covered by indexes.")
+                writer.unIndent()
+                notesWrittenCount += 1
+            }
         }
 
         // High write ratio -> possibly less benefits of indexes
         if (collection.collectionStats.readWriteRatio != 0.0
             && collection.collectionStats.readWriteRatio < noteCollectionReadWriteRatioWriteCutoff) {
             if (notesWrittenCount > 0) writer.writeln()
-            writer.writeln("""[read/write ratio < ${noteCollectionReadWriteRatioWriteCutoff}]: The read/write ratio is ${collection.collectionStats.readWriteRatio} is relatively low """)
+            writer.writeln("""[read/write ratio < ${noteCollectionReadWriteRatioWriteCutoff}]: The read/write ratio is ${collection.collectionStats.readWriteRatio}""")
             writer.indent()
-            writer.writeln("meaning that the collection is mostly written too")
+            writer.writeln("which is relatively low meaning that the collection is mostly written too")
 
             // Calculate insert/update and insert/remove ratios
             val insertUpdateRatio = collection.collectionStats.inserts.toDouble() / (collection.collectionStats.updates.toDouble() + 1)
@@ -192,8 +194,10 @@ class TextFormatter : Formatter() {
 
         if (collection.indexes.size > noteCollectionIndexCountRatioCutoff) {
             if (notesWrittenCount > 0) writer.writeln()
-            writer.writeln("""[index count > ${noteCollectionIndexCountRatioCutoff}]: The index count is ${collection.indexes.size} is relatively high.""")
+            writer.writeln("""[index count > ${noteCollectionIndexCountRatioCutoff}]: The index count is ${collection.indexes.size}""")
             writer.indent()
+            writer.writeln("which is relatively high.")
+            writer.writeln()
             writer.writeln("Updating an index is not free of cost. A high number of collection indexes can")
             writer.writeln("cause significant additional write IO and latency to writes.")
             writer.unIndent()

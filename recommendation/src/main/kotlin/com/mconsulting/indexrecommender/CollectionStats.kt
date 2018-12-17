@@ -17,6 +17,8 @@ class CollectionStats(val document: BsonDocument) {
 
     val count : Long
         get() = getLongDefault("count", document, 0)
+    val numberOfIndexes : Long
+        get() = getLongDefault("nindexes", document, 0)
 
     val inserts : Long = getLongMaybe("insert calls", cursor) ?: 0
     val updates : Long = getLongMaybe("update calls", cursor) ?: 0
