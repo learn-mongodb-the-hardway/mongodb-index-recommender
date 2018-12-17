@@ -5,8 +5,8 @@ draft: false
 ---
 
 Welcome to the QuickStart guide. In this guide we are going to cover how to use the tool to extract a list of optimized indexes
-for a MongoDB collection. We are going to showcase how the tool can extract index candidates from the `system.
-profile` collection, merge it with existing collection indexes and optimize the indexes.
+for a MongoDB collection. We are going to showcase how the tool can extract index candidates from the `system.profile` 
+collection, merge it with existing collection indexes and optimize the indexes.
 
 1. Preload some dummy data into a running MongoDB instance.
     - Create an existing index.
